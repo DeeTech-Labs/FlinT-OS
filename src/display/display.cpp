@@ -2,27 +2,90 @@
 #include "src/config/config.h"
 #include "src/config/debug.h"
 
-#include <SPI.h>
-
-Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
-U8G2_FOR_ADAFRUIT_GFX u8g;
+LGFX tft;
+static LGFX_Sprite gCanvas(&tft);
+static bool gHasCanvas = false;
 
 int SCR_W = 320;
 int SCR_H = 240;
 
 void displayBegin() {
-  SPI.begin(TFT_SCLK, /*MISO*/ -1, TFT_MOSI, TFT_CS);
-  tft.init(240, 320);
+  tft.init();
   tft.setRotation(TFT_ROTATION);
+  tft.setColorDepth(16);
   SCR_W = tft.width();
   SCR_H = tft.height();
   tft.setTextWrap(false);
-  u8g.begin(tft);
-  LOGI("disp", "ST7789 ready %dx%d", SCR_W, SCR_H);
+
+  gCanvas.setColorDepth(16);
+  // Allocate before Wi‑Fi so heap is larger. Full RGB565 frame ≈ 150 KB.
+  if (gCanvas.createSprite(SCR_W, SCR_H)) {
+    gHasCanvas = true;
+    gCanvas.setTextWrap(false);
+    LOGI("disp", "ST7789 %dx%d canvas OK heap=%u", SCR_W, SCR_H,
+         (unsigned)ESP.getFreeHeap());
+  } else {
+    gHasCanvas = false;
+    LOGI("disp", "ST7789 %dx%d canvas OOM — direct draw heap=%u", SCR_W, SCR_H,
+         (unsigned)ESP.getFreeHeap());
+  }
+}
+
+lgfx::LGFXBase& displayGfx() {
+  if (gHasCanvas) {
+    return gCanvas;
+  }
+  return tft;
+}
+
+bool displayHasCanvas() {
+  return gHasCanvas;
+}
+
+void displayPresent() {
+  if (!gHasCanvas) {
+    return;
+  }
+  // Non-DMA push avoids rare DMA wait stalls while Wi‑Fi is active on C3.
+  gCanvas.pushSprite(&tft, 0, 0);
+}
+
+void displayPresentRect(int x, int y, int w, int h) {
+  if (!gHasCanvas) {
+    return;
+  }
+  if (w <= 0 || h <= 0) {
+    return;
+  }
+  if (x < 0) {
+    w += x;
+    x = 0;
+  }
+  if (y < 0) {
+    h += y;
+    y = 0;
+  }
+  if (x + w > SCR_W) w = SCR_W - x;
+  if (y + h > SCR_H) h = SCR_H - y;
+  if (w <= 0 || h <= 0) return;
+
+  const uint16_t* buf = static_cast<const uint16_t*>(gCanvas.getBuffer());
+  if (!buf) {
+    displayPresent();
+    return;
+  }
+
+  tft.startWrite();
+  for (int row = 0; row < h; row++) {
+    // LovyanGFX: setAddrWindow(x, y, w, h)
+    tft.setAddrWindow(x, y + row, w, 1);
+    tft.writePixels(buf + (size_t)(y + row) * (size_t)SCR_W + x, w);
+  }
+  tft.endWrite();
 }
 
 uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
-  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+  return tft.color565(r, g, b);
 }
 
 uint16_t colorLerp(uint16_t c0, uint16_t c1, uint8_t t) {
@@ -39,41 +102,71 @@ uint16_t colorLerp(uint16_t c0, uint16_t c1, uint8_t t) {
 }
 
 void displayFillGradientV(uint16_t top, uint16_t bottom) {
+  auto& gfx = displayGfx();
   for (int y = 0; y < SCR_H; y++) {
     uint8_t t = (uint8_t)((y * 255) / (SCR_H - 1));
-    tft.drawFastHLine(0, y, SCR_W, colorLerp(top, bottom, t));
+    gfx.drawFastHLine(0, y, SCR_W, colorLerp(top, bottom, t));
   }
+  displayPresent();
 }
 
 void displayShowStatus(const char* msg) {
-  tft.fillRect(0, SCR_H - 22, SCR_W, 22, rgb565(8, 10, 18));
-  tft.setTextColor(rgb565(255, 220, 80), rgb565(8, 10, 18));
-  tft.setTextSize(1);
-  tft.setCursor(8, SCR_H - 14);
-  tft.print(msg);
+  auto& gfx = displayGfx();
+  const uint16_t bg = rgb565(8, 10, 18);
+  const uint16_t fg = rgb565(255, 220, 80);
+  gfx.fillRect(0, SCR_H - 22, SCR_W, 22, bg);
+  gfx.setTextDatum(textdatum_t::top_left);
+  gfx.setFont(&lgfx::v1::fonts::Font0);
+  gfx.setTextColor(fg, bg);
+  gfx.setCursor(8, SCR_H - 14);
+  gfx.print(msg);
+  displayPresent();
 }
 
 void displayClearStatus() {
-  // status bar is part of UI redraw; keep a dark strip for boot messages
-  tft.fillRect(0, SCR_H - 22, SCR_W, 22, rgb565(8, 10, 18));
+  auto& gfx = displayGfx();
+  gfx.fillRect(0, SCR_H - 22, SCR_W, 22, rgb565(8, 10, 18));
+  displayPresent();
 }
 
-void displayDrawUtf8(const char* text, int x, int y, uint16_t fg, const uint8_t* font) {
-  u8g.setFontMode(1);
-  u8g.setFont(font);
-  u8g.setForegroundColor(fg);
-  u8g.setCursor(x, y);
-  u8g.print(text);
+void displaySetFont(lgfx::LGFXBase& gfx, const lgfx::IFont* font) {
+  gfx.setFont(font);
+  gfx.setTextDatum(textdatum_t::baseline_left);
 }
 
-int displayUtf8Width(const char* text, const uint8_t* font) {
-  u8g.setFont(font);
-  return u8g.getUTF8Width(text);
+int displayTextWidth(lgfx::LGFXBase& gfx, const char* text) {
+  return gfx.textWidth(text);
 }
 
-void displayDrawUtf8Centered(const char* text, int y, uint16_t fg, const uint8_t* font) {
-  int w = displayUtf8Width(text, font);
+int displayFontAscent(lgfx::LGFXBase& gfx) {
+  lgfx::FontMetrics m{};
+  gfx.getFont()->getDefaultMetric(&m);
+  // baseline ≈ pixels above the baseline for U8g2-backed fonts
+  return m.baseline > 0 ? m.baseline : gfx.fontHeight();
+}
+
+int displayFontDescent(lgfx::LGFXBase& gfx) {
+  lgfx::FontMetrics m{};
+  gfx.getFont()->getDefaultMetric(&m);
+  // u8g2-style negative descent below baseline
+  const int below = m.height - m.baseline;
+  return below > 0 ? -below : 0;
+}
+
+void displayDrawText(lgfx::LGFXBase& gfx, const char* text, int x, int yBaseline,
+                     uint16_t fg, uint16_t bg, const lgfx::IFont* font) {
+  displaySetFont(gfx, font);
+  gfx.setTextColor(fg, bg);
+  gfx.drawString(text, x, yBaseline);
+}
+
+void displayDrawUtf8Centered(const char* text, int yBaseline, uint16_t fg,
+                             const lgfx::IFont* font) {
+  auto& gfx = displayGfx();
+  displaySetFont(gfx, font);
+  int w = displayTextWidth(gfx, text);
   int x = (SCR_W - w) / 2;
   if (x < 0) x = 0;
-  displayDrawUtf8(text, x, y, fg, font);
+  gfx.setTextColor(fg);
+  gfx.drawString(text, x, yBaseline);
 }

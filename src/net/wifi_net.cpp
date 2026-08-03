@@ -12,6 +12,8 @@ void wifiNetBegin() {
   LOGI("wifi", "begin SSID=\"%s\"", WIFI_SSID);
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
+  // Modem sleep causes multi-second UI stalls on ESP32-C3 while radio wakes.
+  WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 }
 
@@ -24,6 +26,7 @@ bool wifiNetWaitConnected(uint32_t timeoutMs) {
     }
     delay(50);
   }
+  WiFi.setSleep(false);
   LOGI("wifi", "connected ip=%s rssi=%d",
        WiFi.localIP().toString().c_str(), WiFi.RSSI());
   return true;
@@ -34,6 +37,7 @@ void wifiNetMaintain() {
   bool now = (WiFi.status() == WL_CONNECTED);
 
   if (now && !wasConnected) {
+    WiFi.setSleep(false);
     LOGI("wifi", "up ip=%s rssi=%d",
          WiFi.localIP().toString().c_str(), WiFi.RSSI());
   }

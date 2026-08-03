@@ -24,13 +24,19 @@ static const int TFT_RST = 8;
 static const int TFT_MOSI = 7;
 static const int TFT_SCLK = 6;
 
-// Landscape 320x240. If upside-down, use 3.
-static const uint8_t TFT_ROTATION = 1;
+// Landscape 320x240. 1 = normal, 3 = 180° flip.
+static const uint8_t TFT_ROTATION = 3;
 
 // Serial debug: 0=off, 1=info, 2=verbose
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 1
 #endif
+
+// LVGL UI shell (menus later). Set 0 to shrink flash if partition is too small.
+#ifndef FLINT_ENABLE_LVGL
+#define FLINT_ENABLE_LVGL 1
+#endif
+
 static const uint32_t DEBUG_HEARTBEAT_MS = 10000UL;
 
 // Service intervals

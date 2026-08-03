@@ -37,16 +37,25 @@
 ## Quick start
 
 1. **Board:** ESP32C3 Dev Module (USB CDC On Boot: Enabled)
-2. **Libraries:** Adafruit GFX · Adafruit ST7735 and ST7789 · Adafruit BusIO · U8g2 · U8g2_for_Adafruit_GFX
-3. **Secrets:**
+2. **Flash / partition** (важно — иначе скетч не влезет):
+   - Flash Size: **4MB (32Mb)**
+   - Partition Scheme: **Huge APP (3MB No OTA/1MB SPIFFS)**  
+     или **Minimal SPIFFS** (~1.9MB app).  
+     Если в отчёте компиляции «Всего доступно **1310720**» — всё ещё **Default** (1.28MB); схему не применили.
+   - В корне скетча лежит [`partitions.csv`](partitions.csv) (3MB app) — если в Tools есть **Custom**, выбери его.
+3. **Libraries** (Arduino Library Manager):
+   - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — SPI/DMA display driver + sprites
+   - [LVGL](https://lvgl.io/) **8.3.x** (not 9.x) — UI framework; pair with LovyanGFX flush
+   - Sketch-root [`lv_conf.h`](lv_conf.h) (`LV_CONF_INCLUDE_SIMPLE`)
+4. **Secrets:**
    ```bash
    cp src/config/secrets.example.h src/config/secrets.h
    ```
    Edit `src/config/secrets.h` with your Wi‑Fi credentials (`secrets.h` is gitignored).
-4. Open the sketch folder in Arduino IDE (folder name must be `flint_os`) and flash `flint_os.ino`.
+5. Open the sketch folder in Arduino IDE (folder name must be `flint_os`) and flash `flint_os.ino`.
 
-> Includes are sketch-root relative, e.g. `#include "src/app/app.h"`.
-
+> Includes are sketch-root relative, e.g. `#include "src/app/app.h"`.  
+> Если flash всё ещё тесен: в `src/config/config.h` поставь `#define FLINT_ENABLE_LVGL 0` (faces на LovyanGFX без LVGL).
 ---
 
 ## Project layout
@@ -54,12 +63,13 @@
 ```
 FlinT OS /
 ├── flint_os.ino           # entry (setup / loop)
+├── lv_conf.h              # LVGL 8.x config (sketch root)
 ├── brand/                 # logo & identity
 ├── community/             # face templates for contributors
 └── src/
     ├── app/               # orchestration
     ├── config/            # pins, defaults, secrets (local)
-    ├── display/           # TFT / U8g2 HAL
+    ├── display/           # LovyanGFX HAL + LVGL port + fonts
     ├── day_mode/          # time-of-day profiles
     ├── time/              # soft-clock + NTP
     ├── net/               # Wi‑Fi

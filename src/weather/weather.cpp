@@ -9,8 +9,12 @@
 #include <freertos/task.h>
 
 static WeatherState gWeather = {false, false, 0, 0, 0};
+static WeatherState gWeatherSnap = {false, false, 0, 0, 0};
 static SemaphoreHandle_t gWxMutex = nullptr;
 static TaskHandle_t gWxTask = nullptr;
+
+static uint32_t gNextAttemptMs = 0;
+static uint32_t gFailBackoffMs = 5000;
 
 static void wxLock() {
   if (gWxMutex) xSemaphoreTake(gWxMutex, portMAX_DELAY);
@@ -20,26 +24,27 @@ static void wxUnlock() {
   if (gWxMutex) xSemaphoreGive(gWxMutex);
 }
 
+static void wxPublishLocked() {
+  gWeatherSnap = gWeather;
+}
+
 const WeatherState weatherGet() {
   WeatherState snap;
-  wxLock();
-  snap = gWeather;
-  wxUnlock();
-  return snap;
+  if (gWxMutex && xSemaphoreTake(gWxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+    snap = gWeather;
+    xSemaphoreGive(gWxMutex);
+    return snap;
+  }
+  // Never block the UI loop on the weather task.
+  return gWeatherSnap;
 }
 
 bool weatherIsOk() {
-  wxLock();
-  bool ok = gWeather.ok;
-  wxUnlock();
-  return ok;
+  return weatherGet().ok;
 }
 
 uint32_t weatherLastFetchMs() {
-  wxLock();
-  uint32_t ms = gWeather.updatedMs;
-  wxUnlock();
-  return ms;
+  return weatherGet().updatedMs;
 }
 
 const char* weatherCodeRu(int code) {
@@ -76,6 +81,7 @@ static bool weatherFetchOnce() {
 
   wxLock();
   gWeather.loading = true;
+  wxPublishLocked();
   wxUnlock();
 
   String url = String("http://api.open-meteo.com/v1/forecast?latitude=")
@@ -88,27 +94,32 @@ static bool weatherFetchOnce() {
   LOGD("wx", "url %s", url.c_str());
 
   HTTPClient http;
-  http.setTimeout(8000);
+  // Keep short: long timeouts starve the single-core UI while lwIP is busy.
+  http.setTimeout(2500);
   if (!http.begin(url)) {
     LOGE("wx", "http.begin failed");
     wxLock();
     gWeather.loading = false;
+    wxPublishLocked();
     wxUnlock();
     return false;
   }
 
+  vTaskDelay(pdMS_TO_TICKS(1));
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
     LOGE("wx", "HTTP %d", code);
     http.end();
     wxLock();
     gWeather.loading = false;
+    wxPublishLocked();
     wxUnlock();
     return false;
   }
 
   String body = http.getString();
   http.end();
+  vTaskDelay(pdMS_TO_TICKS(1));
 
   float t = 0;
   int w = 0;
@@ -116,6 +127,7 @@ static bool weatherFetchOnce() {
     LOGE("wx", "JSON parse failed");
     wxLock();
     gWeather.loading = false;
+    wxPublishLocked();
     wxUnlock();
     return false;
   }
@@ -126,6 +138,7 @@ static bool weatherFetchOnce() {
   gWeather.ok = true;
   gWeather.loading = false;
   gWeather.updatedMs = millis();
+  wxPublishLocked();
   wxUnlock();
 
   LOGI("wx", "ok temp=%.1fC code=%d (%s)", t, w, weatherCodeRu(w));
@@ -135,18 +148,29 @@ static bool weatherFetchOnce() {
 static void weatherTask(void* /*arg*/) {
   LOGI("wx", "service started");
   for (;;) {
-    if (WiFi.status() == WL_CONNECTED) {
+    const uint32_t now = millis();
+    if (WiFi.status() == WL_CONNECTED && (int32_t)(now - gNextAttemptMs) >= 0) {
       wxLock();
       bool need = !gWeather.ok
-                  || (millis() - gWeather.updatedMs) > WEATHER_REFRESH_MS;
+                  || (now - gWeather.updatedMs) > WEATHER_REFRESH_MS;
       bool busy = gWeather.loading;
       wxUnlock();
 
       if (need && !busy) {
-        weatherFetchOnce();
+        const bool ok = weatherFetchOnce();
+        if (ok) {
+          gFailBackoffMs = 5000;
+          gNextAttemptMs = millis() + WEATHER_REFRESH_MS;
+        } else {
+          gNextAttemptMs = millis() + gFailBackoffMs;
+          if (gFailBackoffMs < 120000UL) {
+            gFailBackoffMs *= 2;
+          }
+          LOGI("wx", "retry in %lu ms", (unsigned long)gFailBackoffMs);
+        }
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
 
@@ -155,7 +179,8 @@ void weatherStartService() {
     gWxMutex = xSemaphoreCreateMutex();
   }
   if (!gWxTask) {
+    // Priority 0 (below Arduino loop) so HTTP never starves the face redraw.
     xTaskCreatePinnedToCore(
-        weatherTask, "weather", 8192, nullptr, 1, &gWxTask, 0);
+        weatherTask, "weather", 8192, nullptr, 0, &gWxTask, 0);
   }
 }

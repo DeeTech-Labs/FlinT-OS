@@ -2,6 +2,7 @@
 #include "src/config/config.h"
 #include "src/config/debug.h"
 #include "src/display/display.h"
+#include "src/display/lvgl_port.h"
 #include "src/net/wifi_net.h"
 #include "src/time/clock_time.h"
 #include "src/weather/weather.h"
@@ -19,7 +20,8 @@ void appSetup() {
   LOGI("app", "DEBUG_LEVEL=%d", DEBUG_LEVEL);
 
   displayBegin();
-  LOGI("disp", "screen %dx%d", SCR_W, SCR_H);
+  LOGI("disp", "screen %dx%d canvas=%d", SCR_W, SCR_H, (int)displayHasCanvas());
+  lvglPortBegin();  // flush via LovyanGFX; inactive until menus (lvglPortSetActive)
   uiBegin();
   uiForceRedraw();
   uiTick();
@@ -80,6 +82,8 @@ static void debugHeartbeat() {
 void appLoop() {
   maintainServices();
   uiTick();
+  lvglPortTick(20);
+  lvglPortHandler();
   debugHeartbeat();
-  delay(50);
+  delay(20);
 }

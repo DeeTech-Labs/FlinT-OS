@@ -13,7 +13,9 @@ public:
   }
 
   void onForceRedraw(const FaceContext& ctx) override {
-    tft.fillScreen(ctx.palette.bgTop);
+    auto& gfx = displayGfx();
+    gfx.fillScreen(ctx.palette.bgTop);
+    displayPresent();  // push LovyanGFX sprite → panel (no-op if direct draw)
   }
 
   void onTick(const FaceContext& ctx) override {

@@ -1,15 +1,22 @@
 #pragma once
 
-#include <Adafruit_ST7789.h>
-#include <U8g2_for_Adafruit_GFX.h>
+#include "LgfxBoard.h"
+#include "fonts_u8g2.h"
+
 #include <stdint.h>
 
-extern Adafruit_ST7789 tft;
-extern U8G2_FOR_ADAFRUIT_GFX u8g;
+extern LGFX tft;
 extern int SCR_W;
 extern int SCR_H;
 
 void displayBegin();
+
+// Off-screen canvas (sprite) when RAM allows; otherwise draws go to tft.
+lgfx::LGFXBase& displayGfx();
+bool displayHasCanvas();
+void displayPresent();  // push canvas → panel (no-op if direct)
+void displayPresentRect(int x, int y, int w, int h);  // dirty-region push
+
 uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
 uint16_t colorLerp(uint16_t a, uint16_t b, uint8_t t /*0..255*/);
 
@@ -17,6 +24,12 @@ void displayFillGradientV(uint16_t top, uint16_t bottom);
 void displayShowStatus(const char* msg);
 void displayClearStatus();
 
-void displayDrawUtf8(const char* text, int x, int y, uint16_t fg, const uint8_t* font);
-int displayUtf8Width(const char* text, const uint8_t* font);
-void displayDrawUtf8Centered(const char* text, int y, uint16_t fg, const uint8_t* font);
+// Text helpers (baseline Y, opaque optional bg via text color)
+void displaySetFont(lgfx::LGFXBase& gfx, const lgfx::IFont* font);
+int displayTextWidth(lgfx::LGFXBase& gfx, const char* text);
+int displayFontAscent(lgfx::LGFXBase& gfx);
+int displayFontDescent(lgfx::LGFXBase& gfx);  // typically negative (u8g2-style)
+void displayDrawText(lgfx::LGFXBase& gfx, const char* text, int x, int yBaseline,
+                     uint16_t fg, uint16_t bg, const lgfx::IFont* font);
+void displayDrawUtf8Centered(const char* text, int yBaseline, uint16_t fg,
+                             const lgfx::IFont* font);

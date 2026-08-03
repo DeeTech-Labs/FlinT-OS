@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <math.h>
 
-// Built-in reference face. Community faces copy this pattern.
+// Built-in reference face. Draws into LovyanGFX sprite (when available), then present.
 class DigitalFace : public Face {
 public:
   const FaceInfo& info() const override {
@@ -34,15 +34,30 @@ public:
     char dateStr[32];
     formatTimeDate(ctx, timeStr, sizeof(timeStr), dateStr, sizeof(dateStr));
 
-    drawWeatherBadge(ctx, false);
+    bool weatherDirty = drawWeatherBadge(ctx, false);
+    bool timeDirty = false;
+    bool dateDirty = false;
+    bool wifiDirty = false;
     if (strcmp(timeStr, lastTime_) != 0) {
       drawTime(ctx, timeStr, false);
+      timeDirty = true;
     }
     if (strcmp(dateStr, lastDate_) != 0) {
       drawDate(ctx, dateStr, false);
+      dateDirty = true;
     }
     if (ctx.wifiConnected != lastWifi_) {
       drawWifiDot(ctx);
+      wifiDirty = true;
+    }
+    if (weatherDirty || timeDirty || dateDirty || wifiDirty) {
+      if (timeDirty && !weatherDirty && !dateDirty && !wifiDirty && displayHasCanvas()) {
+        displaySetFont(displayGfx(), timeFont());
+        const int asc = displayFontAscent(displayGfx());
+        displayPresentRect(0, TIME_Y - asc, ctx.screenW, timeGlyphH_ + 2);
+      } else {
+        displayPresent();
+      }
     }
   }
 
@@ -77,7 +92,9 @@ private:
   bool layoutWithSeconds_ = true;
   uint8_t timeLen_ = 8;
 
-  static const uint8_t* timeFont() { return u8g2_font_logisoso46_tn; }
+  static const lgfx::IFont* timeFont() { return flintFontTimeLarge(); }
+  static const lgfx::IFont* bodyFont() { return flintFontBody(); }
+  static const lgfx::IFont* tempFont() { return flintFontTemp(); }
 
   static const char* WEEKDAYS_RU[];
 
@@ -110,21 +127,19 @@ private:
     }
   }
 
-  void drawOpaqueDiff(const char* now, char* prev, int x, int y,
-                      const uint8_t* font, uint16_t fg, uint16_t bg) {
-    u8g.setFontMode(0);
-    u8g.setFont(font);
-    u8g.setForegroundColor(fg);
-    u8g.setBackgroundColor(bg);
-
+  void drawOpaqueDiff(lgfx::LGFXBase& gfx, const char* now, char* prev, int x, int y,
+                      const lgfx::IFont* font, uint16_t fg, uint16_t bg) {
+    displaySetFont(gfx, font);
     const bool force = (prev[0] == '\0');
     int cx = x;
     for (int i = 0; now[i] != '\0'; i++) {
       char tmp[2] = {now[i], 0};
-      int cw = u8g.getUTF8Width(tmp);
+      int cw = displayTextWidth(gfx, tmp);
       if (force || now[i] != prev[i]) {
-        u8g.setCursor(cx, y);
-        u8g.print(now[i]);
+        gfx.fillRect(cx, y - displayFontAscent(gfx), cw,
+                     displayFontAscent(gfx) - displayFontDescent(gfx) + 2, bg);
+        gfx.setTextColor(fg, bg);
+        gfx.drawString(tmp, cx, y);
         prev[i] = now[i];
       }
       cx += cw;
@@ -133,70 +148,73 @@ private:
       int clearX = cx;
       for (int i = (int)strlen(now); prev[i] != '\0'; i++) {
         char tmp[2] = {prev[i], 0};
-        clearX += u8g.getUTF8Width(tmp);
+        clearX += displayTextWidth(gfx, tmp);
       }
       int leftover = clearX - cx;
       if (leftover > 0) {
-        int asc = u8g.getFontAscent();
-        int desc = u8g.getFontDescent();
-        tft.fillRect(cx, y - asc, leftover, asc - desc + 2, bg);
+        int asc = displayFontAscent(gfx);
+        int desc = displayFontDescent(gfx);
+        gfx.fillRect(cx, y - asc, leftover, asc - desc + 2, bg);
       }
     }
     prev[strlen(now)] = '\0';
   }
 
-  void drawWeatherIconSmall(int cx, int cy, int code, uint16_t color, uint16_t bg) {
-    tft.fillRect(cx - 10, cy - 10, 20, 20, bg);
+  void drawWeatherIconSmall(lgfx::LGFXBase& gfx, int cx, int cy, int code,
+                            uint16_t color, uint16_t bg) {
+    gfx.fillRect(cx - 10, cy - 10, 20, 20, bg);
     if (code < 0) {
-      tft.drawCircle(cx, cy, 6, color);
+      gfx.drawCircle(cx, cy, 6, color);
       return;
     }
     if (code == 0) {
-      tft.fillCircle(cx, cy, 4, color);
+      gfx.fillCircle(cx, cy, 4, color);
       for (int a = 0; a < 8; a++) {
         float ang = a * 0.785398f;
-        tft.drawPixel(cx + (int)(8 * cosf(ang)), cy + (int)(8 * sinf(ang)), color);
+        gfx.drawPixel(cx + (int)(8 * cosf(ang)), cy + (int)(8 * sinf(ang)), color);
       }
       return;
     }
     if (code <= 3) {
-      tft.fillCircle(cx - 2, cy + 1, 4, color);
-      tft.fillCircle(cx + 3, cy + 1, 5, color);
-      tft.fillCircle(cx, cy - 2, 3, color);
+      gfx.fillCircle(cx - 2, cy + 1, 4, color);
+      gfx.fillCircle(cx + 3, cy + 1, 5, color);
+      gfx.fillCircle(cx, cy - 2, 3, color);
       return;
     }
     if (code == 45 || code == 48) {
-      tft.drawFastHLine(cx - 7, cy - 2, 14, color);
-      tft.drawFastHLine(cx - 5, cy + 2, 10, color);
+      gfx.drawFastHLine(cx - 7, cy - 2, 14, color);
+      gfx.drawFastHLine(cx - 5, cy + 2, 10, color);
       return;
     }
     if (code >= 71 && code <= 86) {
-      tft.drawLine(cx, cy - 5, cx, cy + 5, color);
-      tft.drawLine(cx - 4, cy - 2, cx + 4, cy + 2, color);
-      tft.drawLine(cx - 4, cy + 2, cx + 4, cy - 2, color);
+      gfx.drawLine(cx, cy - 5, cx, cy + 5, color);
+      gfx.drawLine(cx - 4, cy - 2, cx + 4, cy + 2, color);
+      gfx.drawLine(cx - 4, cy + 2, cx + 4, cy - 2, color);
       return;
     }
     if (code >= 95) {
-      tft.fillTriangle(cx - 3, cy - 5, cx + 4, cy - 5, cx, cy + 1, color);
-      tft.fillTriangle(cx, cy - 1, cx + 3, cy - 1, cx - 3, cy + 6, color);
+      gfx.fillTriangle(cx - 3, cy - 5, cx + 4, cy - 5, cx, cy + 1, color);
+      gfx.fillTriangle(cx, cy - 1, cx + 3, cy - 1, cx - 3, cy + 6, color);
       return;
     }
-    tft.fillCircle(cx - 2, cy - 2, 4, color);
-    tft.fillCircle(cx + 3, cy - 1, 4, color);
-    tft.drawLine(cx - 3, cy + 4, cx - 4, cy + 7, color);
-    tft.drawLine(cx + 2, cy + 4, cx + 1, cy + 7, color);
+    gfx.fillCircle(cx - 2, cy - 2, 4, color);
+    gfx.fillCircle(cx + 3, cy - 1, 4, color);
+    gfx.drawLine(cx - 3, cy + 4, cx - 4, cy + 7, color);
+    gfx.drawLine(cx + 2, cy + 4, cx + 1, cy + 7, color);
   }
 
   void drawWifiDot(const FaceContext& ctx) {
-    tft.fillCircle(ctx.screenW - 14, 14, 4,
+    auto& gfx = displayGfx();
+    gfx.fillCircle(ctx.screenW - 14, 14, 4,
                    ctx.wifiConnected ? pal_.wifiOn : pal_.wifiOff);
     lastWifi_ = ctx.wifiConnected;
   }
 
   void drawModeLabel(const FaceContext& ctx, bool force) {
+    auto& gfx = displayGfx();
     if (!profile_.showModeLabel) {
       if (lastModeLabel_[0] != '\0') {
-        tft.fillRect(ctx.screenW / 2 - 40, 4, 80, 22, pageBg());
+        gfx.fillRect(ctx.screenW / 2 - 40, 4, 80, 22, pageBg());
         lastModeLabel_[0] = '\0';
       }
       return;
@@ -204,25 +222,24 @@ private:
     const char* label = profile_.nameRu;
     if (!force && strcmp(label, lastModeLabel_) == 0) return;
 
-    u8g.setFont(u8g2_font_10x20_t_cyrillic);
-    int w = u8g.getUTF8Width(label);
+    displaySetFont(gfx, bodyFont());
+    int w = displayTextWidth(gfx, label);
     int x = (ctx.screenW - w) / 2;
-    int asc = u8g.getFontAscent();
-    int desc = u8g.getFontDescent();
-    tft.fillRect(ctx.screenW / 2 - 48, MODE_LABEL_Y - asc, 96, asc - desc + 2, pageBg());
-    u8g.setFontMode(0);
-    u8g.setForegroundColor(pal_.textSecondary);
-    u8g.setBackgroundColor(pageBg());
-    u8g.setCursor(x, MODE_LABEL_Y);
-    u8g.print(label);
+    int asc = displayFontAscent(gfx);
+    int desc = displayFontDescent(gfx);
+    gfx.fillRect(ctx.screenW / 2 - 48, MODE_LABEL_Y - asc, 96, asc - desc + 2, pageBg());
+    gfx.setTextColor(pal_.textSecondary, pageBg());
+    gfx.drawString(label, x, MODE_LABEL_Y);
     strncpy(lastModeLabel_, label, sizeof(lastModeLabel_) - 1);
     lastModeLabel_[sizeof(lastModeLabel_) - 1] = '\0';
   }
 
-  void drawWeatherBadge(const FaceContext& ctx, bool force) {
+  // Returns true if anything was redrawn.
+  bool drawWeatherBadge(const FaceContext& ctx, bool force) {
+    auto& gfx = displayGfx();
     if (!profile_.showWeather) {
-      if (force) tft.fillRect(0, 0, 100, 28, pageBg());
-      return;
+      if (force) gfx.fillRect(0, 0, 100, 28, pageBg());
+      return force;
     }
 
     char temp[12];
@@ -237,55 +254,60 @@ private:
       snprintf(temp, sizeof(temp), "--");
     }
 
+    bool dirty = false;
     bool iconDirty = force || (w.ok != lastWxOk_) || (w.loading != lastWxLoading_)
                      || (iconCode != lastWeatherCode_);
     if (iconDirty) {
-      tft.fillRect(0, 0, 100, 28, pageBg());
-      drawWeatherIconSmall(WX_ICON_CX, WX_ICON_CY, iconCode, pal_.accent, pageBg());
+      gfx.fillRect(0, 0, 100, 28, pageBg());
+      drawWeatherIconSmall(gfx, WX_ICON_CX, WX_ICON_CY, iconCode, pal_.accent, pageBg());
       lastWeatherCode_ = iconCode;
       lastWxOk_ = w.ok;
       lastWxLoading_ = w.loading;
       lastTemp_[0] = '\0';
+      dirty = true;
     }
 
     if (lastTemp_[0] == '\0' || strcmp(temp, lastTemp_) != 0) {
+      displaySetFont(gfx, tempFont());
       if (lastTemp_[0] != '\0' && strlen(temp) < strlen(lastTemp_)) {
-        u8g.setFont(u8g2_font_9x15_tn);
-        int asc = u8g.getFontAscent();
-        int desc = u8g.getFontDescent();
-        tft.fillRect(WX_TEMP_X, WX_TEMP_Y - asc, 60, asc - desc + 2, pageBg());
+        int asc = displayFontAscent(gfx);
+        int desc = displayFontDescent(gfx);
+        gfx.fillRect(WX_TEMP_X, WX_TEMP_Y - asc, 60, asc - desc + 2, pageBg());
         lastTemp_[0] = '\0';
       }
       if (lastTemp_[0] == '\0') {
         char blank[12] = "";
-        drawOpaqueDiff(temp, blank, WX_TEMP_X, WX_TEMP_Y,
-                       u8g2_font_9x15_tn, pal_.textSecondary, pageBg());
+        drawOpaqueDiff(gfx, temp, blank, WX_TEMP_X, WX_TEMP_Y,
+                       tempFont(), pal_.textSecondary, pageBg());
         strcpy(lastTemp_, temp);
       } else {
-        drawOpaqueDiff(temp, lastTemp_, WX_TEMP_X, WX_TEMP_Y,
-                       u8g2_font_9x15_tn, pal_.textSecondary, pageBg());
+        drawOpaqueDiff(gfx, temp, lastTemp_, WX_TEMP_X, WX_TEMP_Y,
+                       tempFont(), pal_.textSecondary, pageBg());
       }
+      dirty = true;
     }
+    return dirty;
   }
 
   void ensureTimeLayout(const FaceContext& ctx, bool withSeconds) {
     if (timeLayoutReady_ && layoutWithSeconds_ == withSeconds) return;
 
-    u8g.setFont(timeFont());
+    auto& gfx = displayGfx();
+    displaySetFont(gfx, timeFont());
     digitW_ = 0;
     for (char c = '0'; c <= '9'; c++) {
       char t[2] = {c, 0};
-      int w = u8g.getUTF8Width(t);
+      int w = displayTextWidth(gfx, t);
       if (w > digitW_) digitW_ = w;
     }
     {
       char t[2] = {'-', 0};
-      int w = u8g.getUTF8Width(t);
+      int w = displayTextWidth(gfx, t);
       if (w > digitW_) digitW_ = w;
     }
-    colonW_ = u8g.getUTF8Width(":");
+    colonW_ = displayTextWidth(gfx, ":");
     if (colonW_ < 1) colonW_ = digitW_ / 3;
-    timeGlyphH_ = u8g.getFontAscent() - u8g.getFontDescent() + 2;
+    timeGlyphH_ = displayFontAscent(gfx) - displayFontDescent(gfx) + 2;
     layoutWithSeconds_ = withSeconds;
     timeLen_ = withSeconds ? 8 : 5;
 
@@ -302,34 +324,32 @@ private:
     timeLayoutReady_ = true;
   }
 
-  void drawTimeGlyph(int index, char ch, uint16_t fg, uint16_t bg) {
-    u8g.setFont(timeFont());
+  void drawTimeGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg, uint16_t bg) {
+    displaySetFont(gfx, timeFont());
     const bool isColon = (ch == ':');
     const int cellW = isColon ? colonW_ : digitW_;
     const int x = timeCellX_[index];
-    const int asc = u8g.getFontAscent();
-    tft.fillRect(x, TIME_Y - asc, cellW, timeGlyphH_, bg);
+    const int asc = displayFontAscent(gfx);
+    gfx.fillRect(x, TIME_Y - asc, cellW, timeGlyphH_, bg);
     char tmp[2] = {ch, 0};
-    int gw = u8g.getUTF8Width(tmp);
-    u8g.setFontMode(0);
-    u8g.setForegroundColor(fg);
-    u8g.setBackgroundColor(bg);
-    u8g.setCursor(x + (cellW - gw) / 2, TIME_Y);
-    u8g.print(ch);
+    int gw = displayTextWidth(gfx, tmp);
+    gfx.setTextColor(fg, bg);
+    gfx.drawString(tmp, x + (cellW - gw) / 2, TIME_Y);
   }
 
   void drawTime(const FaceContext& ctx, const char* timeStr, bool force) {
     if (!force && strcmp(timeStr, lastTime_) == 0) return;
+    auto& gfx = displayGfx();
     ensureTimeLayout(ctx, profile_.showSeconds);
     if (force || (lastTime_[0] != '\0' && strlen(lastTime_) != strlen(timeStr))) {
-      u8g.setFont(timeFont());
-      int asc = u8g.getFontAscent();
-      tft.fillRect(0, TIME_Y - asc, ctx.screenW, timeGlyphH_ + 2, pageBg());
+      displaySetFont(gfx, timeFont());
+      int asc = displayFontAscent(gfx);
+      gfx.fillRect(0, TIME_Y - asc, ctx.screenW, timeGlyphH_ + 2, pageBg());
       lastTime_[0] = '\0';
     }
     for (int i = 0; timeStr[i] != '\0'; i++) {
       if (force || lastTime_[i] == '\0' || timeStr[i] != lastTime_[i]) {
-        drawTimeGlyph(i, timeStr[i], pal_.accent, pageBg());
+        drawTimeGlyph(gfx, i, timeStr[i], pal_.accent, pageBg());
         lastTime_[i] = timeStr[i];
       }
     }
@@ -338,17 +358,15 @@ private:
 
   void drawDate(const FaceContext& ctx, const char* dateStr, bool force) {
     if (!force && strcmp(dateStr, lastDate_) == 0) return;
-    u8g.setFont(u8g2_font_10x20_t_cyrillic);
-    int w = u8g.getUTF8Width(dateStr);
+    auto& gfx = displayGfx();
+    displaySetFont(gfx, bodyFont());
+    int w = displayTextWidth(gfx, dateStr);
     int x = (ctx.screenW - w) / 2;
-    int asc = u8g.getFontAscent();
-    int desc = u8g.getFontDescent();
-    tft.fillRect(0, DATE_Y - asc, ctx.screenW, asc - desc + 2, pageBg());
-    u8g.setFontMode(0);
-    u8g.setForegroundColor(pal_.textSecondary);
-    u8g.setBackgroundColor(pageBg());
-    u8g.setCursor(x, DATE_Y);
-    u8g.print(dateStr);
+    int asc = displayFontAscent(gfx);
+    int desc = displayFontDescent(gfx);
+    gfx.fillRect(0, DATE_Y - asc, ctx.screenW, asc - desc + 2, pageBg());
+    gfx.setTextColor(pal_.textSecondary, pageBg());
+    gfx.drawString(dateStr, x, DATE_Y);
     strcpy(lastDate_, dateStr);
   }
 
@@ -358,14 +376,15 @@ private:
     pal_ = ctx.palette;
     timeLayoutReady_ = false;
 
-    LOGD("face", "digital full mode=%s", profile_.nameRu);
+    LOGD("face", "digital full mode=%s canvas=%d", profile_.nameRu, (int)displayHasCanvas());
 
-    tft.fillScreen(pageBg());
+    auto& gfx = displayGfx();
+    gfx.fillScreen(pageBg());
     const int wash = profile_.washHeight;
     const int y0 = ctx.screenH - wash;
     for (int y = y0; y < ctx.screenH; y++) {
       uint8_t t = wash > 1 ? (uint8_t)(((y - y0) * 90) / wash) : 0;
-      tft.drawFastHLine(0, y, ctx.screenW, colorLerp(pageBg(), pal_.bgBottom, t));
+      gfx.drawFastHLine(0, y, ctx.screenW, colorLerp(pageBg(), pal_.bgBottom, t));
     }
 
     lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = '\0';
@@ -383,6 +402,7 @@ private:
     drawTime(ctx, timeStr, true);
     drawDate(ctx, dateStr, true);
 
+    displayPresent();
     force_ = false;
   }
 };

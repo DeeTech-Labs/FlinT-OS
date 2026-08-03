@@ -3,3 +3,6 @@ Copyright 2026 DeeTech Labs
 
 This product includes software developed by DeeTech Labs
 (https://github.com/deetech-labs).
+
+Font bitmaps under src/display/fonts/ are subsets of u8g2
+(https://github.com/olikraus/u8g2), used under the u8g2 BSD license.

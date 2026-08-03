@@ -1,0 +1,28 @@
+// TEMPLATE — copy into src/faces/face_YOURNAME.cpp (this file is NOT compiled).
+// See docs/THEMES.md and docs/ARCHITECTURE.md
+
+#include "src/faces/Face.h"
+#include "src/faces/FaceRegistry.h"
+#include "src/display/display.h"
+
+class MyFace : public Face {
+public:
+  const FaceInfo& info() const override {
+    static const FaceInfo i{"myface", "My Face", "you", 1, 1};
+    return i;
+  }
+
+  void onForceRedraw(const FaceContext& ctx) override {
+    tft.fillScreen(ctx.palette.bgTop);
+  }
+
+  void onTick(const FaceContext& ctx) override {
+    (void)ctx;
+  }
+};
+
+static Face* createMyFace() {
+  return new MyFace();
+}
+
+FLINT_REGISTER_FACE(createMyFace);

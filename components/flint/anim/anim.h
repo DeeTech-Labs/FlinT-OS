@@ -4,11 +4,16 @@
 
 enum AnimKind : uint8_t {
   ANIM_NONE = 0,
-  ANIM_FADE,
+  ANIM_OVERLAY_IN,
 };
 
-// Lightweight fade wash between shell screens (no second framebuffer).
+// Shared easing / progress (0..255). Safe on a single framebuffer.
+uint8_t animEaseOutCubic(uint8_t t);
+uint8_t animLinearProgress(uint32_t elapsedMs, uint32_t durationMs);
+
 void animBegin(AnimKind kind);
 bool animIsActive();
-// Returns true while animation still owns the frame (caller should skip normal draw).
+// Current eased progress 0..255 (255 when inactive / finished).
+uint8_t animEasedProgress();
+// Advance clock. Returns true while animation still owns the frame.
 bool animTick();

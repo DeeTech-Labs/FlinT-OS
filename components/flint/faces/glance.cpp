@@ -1,11 +1,25 @@
 #include "faces/glance.h"
 
 #include "display/display.h"
+#include "display/ui_tokens.h"
 #include "i18n/i18n.h"
 #include "sdk/resources.h"
 
 #include <stdio.h>
 #include <string.h>
+
+static void drawWifiSignal(lgfx::LGFXBase& gfx, int cx, int cy, bool on, uint16_t fg,
+                           uint16_t bg) {
+  gfx.fillRect(cx - 8, cy - 8, 16, 16, bg);
+  const uint16_t dim = colorLerp(bg, fg, on ? 255 : 90);
+  // Three rising bars + tip dot (16×16 budget).
+  gfx.fillRect(cx - 6, cy + 3, 3, 4, dim);
+  gfx.fillRect(cx - 1, cy, 3, 7, dim);
+  gfx.fillRect(cx + 4, cy - 3, 3, 10, dim);
+  if (on) {
+    gfx.fillCircle(cx + 5, cy - 5, 1, fg);
+  }
+}
 
 bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
   auto& gfx = displayGfx();
@@ -29,11 +43,12 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
       }
 
       gfx.fillRect(r.x, r.y, r.w, r.h, pal.bgTop);
+      const int iconCx = r.x + 12;
+      const int iconCy = r.y + r.h / 2;
       if (iconCode >= 0) {
-        flintDrawIcon(gfx, flintWeatherIcon(iconCode), r.x + 2, r.y + r.h / 2,
-                      pal.accent, pal.bgTop);
+        flintDrawIcon(gfx, flintWeatherIcon(iconCode), iconCx, iconCy, pal.accent, pal.bgTop);
       }
-      displayDrawText(gfx, temp, r.x + 20, r.y + r.h - 4, pal.textPrimary, pal.bgTop,
+      displayDrawText(gfx, temp, r.x + 26, r.y + r.h - 3, pal.textPrimary, pal.bgTop,
                       flintFont(FlintFontId::Temp));
       return true;
     }
@@ -41,7 +56,8 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
     case GLANCE_WIFI: {
       const int cx = r.x + r.w / 2;
       const int cy = r.y + r.h / 2;
-      gfx.fillCircle(cx, cy, 4, ctx.wifiConnected ? pal.wifiOn : pal.wifiOff);
+      const uint16_t fg = ctx.wifiConnected ? pal.wifiOn : pal.wifiOff;
+      drawWifiSignal(gfx, cx, cy, ctx.wifiConnected, fg, pal.bgTop);
       return true;
     }
 
@@ -74,8 +90,9 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
       snprintf(line, sizeof(line), "%+.0f/%+.0f", static_cast<double>(tMin),
                static_cast<double>(tMax));
       gfx.fillRect(r.x, r.y, r.w, r.h, pal.bgTop);
-      displayDrawText(gfx, line, r.x, r.y + r.h - 4, pal.textSecondary, pal.bgTop,
-                      flintFont(FlintFontId::Body));
+      // Temp font matches current-temp size budget; Body glyphs overflow a 16px band.
+      displayDrawText(gfx, line, r.x + UiTok::kGapSm, r.y + r.h - 2, pal.textSecondary, pal.bgTop,
+                      flintFont(FlintFontId::Temp));
       return true;
     }
   }

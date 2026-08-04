@@ -15,31 +15,31 @@ msgid "Settings"
 msgstr "Settings"
 
 msgid "face"
-msgstr "face"
+msgstr "Face"
 
 msgid "seconds"
-msgstr "seconds"
+msgstr "Seconds"
 
 msgid "hour"
-msgstr "hour"
+msgstr "Hour"
 
 msgid "lang"
-msgstr "lang"
+msgstr "Lang"
 
 msgid "lat"
-msgstr "lat"
+msgstr "Lat"
 
 msgid "lon"
-msgstr "lon"
+msgstr "Lon"
 
 msgid "off"
-msgstr "off"
+msgstr "Off"
 
 msgid "on"
-msgstr "on"
+msgstr "On"
 
 msgid "auto"
-msgstr "auto"
+msgstr "Auto"
 
 msgid "24h"
 msgstr "24h"
@@ -123,4 +123,4 @@ msgid "PM"
 msgstr "PM"
 
 msgid "timezone"
-msgstr "timezone"
+msgstr "Timezone"

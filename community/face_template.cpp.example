@@ -6,8 +6,15 @@
 // Include ONLY the Face SDK (+ std headers). Do not include net/, weather APIs,
 // settings/, app/, or config/secrets.h. Read FaceContext; draw via display/resources.
 // Localized UI strings: flintTr(FlintStr::…), flintTrWeekday(), flintTrDayMode().
+//
+// Layout: prefer display/ui_tokens.h (UiTok::*) for zones/spacing.
+// Complications: flintGlanceDraw(ctx, GLANCE_*, GlanceRect{…}) from faces/glance.h
+//   (also pulled via flint_face_sdk if available — otherwise include glance.h).
+// Colors: ctx.palette (bgTop, accent, textPrimary/Secondary, divider, …).
 
 #include "sdk/flint_face_sdk.h"
+#include "faces/glance.h"
+#include "display/ui_tokens.h"
 
 class MyFace : public Face {
 public:
@@ -20,10 +27,21 @@ public:
   void onForceRedraw(const FaceContext& ctx) override {
     auto& gfx = displayGfx();
     gfx.fillScreen(ctx.palette.bgTop);
+
+    // Status strip hairline (same language as built-in digital face).
+    gfx.drawFastHLine(UiTok::kPadX, UiTok::kStatusHairlineY,
+                      ctx.screenW - UiTok::kPadX * 2, ctx.palette.divider);
+
     displayDrawText(gfx, flintTr(FlintStr::WaitingForTime),
-                    20, 40, ctx.palette.accent, ctx.palette.bgTop,
+                    UiTok::kPadX, UiTok::kTimeY, ctx.palette.accent, ctx.palette.bgTop,
                     flintFont(FlintFontId::Body));
-    // Optional complications: flintGlanceDraw(ctx, GLANCE_WEATHER, {0,0,100,28});
+
+    flintGlanceDraw(ctx, GLANCE_WEATHER,
+                    GlanceRect{static_cast<int16_t>(UiTok::kWxX),
+                               static_cast<int16_t>(UiTok::kWxY),
+                               static_cast<int16_t>(UiTok::kWxW),
+                               static_cast<int16_t>(UiTok::kWxH)});
+
     displayPresent();
   }
 

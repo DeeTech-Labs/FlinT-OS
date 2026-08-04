@@ -12,5 +12,6 @@
 #include "faces/glance.h"
 #include "display/display.h"
 #include "display/ui_palette.h"
+#include "display/ui_tokens.h"
 #include "sdk/resources.h"
 #include "i18n/i18n.h"

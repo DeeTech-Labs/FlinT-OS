@@ -20,10 +20,10 @@ DayMode dayModeFromHour(int hour) {
 const DayModeProfile& dayModeProfile(DayMode mode) {
   static const DayModeProfile kProfiles[] = {
       // seconds, weather, label, wash
-      {true, true, true, 70},   // morning
-      {true, true, true, 55},   // day
-      {true, true, true, 80},   // evening
-      {false, true, true, 40},  // night
+      {true, true, true, 64},   // morning
+      {true, true, true, 52},   // day
+      {true, true, true, 72},   // evening
+      {false, true, true, 36},  // night
   };
   switch (mode) {
     case DAY_MODE_MORNING: return kProfiles[0];
@@ -53,67 +53,76 @@ static uint16_t weatherAccent(int code, uint16_t base) {
   return base;
 }
 
+static void fillChromeRoles(UiPalette& p) {
+  p.divider = colorLerp(p.bgTop, p.accent, 70);
+  p.selectionBg = colorLerp(p.bgTop, p.panel, 200);
+  p.selectionFg = p.textPrimary;
+  p.footerMuted = colorLerp(p.bgTop, p.textSecondary, 180);
+  p.glow = p.accent;
+  p.panelBorder = colorLerp(p.panel, p.textSecondary, 60);
+}
+
 UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk) {
   UiPalette p{};
   p.wifiOn = rgb565(90, 220, 150);
   p.wifiOff = rgb565(255, 95, 95);
-  p.panelBorder = rgb565(255, 255, 255);
-  p.panel = rgb565(24, 28, 40);
 
   switch (mode) {
     case DAY_MODE_MORNING:
       // тёплый рассвет
-      p.bgTop = rgb565(22, 14, 16);
-      p.bgBottom = rgb565(48, 28, 22);
-      p.accent = rgb565(255, 170, 90);
+      p.bgTop = rgb565(18, 12, 14);
+      p.bgBottom = rgb565(52, 30, 24);
+      p.accent = rgb565(255, 168, 88);
       p.textPrimary = rgb565(255, 248, 240);
-      p.textSecondary = rgb565(200, 160, 130);
-      p.panel = rgb565(40, 28, 28);
+      p.textSecondary = rgb565(196, 158, 128);
+      p.panel = rgb565(38, 26, 26);
       break;
 
     case DAY_MODE_DAY:
-      // ясный дневной
-      p.bgTop = rgb565(10, 16, 24);
-      p.bgBottom = rgb565(18, 36, 48);
-      p.accent = rgb565(80, 230, 220);
-      p.textPrimary = rgb565(245, 250, 255);
-      p.textSecondary = rgb565(140, 165, 185);
-      p.panel = rgb565(22, 34, 44);
+      // ясный дневной teal
+      p.bgTop = rgb565(8, 12, 20);
+      p.bgBottom = rgb565(16, 34, 46);
+      p.accent = rgb565(72, 224, 214);
+      p.textPrimary = rgb565(244, 250, 255);
+      p.textSecondary = rgb565(132, 158, 178);
+      p.panel = rgb565(20, 32, 42);
       break;
 
     case DAY_MODE_EVENING:
       // закат / магента
-      p.bgTop = rgb565(20, 10, 24);
-      p.bgBottom = rgb565(48, 18, 36);
-      p.accent = rgb565(255, 120, 170);
+      p.bgTop = rgb565(16, 8, 20);
+      p.bgBottom = rgb565(46, 16, 34);
+      p.accent = rgb565(255, 118, 168);
       p.textPrimary = rgb565(255, 240, 248);
-      p.textSecondary = rgb565(190, 140, 170);
-      p.panel = rgb565(36, 22, 36);
+      p.textSecondary = rgb565(186, 138, 166);
+      p.panel = rgb565(34, 20, 34);
       break;
 
     case DAY_MODE_NIGHT:
     default:
-      // спокойная ночь, меньше контраста
-      p.bgTop = rgb565(4, 6, 12);
-      p.bgBottom = rgb565(8, 12, 22);
-      p.accent = rgb565(90, 130, 190);
-      p.textPrimary = rgb565(180, 195, 220);
-      p.textSecondary = rgb565(90, 105, 130);
-      p.panel = rgb565(12, 16, 28);
-      p.wifiOn = rgb565(50, 140, 100);
-      p.wifiOff = rgb565(140, 60, 60);
+      // спокойная ночь
+      p.bgTop = rgb565(3, 5, 10);
+      p.bgBottom = rgb565(6, 10, 18);
+      p.accent = rgb565(86, 122, 176);
+      p.textPrimary = rgb565(168, 184, 208);
+      p.textSecondary = rgb565(78, 94, 118);
+      p.panel = rgb565(10, 14, 24);
+      p.wifiOn = rgb565(48, 128, 92);
+      p.wifiOff = rgb565(128, 56, 56);
       break;
   }
 
-  p.glow = p.accent;
+  fillChromeRoles(p);
 
   // Ночью погода почти не красит акцент (бережём «тихий» режим)
   if (weatherOk && mode != DAY_MODE_NIGHT) {
     p.accent = colorLerp(p.accent, weatherAccent(weatherCode, p.accent), 140);
     p.glow = p.accent;
+    p.divider = colorLerp(p.bgTop, p.accent, 70);
   } else if (weatherOk && mode == DAY_MODE_NIGHT) {
     p.accent = colorLerp(p.accent, weatherAccent(weatherCode, p.accent), 40);
     p.glow = p.accent;
+    p.divider = colorLerp(p.bgTop, p.accent, 50);
   }
 
   return p;

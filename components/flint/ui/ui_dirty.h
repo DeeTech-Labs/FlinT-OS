@@ -15,6 +15,7 @@ enum UiDirty : uint32_t {
   UI_DIRTY_TIME_VALID = 1u << 5,
   UI_DIRTY_DAY_MODE   = 1u << 6,
   UI_DIRTY_SETTINGS   = 1u << 7,
+  UI_DIRTY_MOTION     = 1u << 8,  // face micro-animations (colon pulse, …)
 };
 
 void uiMarkDirty(uint32_t mask);

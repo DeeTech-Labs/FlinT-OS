@@ -15,31 +15,31 @@ msgid "Settings"
 msgstr "Настройки"
 
 msgid "face"
-msgstr "циферблат"
+msgstr "Циферблат"
 
 msgid "seconds"
-msgstr "секунды"
+msgstr "Секунды"
 
 msgid "hour"
-msgstr "часы"
+msgstr "Часы"
 
 msgid "lang"
-msgstr "язык"
+msgstr "Язык"
 
 msgid "lat"
-msgstr "широта"
+msgstr "Широта"
 
 msgid "lon"
-msgstr "долгота"
+msgstr "Долгота"
 
 msgid "off"
-msgstr "выкл"
+msgstr "Выкл"
 
 msgid "on"
-msgstr "вкл"
+msgstr "Вкл"
 
 msgid "auto"
-msgstr "авто"
+msgstr "Авто"
 
 msgid "24h"
 msgstr "24ч"
@@ -54,19 +54,19 @@ msgid "p/n  +/-  Enter  Esc"
 msgstr "p/n  +/-  Enter  Esc"
 
 msgid "Waiting for time"
-msgstr "ожидание времени"
+msgstr "Ожидание времени"
 
 msgid "Morning"
-msgstr "утро"
+msgstr "Утро"
 
 msgid "Day"
-msgstr "день"
+msgstr "День"
 
 msgid "Evening"
-msgstr "вечер"
+msgstr "Вечер"
 
 msgid "Night"
-msgstr "ночь"
+msgstr "Ночь"
 
 msgid "Sun"
 msgstr "Вс"
@@ -90,31 +90,31 @@ msgid "Sat"
 msgstr "Сб"
 
 msgid "Clear"
-msgstr "ясно"
+msgstr "Ясно"
 
 msgid "Cloudy"
-msgstr "облачно"
+msgstr "Облачно"
 
 msgid "Fog"
-msgstr "туман"
+msgstr "Туман"
 
 msgid "Drizzle"
-msgstr "морось"
+msgstr "Морось"
 
 msgid "Rain"
-msgstr "дождь"
+msgstr "Дождь"
 
 msgid "Snow"
-msgstr "снег"
+msgstr "Снег"
 
 msgid "Showers"
-msgstr "ливень"
+msgstr "Ливень"
 
 msgid "Thunder"
-msgstr "гроза"
+msgstr "Гроза"
 
 msgid "Weather"
-msgstr "погода"
+msgstr "Погода"
 
 msgid "AM"
 msgstr "AM"
@@ -123,4 +123,4 @@ msgid "PM"
 msgstr "PM"
 
 msgid "timezone"
-msgstr "часовой пояс"
+msgstr "Часовой пояс"

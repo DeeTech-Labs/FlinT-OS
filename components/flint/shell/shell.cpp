@@ -1,14 +1,19 @@
 #include "shell/shell.h"
 
+#include "anim/anim.h"
 #include "config/debug.h"
 #include "display/display.h"
+#include "display/ui_tokens.h"
 #include "event/event.h"
 #include "faces/FaceRegistry.h"
 #include "i18n/i18n.h"
 #include "sdk/resources.h"
 #include "settings/settings.h"
 #include "time/tz_db.h"
+#include "ui/chrome.h"
 #include "ui/ui.h"
+#include "ui/ui_dirty.h"
+#include "util/flint_sys.h"
 #include "weather/weather.h"
 
 #include <stdio.h>
@@ -38,14 +43,8 @@ enum SettingsRow : uint8_t {
 enum OverlayDirty : uint8_t {
   OVL_NONE = 0,
   OVL_FULL = 1,
-  OVL_ROWS = 2,   // selection / value band only
+  OVL_ROWS = 2,
 };
-
-static constexpr int kSetVisible = 7;
-static constexpr int kSetRowH = 22;
-static constexpr int kSetRowY0 = 46;
-static constexpr int kPickRowH = 24;
-static constexpr int kPickRowY0 = 56;
 
 static ShellState gState = SHELL_FACE;
 static int gPickerIndex = 0;
@@ -82,6 +81,7 @@ static void shellConsoleInit() {
 
 static void enterFace() {
   gState = SHELL_FACE;
+  animBegin(ANIM_NONE);
   uiFaceActivateCurrent();
   flintEventEmit(FLINT_EVT_FORCE_REDRAW);
   gOverlayDirty = OVL_NONE;
@@ -100,6 +100,7 @@ static void enterPicker() {
   }
   gPrevPickerIndex = gPickerIndex;
   gOverlayDirty = OVL_FULL;
+  animBegin(ANIM_OVERLAY_IN);
 }
 
 static void enterSettings() {
@@ -108,6 +109,7 @@ static void enterSettings() {
   gPrevSettingsRow = gSettingsRow;
   gSettingsStart = 0;
   gOverlayDirty = OVL_FULL;
+  animBegin(ANIM_OVERLAY_IN);
 }
 
 static void goTo(ShellState next) {
@@ -143,33 +145,32 @@ static const char* hourLabel(uint8_t fmt) {
   return fmt == SETTINGS_HOUR_12 ? flintTr(FlintStr::N12h) : flintTr(FlintStr::N24h);
 }
 
-static void formatSettingsLine(char* out, size_t outN, int row, bool selected) {
+static void formatSettingsLine(char* out, size_t outN, int row) {
   const FlintSettings& s = settingsGet();
-  const char* prefix = selected ? "> " : "  ";
   switch (row) {
     case SET_ROW_FACE:
-      snprintf(out, outN, "%s%s   %.16s", prefix, flintTr(FlintStr::Face), s.activeFace);
+      snprintf(out, outN, "%s   %.16s", flintTr(FlintStr::Face), s.activeFace);
       break;
     case SET_ROW_SECONDS:
-      snprintf(out, outN, "%s%s  %s", prefix, flintTr(FlintStr::Seconds), showSecLabel(s.showSeconds));
+      snprintf(out, outN, "%s  %s", flintTr(FlintStr::Seconds), showSecLabel(s.showSeconds));
       break;
     case SET_ROW_HOUR:
-      snprintf(out, outN, "%s%s     %s", prefix, flintTr(FlintStr::Hour), hourLabel(s.hourFormat));
+      snprintf(out, outN, "%s     %s", flintTr(FlintStr::Hour), hourLabel(s.hourFormat));
       break;
     case SET_ROW_LANG:
-      snprintf(out, outN, "%s%s     %s", prefix, flintTr(FlintStr::Lang), langLabel(s.lang));
+      snprintf(out, outN, "%s     %s", flintTr(FlintStr::Lang), langLabel(s.lang));
       break;
     case SET_ROW_TZ: {
       const TzEntry* e = tzDbFind(s.tzId);
-      snprintf(out, outN, "%s%s    %.14s", prefix, flintTr(FlintStr::Timezone), e->label);
+      snprintf(out, outN, "%s    %.14s", flintTr(FlintStr::Timezone), e->label);
       break;
     }
     case SET_ROW_LAT:
-      snprintf(out, outN, "%s%s   %+.2f", prefix, flintTr(FlintStr::Lat),
+      snprintf(out, outN, "%s   %+.2f", flintTr(FlintStr::Lat),
                static_cast<double>(s.wxLat));
       break;
     case SET_ROW_LON:
-      snprintf(out, outN, "%s%s   %+.2f", prefix, flintTr(FlintStr::Lon),
+      snprintf(out, outN, "%s   %+.2f", flintTr(FlintStr::Lon),
                static_cast<double>(s.wxLon));
       break;
     default:
@@ -179,63 +180,46 @@ static void formatSettingsLine(char* out, size_t outN, int row, bool selected) {
 }
 
 static int settingsWindowStart() {
-  int start = gSettingsRow - kSetVisible / 2;
+  const int vis = UiTok::kShellVisibleRows;
+  int start = gSettingsRow - vis / 2;
   if (start < 0) start = 0;
-  if (start > SET_ROW_COUNT - kSetVisible) start = SET_ROW_COUNT - kSetVisible;
+  if (start > SET_ROW_COUNT - vis) start = SET_ROW_COUNT - vis;
   if (start < 0) start = 0;
   return start;
 }
 
-static void paintSettingsChrome(const FaceContext& ctx) {
-  auto& gfx = displayGfx();
-  gfx.fillScreen(ctx.palette.bgTop);
-  displayDrawText(gfx, flintTr(FlintStr::Settings), 12, 24, ctx.palette.accent, ctx.palette.bgTop,
-                  flintFont(FlintFontId::Body));
-  displayDrawText(gfx, flintTr(FlintStr::PNPlusEnterEsc), 12, ctx.screenH - 14,
-                  ctx.palette.textSecondary, ctx.palette.bgTop,
-                  flintFont(FlintFontId::Body));
+static void paintSettingsScroll(const FaceContext& ctx) {
+  const int trackH = UiTok::kShellVisibleRows * UiTok::kShellRowH;
+  const int trackY = UiTok::kShellRowsTop;
+  int thumbH = SET_ROW_COUNT > 0 ? (trackH * UiTok::kShellVisibleRows) / SET_ROW_COUNT : trackH;
+  if (thumbH > trackH) thumbH = trackH;
+  const int maxStart = SET_ROW_COUNT - UiTok::kShellVisibleRows;
+  const int thumbY =
+      trackY + (maxStart > 0 ? (gSettingsStart * (trackH - thumbH)) / maxStart : 0);
+  chromeScrollTrack(ctx, trackY, trackH, thumbY, thumbH);
 }
 
-static void paintSettingsScrollCue(const FaceContext& ctx) {
-  auto& gfx = displayGfx();
-  char cue[16];
-  snprintf(cue, sizeof(cue), "%d/%d", gSettingsRow + 1, SET_ROW_COUNT);
-  displaySetFont(gfx, flintFont(FlintFontId::Body));
-  const int tw = displayTextWidth(gfx, cue);
-  gfx.fillRect(ctx.screenW - tw - 16, 8, tw + 12, 18, ctx.palette.bgTop);
-  displayDrawText(gfx, cue, ctx.screenW - tw - 12, 22, ctx.palette.textSecondary, ctx.palette.bgTop,
-                  flintFont(FlintFontId::Body));
-
-  // Thin thumb on right edge
-  const int trackH = kSetVisible * kSetRowH;
-  const int thumbH = SET_ROW_COUNT > 0 ? (trackH * kSetVisible) / SET_ROW_COUNT : trackH;
-  const int maxStart = SET_ROW_COUNT - kSetVisible;
-  const int thumbY = kSetRowY0 + (maxStart > 0 ? (gSettingsStart * (trackH - thumbH)) / maxStart : 0);
-  gfx.fillRect(ctx.screenW - 4, kSetRowY0, 3, trackH, ctx.palette.panel);
-  gfx.fillRect(ctx.screenW - 4, thumbY, 3, thumbH > 4 ? thumbH : 4, ctx.palette.accent);
-}
-
-static void paintSettingsRow(const FaceContext& ctx, int row, int visIndex) {
-  auto& gfx = displayGfx();
+static void paintSettingsRow(const FaceContext& ctx, int row, int visIndex, uint8_t fade) {
   char line[48];
-  formatSettingsLine(line, sizeof(line), row, row == gSettingsRow);
-  const uint16_t fg = (row == gSettingsRow) ? ctx.palette.textPrimary : ctx.palette.textSecondary;
-  const int y = kSetRowY0 + visIndex * kSetRowH;
-  gfx.fillRect(0, y - 14, ctx.screenW - 6, kSetRowH, ctx.palette.bgTop);
-  displayDrawText(gfx, line, 12, y, fg, ctx.palette.bgTop, flintFont(FlintFontId::Body));
+  formatSettingsLine(line, sizeof(line), row);
+  chromeListRow(ctx, UiTok::shellRowFillY(visIndex), UiTok::kShellRowH, line,
+                row == gSettingsRow, fade);
 }
 
-static void drawSettingsFull() {
+static void drawSettingsFull(uint8_t fade) {
   if (!displayHasCanvas()) {
     return;
   }
   const FaceContext ctx = uiBuildContext();
-  paintSettingsChrome(ctx);
+  chromeFillBackdrop(ctx);
+  chromeHeader(ctx, flintTr(FlintStr::Settings), fade);
+  chromeFooter(ctx, flintTr(FlintStr::PNPlusEnterEsc), fade);
+  chromeCounter(ctx, gSettingsRow + 1, SET_ROW_COUNT, fade);
   gSettingsStart = settingsWindowStart();
-  for (int i = 0; i < kSetVisible && gSettingsStart + i < SET_ROW_COUNT; i++) {
-    paintSettingsRow(ctx, gSettingsStart + i, i);
+  for (int i = 0; i < UiTok::kShellVisibleRows && gSettingsStart + i < SET_ROW_COUNT; i++) {
+    paintSettingsRow(ctx, gSettingsStart + i, i, fade);
   }
-  paintSettingsScrollCue(ctx);
+  paintSettingsScroll(ctx);
   displayPresent();
   gPrevSettingsRow = gSettingsRow;
   gOverlayDirty = OVL_NONE;
@@ -249,7 +233,7 @@ static void drawSettingsPartial() {
   const int newStart = settingsWindowStart();
   if (newStart != gSettingsStart) {
     gSettingsStart = newStart;
-    drawSettingsFull();
+    drawSettingsFull(255);
     return;
   }
 
@@ -258,13 +242,11 @@ static void drawSettingsPartial() {
 
   auto addRow = [&](int row) {
     const int vis = row - gSettingsStart;
-    if (vis < 0 || vis >= kSetVisible) {
+    if (vis < 0 || vis >= UiTok::kShellVisibleRows) {
       return;
     }
-    paintSettingsRow(ctx, row, vis);
-    rects[n++] = DisplayRect{0, static_cast<int16_t>(kSetRowY0 + vis * kSetRowH - 14),
-                             static_cast<int16_t>(ctx.screenW - 6),
-                             static_cast<int16_t>(kSetRowH)};
+    paintSettingsRow(ctx, row, vis, 255);
+    rects[n++] = chromeListRowRect(ctx, UiTok::shellRowFillY(vis), UiTok::kShellRowH);
   };
 
   if (gPrevSettingsRow != gSettingsRow) {
@@ -274,50 +256,44 @@ static void drawSettingsPartial() {
     addRow(gSettingsRow);
   }
 
-  paintSettingsScrollCue(ctx);
-  rects[n++] = DisplayRect{static_cast<int16_t>(ctx.screenW - 48), 8, 48, 20};
-  rects[n++] = DisplayRect{static_cast<int16_t>(ctx.screenW - 6),
-                           static_cast<int16_t>(kSetRowY0), 6,
-                           static_cast<int16_t>(kSetVisible * kSetRowH)};
+  chromeCounter(ctx, gSettingsRow + 1, SET_ROW_COUNT, 255);
+  paintSettingsScroll(ctx);
+  rects[n++] = DisplayRect{static_cast<int16_t>(ctx.screenW - 56), 6, 56, 22};
+  rects[n++] = DisplayRect{
+      static_cast<int16_t>(ctx.screenW - UiTok::kShellScrollGap - UiTok::kShellScrollW - 1),
+      static_cast<int16_t>(UiTok::kShellRowsTop),
+      static_cast<int16_t>(UiTok::kShellScrollW + 2),
+      static_cast<int16_t>(UiTok::kShellVisibleRows * UiTok::kShellRowH)};
 
   displayPresentRects(rects, n);
   gPrevSettingsRow = gSettingsRow;
   gOverlayDirty = OVL_NONE;
 }
 
-static void paintPickerRow(const FaceContext& ctx, int index) {
-  auto& gfx = displayGfx();
+static void paintPickerRow(const FaceContext& ctx, int index, uint8_t fade) {
   const FaceInfo* info = FaceRegistry::infoAt(index);
   if (!info) {
     return;
   }
   char line[64];
-  snprintf(line, sizeof(line), "%s%.20s  (%.16s)",
-           (index == gPickerIndex) ? "> " : "  ",
-           info->name ? info->name : "?",
+  snprintf(line, sizeof(line), "%.20s  (%.16s)", info->name ? info->name : "?",
            info->id ? info->id : "?");
-  const uint16_t fg = (index == gPickerIndex) ? ctx.palette.textPrimary : ctx.palette.textSecondary;
-  const int y = kPickRowY0 + index * kPickRowH;
-  gfx.fillRect(0, y - 16, ctx.screenW, kPickRowH, ctx.palette.bgTop);
-  displayDrawText(gfx, line, 12, y, fg, ctx.palette.bgTop, flintFont(FlintFontId::Body));
+  chromeListRow(ctx, UiTok::shellRowFillY(index), UiTok::kShellRowH, line,
+                index == gPickerIndex, fade);
 }
 
-static void drawPickerFull() {
+static void drawPickerFull(uint8_t fade) {
   if (!displayHasCanvas()) {
     return;
   }
-  auto& gfx = displayGfx();
   const FaceContext ctx = uiBuildContext();
-  gfx.fillScreen(ctx.palette.bgTop);
-  displayDrawText(gfx, flintTr(FlintStr::Faces), 12, 28, ctx.palette.accent, ctx.palette.bgTop,
-                  flintFont(FlintFontId::Body));
+  chromeFillBackdrop(ctx);
+  chromeHeader(ctx, flintTr(FlintStr::Faces), fade);
+  chromeFooter(ctx, flintTr(FlintStr::PNEnterEsc), fade);
   const int n = FaceRegistry::count();
   for (int i = 0; i < n; i++) {
-    paintPickerRow(ctx, i);
+    paintPickerRow(ctx, i, fade);
   }
-  displayDrawText(gfx, flintTr(FlintStr::PNEnterEsc), 12, ctx.screenH - 16,
-                  ctx.palette.textSecondary, ctx.palette.bgTop,
-                  flintFont(FlintFontId::Body));
   displayPresent();
   gPrevPickerIndex = gPickerIndex;
   gOverlayDirty = OVL_NONE;
@@ -334,10 +310,8 @@ static void drawPickerPartial() {
     if (index < 0 || index >= FaceRegistry::count()) {
       return;
     }
-    paintPickerRow(ctx, index);
-    rects[n++] = DisplayRect{0, static_cast<int16_t>(kPickRowY0 + index * kPickRowH - 16),
-                             static_cast<int16_t>(ctx.screenW),
-                             static_cast<int16_t>(kPickRowH)};
+    paintPickerRow(ctx, index, 255);
+    rects[n++] = chromeListRowRect(ctx, UiTok::shellRowFillY(index), UiTok::kShellRowH);
   };
   if (gPrevPickerIndex != gPickerIndex) {
     add(gPrevPickerIndex);
@@ -370,7 +344,7 @@ static void cycleLang() {
   settingsSetLang(s.lang == SETTINGS_LANG_RU ? SETTINGS_LANG_EN : SETTINGS_LANG_RU);
   markSettingsLayoutChanged();
   flintEventEmit(FLINT_EVT_FORCE_REDRAW);
-  gOverlayDirty = OVL_FULL;  // labels changed
+  gOverlayDirty = OVL_FULL;
 }
 
 static void cycleHourFormat() {
@@ -439,7 +413,6 @@ static void adjustSelected(int dir) {
 }
 
 static void applySettingsRow() {
-  // Enter = action only (open picker for Face). Values change via +/-.
   if (gSettingsRow == SET_ROW_FACE) {
     goTo(SHELL_PICKER);
   }
@@ -464,19 +437,35 @@ void shellTick() {
   }
 
   switch (gState) {
-    case SHELL_FACE:
+    case SHELL_FACE: {
+      // Drive face micro-animations (~15 Hz) without a second framebuffer.
+      static uint32_t lastMotionMs = 0;
+      const uint32_t now = flintMillis();
+      if (now - lastMotionMs >= 66) {
+        uiMarkDirty(UI_DIRTY_MOTION);
+        lastMotionMs = now;
+      }
       uiFaceTick();
       break;
+    }
+
     case SHELL_PICKER:
-      if (gOverlayDirty == OVL_FULL) {
-        drawPickerFull();
+      if (animIsActive()) {
+        drawPickerFull(animEasedProgress());
+        animTick();
+      } else if (gOverlayDirty == OVL_FULL) {
+        drawPickerFull(255);
       } else if (gOverlayDirty == OVL_ROWS) {
         drawPickerPartial();
       }
       break;
+
     case SHELL_SETTINGS:
-      if (gOverlayDirty == OVL_FULL) {
-        drawSettingsFull();
+      if (animIsActive()) {
+        drawSettingsFull(animEasedProgress());
+        animTick();
+      } else if (gOverlayDirty == OVL_FULL) {
+        drawSettingsFull(255);
       } else if (gOverlayDirty == OVL_ROWS) {
         drawSettingsPartial();
       }
@@ -495,6 +484,11 @@ void shellHandleKey(char c) {
   }
 
   if (!displayHasCanvas()) {
+    return;
+  }
+
+  // Ignore nav during overlay enter animation.
+  if (animIsActive() && gState != SHELL_FACE) {
     return;
   }
 

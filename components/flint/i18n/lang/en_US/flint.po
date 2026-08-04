@@ -1,0 +1,126 @@
+# FlinT OS — English (en_US)
+msgid ""
+msgstr ""
+"Project-Id-Version: FlinT-OS 0.1\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Name: English\n"
+
+msgid "Faces"
+msgstr "Faces"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "face"
+msgstr "face"
+
+msgid "seconds"
+msgstr "seconds"
+
+msgid "hour"
+msgstr "hour"
+
+msgid "lang"
+msgstr "lang"
+
+msgid "lat"
+msgstr "lat"
+
+msgid "lon"
+msgstr "lon"
+
+msgid "off"
+msgstr "off"
+
+msgid "on"
+msgstr "on"
+
+msgid "auto"
+msgstr "auto"
+
+msgid "24h"
+msgstr "24h"
+
+msgid "12h"
+msgstr "12h"
+
+msgid "p/n  Enter  Esc"
+msgstr "p/n  Enter  Esc"
+
+msgid "p/n  +/-  Enter  Esc"
+msgstr "p/n  +/-  Enter  Esc"
+
+msgid "Waiting for time"
+msgstr "Waiting for time"
+
+msgid "Morning"
+msgstr "Morning"
+
+msgid "Day"
+msgstr "Day"
+
+msgid "Evening"
+msgstr "Evening"
+
+msgid "Night"
+msgstr "Night"
+
+msgid "Sun"
+msgstr "Sun"
+
+msgid "Mon"
+msgstr "Mon"
+
+msgid "Tue"
+msgstr "Tue"
+
+msgid "Wed"
+msgstr "Wed"
+
+msgid "Thu"
+msgstr "Thu"
+
+msgid "Fri"
+msgstr "Fri"
+
+msgid "Sat"
+msgstr "Sat"
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Cloudy"
+msgstr "Cloudy"
+
+msgid "Fog"
+msgstr "Fog"
+
+msgid "Drizzle"
+msgstr "Drizzle"
+
+msgid "Rain"
+msgstr "Rain"
+
+msgid "Snow"
+msgstr "Snow"
+
+msgid "Showers"
+msgstr "Showers"
+
+msgid "Thunder"
+msgstr "Thunder"
+
+msgid "Weather"
+msgstr "Weather"
+
+msgid "AM"
+msgstr "AM"
+
+msgid "PM"
+msgstr "PM"
+
+msgid "timezone"
+msgstr "timezone"

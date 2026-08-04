@@ -24,11 +24,8 @@ FaceContext uiBuildContext() {
                                     ctx.weather.ok);
   ctx.wifiConnected = wifiNetIsConnected();
 
-  const FlintSettings& s = settingsGet();
   ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
-  ctx.lang = s.lang;
-  ctx.weatherLat = s.wxLat;
-  ctx.weatherLon = s.wxLon;
+  ctx.hour12 = settingsUse12Hour();
 
   ctx.screenW = SCR_W;
   ctx.screenH = SCR_H;
@@ -74,6 +71,10 @@ void uiForceRedraw() {
 }
 
 void uiFaceTick() {
+  if (!displayHasCanvas()) {
+    return;
+  }
+
   Face* face = FaceRegistry::active();
   if (!face) {
     return;
@@ -92,13 +93,14 @@ void uiFaceTick() {
     }
   }
 
-  const bool force = (dirty & (UI_DIRTY_FORCE | UI_DIRTY_DAY_MODE | UI_DIRTY_TIME_VALID
-                               | UI_DIRTY_SETTINGS)) != 0
+  const bool force = (dirty & (UI_DIRTY_FORCE | UI_DIRTY_DAY_MODE | UI_DIRTY_TIME_VALID)) != 0
                      || ctx.dayMode != gLastMode;
+  // UI_DIRTY_SETTINGS is soft — onTick handles layout-affecting
+  // changes when FORCE was emitted explicitly from shell.
 
   if (force) {
     if (ctx.dayMode != gLastMode) {
-      LOGI("mode", "switch -> %s", ctx.dayProfile.nameRu);
+      LOGI("mode", "switch -> %s", dayModeName(ctx.dayMode));
     }
     face->onForceRedraw(ctx);
     gLastMode = ctx.dayMode;

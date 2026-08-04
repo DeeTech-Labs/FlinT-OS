@@ -7,10 +7,50 @@ LGFX tft;
 static LGFX_Sprite gCanvas(&tft);
 static bool gHasCanvas = false;
 
+// Full RGB565 backbuffer in BSS — heap on ESP32-C3 often has no contiguous
+// 153600-byte block after Wi-Fi/IDF init (largest ~120–130KB). Partitions.csv
+// does not affect RAM.
+static constexpr int kFbMaxW = 320;
+static constexpr int kFbMaxH = 240;
+alignas(16) static uint16_t s_framebuf[kFbMaxW * kFbMaxH];
+
 int SCR_W = 320;
 int SCR_H = 240;
 
+static bool clampRect(int& x, int& y, int& w, int& h) {
+  if (w <= 0 || h <= 0) {
+    return false;
+  }
+  if (x < 0) {
+    w += x;
+    x = 0;
+  }
+  if (y < 0) {
+    h += y;
+    y = 0;
+  }
+  if (x + w > SCR_W) {
+    w = SCR_W - x;
+  }
+  if (y + h > SCR_H) {
+    h = SCR_H - y;
+  }
+  return w > 0 && h > 0;
+}
+
+static void pushRectRaw(const uint16_t* buf, int x, int y, int w, int h) {
+  tft.startWrite();
+  for (int row = 0; row < h; row++) {
+    const uint16_t* src = buf + (size_t)(y + row) * (size_t)SCR_W + x;
+    tft.setAddrWindow(x, y + row, w, 1);
+    tft.writePixels(src, w);
+  }
+  tft.endWrite();
+}
+
 void displayBegin() {
+  // Panel init keeps DISPON off (see Panel_ST7789_NoDispOn) so empty GRAM
+  // never flashes white under invert.
   tft.init();
   tft.setRotation(TFT_ROTATION);
   tft.setColorDepth(16);
@@ -18,17 +58,33 @@ void displayBegin() {
   SCR_H = tft.height();
   tft.setTextWrap(false);
 
-  gCanvas.setColorDepth(16);
-  // Allocate before Wi‑Fi so heap is larger. Full RGB565 frame ≈ 150 KB.
-  if (gCanvas.createSprite(SCR_W, SCR_H)) {
-    gHasCanvas = true;
-    gCanvas.setTextWrap(false);
-    LOGI("disp", "ST7789 %dx%d canvas OK heap=%u", SCR_W, SCR_H,
-         (unsigned)flintFreeHeap());
-  } else {
+  const uint16_t bootBg = rgb565(8, 10, 18);
+  tft.fillScreen(bootBg);
+  tft.startWrite();
+  tft.writeCommand(0x29);  // DISPON — first visible frame is already brand bg
+  tft.endWrite();
+
+  if (SCR_W > kFbMaxW || SCR_H > kFbMaxH) {
     gHasCanvas = false;
-    LOGI("disp", "ST7789 %dx%d canvas OOM — direct draw heap=%u", SCR_W, SCR_H,
-         (unsigned)flintFreeHeap());
+    LOGE("disp", "panel %dx%d exceeds static FB %dx%d", SCR_W, SCR_H, kFbMaxW, kFbMaxH);
+  } else {
+    gCanvas.setColorDepth(16);
+    gCanvas.setBuffer(s_framebuf, SCR_W, SCR_H, 16);
+    gCanvas.setTextWrap(false);
+    gHasCanvas = true;
+    LOGI("disp", "ST7789 %dx%d canvas BSS=%u heap=%u", SCR_W, SCR_H,
+         (unsigned)(sizeof(s_framebuf)), (unsigned)flintFreeHeap());
+  }
+
+  if (!gHasCanvas) {
+    tft.fillScreen(rgb565(8, 10, 18));
+    tft.setTextDatum(textdatum_t::middle_center);
+    tft.setFont(&lgfx::v1::fonts::Font2);
+    tft.setTextColor(rgb565(255, 120, 100));
+    tft.drawString("Low RAM", SCR_W / 2, SCR_H / 2 - 10);
+    tft.setTextColor(rgb565(160, 170, 180));
+    tft.drawString("canvas OOM", SCR_W / 2, SCR_H / 2 + 14);
+    LOGE("disp", "ST7789 canvas OOM heap=%u — UI halted", (unsigned)flintFreeHeap());
   }
 }
 
@@ -47,7 +103,6 @@ void displayPresent() {
   if (!gHasCanvas) {
     return;
   }
-  // Non-DMA push avoids rare DMA wait stalls while Wi‑Fi is active on C3.
   gCanvas.pushSprite(&tft, 0, 0);
 }
 
@@ -55,32 +110,42 @@ void displayPresentRect(int x, int y, int w, int h) {
   if (!gHasCanvas) {
     return;
   }
-  if (w <= 0 || h <= 0) {
+  if (!clampRect(x, y, w, h)) {
     return;
   }
-  if (x < 0) {
-    w += x;
-    x = 0;
+  const uint16_t* buf = static_cast<const uint16_t*>(gCanvas.getBuffer());
+  if (!buf) {
+    displayPresent();
+    return;
   }
-  if (y < 0) {
-    h += y;
-    y = 0;
-  }
-  if (x + w > SCR_W) w = SCR_W - x;
-  if (y + h > SCR_H) h = SCR_H - y;
-  if (w <= 0 || h <= 0) return;
+  pushRectRaw(buf, x, y, w, h);
+}
 
+void displayPresentRects(const DisplayRect* rects, int count) {
+  if (!gHasCanvas || !rects || count <= 0) {
+    return;
+  }
   const uint16_t* buf = static_cast<const uint16_t*>(gCanvas.getBuffer());
   if (!buf) {
     displayPresent();
     return;
   }
 
+  // Single transaction for multiple dirty bands.
   tft.startWrite();
-  for (int row = 0; row < h; row++) {
-    // LovyanGFX: setAddrWindow(x, y, w, h)
-    tft.setAddrWindow(x, y + row, w, 1);
-    tft.writePixels(buf + (size_t)(y + row) * (size_t)SCR_W + x, w);
+  for (int i = 0; i < count; i++) {
+    int x = rects[i].x;
+    int y = rects[i].y;
+    int w = rects[i].w;
+    int h = rects[i].h;
+    if (!clampRect(x, y, w, h)) {
+      continue;
+    }
+    for (int row = 0; row < h; row++) {
+      const uint16_t* src = buf + (size_t)(y + row) * (size_t)SCR_W + x;
+      tft.setAddrWindow(x, y + row, w, 1);
+      tft.writePixels(src, w);
+    }
   }
   tft.endWrite();
 }
@@ -142,14 +207,12 @@ int displayTextWidth(lgfx::LGFXBase& gfx, const char* text) {
 int displayFontAscent(lgfx::LGFXBase& gfx) {
   lgfx::FontMetrics m{};
   gfx.getFont()->getDefaultMetric(&m);
-  // baseline ≈ pixels above the baseline for U8g2-backed fonts
   return m.baseline > 0 ? m.baseline : gfx.fontHeight();
 }
 
 int displayFontDescent(lgfx::LGFXBase& gfx) {
   lgfx::FontMetrics m{};
   gfx.getFont()->getDefaultMetric(&m);
-  // u8g2-style negative descent below baseline
   const int below = m.height - m.baseline;
   return below > 0 ? -below : 0;
 }

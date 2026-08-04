@@ -1,4 +1,5 @@
 #include "sdk/flint_face_sdk.h"
+#include "faces/glance.h"
 #include "config/debug.h"
 
 #include <string.h>
@@ -8,7 +9,7 @@
 class DigitalFace : public Face {
 public:
   const FaceInfo& info() const override {
-    static const FaceInfo i{"digital", "Digital", "FlinT OS", 2, 2};
+    static const FaceInfo i{"digital", "Digital", "FlinT OS", 3, 3};
     return i;
   }
 
@@ -22,7 +23,8 @@ public:
   }
 
   void onTick(const FaceContext& ctx) override {
-    if (ctx.dayMode != mode_ || force_) {
+    if (ctx.dayMode != mode_ || force_ || ctx.hour12 != hour12_
+        || ctx.showSeconds != showSeconds_) {
       paintFull(ctx);
       return;
     }
@@ -35,10 +37,12 @@ public:
     bool timeDirty = false;
     bool dateDirty = false;
     bool wifiDirty = false;
+    bool ampmDirty = false;
     if (strcmp(timeStr, lastTime_) != 0) {
       drawTime(ctx, timeStr, false);
       timeDirty = true;
     }
+    ampmDirty = drawAmpm(ctx, false);
     if (strcmp(dateStr, lastDate_) != 0) {
       drawDate(ctx, dateStr, false);
       dateDirty = true;
@@ -47,14 +51,39 @@ public:
       drawWifiDot(ctx);
       wifiDirty = true;
     }
-    if (weatherDirty || timeDirty || dateDirty || wifiDirty) {
-      if (timeDirty && !weatherDirty && !dateDirty && !wifiDirty && displayHasCanvas()) {
-        displaySetFont(displayGfx(), timeFont());
-        const int asc = displayFontAscent(displayGfx());
-        displayPresentRect(0, TIME_Y - asc, ctx.screenW, timeGlyphH_ + 2);
-      } else {
-        displayPresent();
-      }
+    if (!(weatherDirty || timeDirty || dateDirty || wifiDirty || ampmDirty)) {
+      return;
+    }
+
+    if (!displayHasCanvas()) {
+      return;
+    }
+
+    DisplayRect rects[4];
+    int n = 0;
+    displaySetFont(displayGfx(), timeFont());
+    const int asc = displayFontAscent(displayGfx());
+
+    if (timeDirty || ampmDirty) {
+      rects[n++] = DisplayRect{0, static_cast<int16_t>(TIME_Y - asc),
+                               static_cast<int16_t>(ctx.screenW),
+                               static_cast<int16_t>(timeGlyphH_ + 2)};
+    }
+    if (weatherDirty) {
+      rects[n++] = DisplayRect{0, 0, 100, 46};
+    }
+    if (dateDirty) {
+      rects[n++] = DisplayRect{0, static_cast<int16_t>(DATE_Y - 16),
+                               static_cast<int16_t>(ctx.screenW), 22};
+    }
+    if (wifiDirty) {
+      rects[n++] = DisplayRect{static_cast<int16_t>(ctx.screenW - 22), 6, 16, 16};
+    }
+
+    if (n == 1) {
+      displayPresentRect(rects[0].x, rects[0].y, rects[0].w, rects[0].h);
+    } else if (n > 1) {
+      displayPresentRects(rects, n);
     }
   }
 
@@ -72,9 +101,11 @@ private:
   DayModeProfile profile_{};
   bool force_ = true;
   bool showSeconds_ = true;
+  bool hour12_ = false;
 
   char lastTime_[16] = "";
   char lastDate_[32] = "";
+  char lastAmpm_[4] = "";
   char lastTemp_[12] = "";
   char lastModeLabel_[16] = "";
   int lastWeatherCode_ = -999;
@@ -85,6 +116,7 @@ private:
   int digitW_ = 0;
   int colonW_ = 0;
   int timeCellX_[8] = {0};
+  int timeEndX_ = 0;
   int timeGlyphH_ = 0;
   bool timeLayoutReady_ = false;
   bool layoutWithSeconds_ = true;
@@ -94,43 +126,40 @@ private:
   static const lgfx::IFont* bodyFont() { return flintFont(FlintFontId::Body); }
   static const lgfx::IFont* tempFont() { return flintFont(FlintFontId::Temp); }
 
-  static const char* WEEKDAYS_RU[];
-  static const char* WEEKDAYS_EN[];
-
   void resetState() {
     force_ = true;
     timeLayoutReady_ = false;
-    lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = '\0';
+    lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
     lastWeatherCode_ = -999;
   }
 
   uint16_t pageBg() const { return pal_.bgTop; }
 
-  const char* weekdayName(const FaceContext& ctx) const {
-    const int w = ctx.localTime.tm_wday;
-    if (ctx.lang == 1) {
-      return WEEKDAYS_EN[w];
+  static int hourForDisplay(int h24, bool hour12) {
+    if (!hour12) {
+      return h24;
     }
-    return WEEKDAYS_RU[w];
+    int h = h24 % 12;
+    return h == 0 ? 12 : h;
   }
 
   void formatTimeDate(const FaceContext& ctx, char* timeStr, size_t timeN,
                       char* dateStr, size_t dateN) {
     if (ctx.hasTime) {
+      const int h = hourForDisplay(ctx.localTime.tm_hour, ctx.hour12);
       if (ctx.showSeconds) {
         snprintf(timeStr, timeN, "%02d:%02d:%02d",
-                 ctx.localTime.tm_hour, ctx.localTime.tm_min, ctx.localTime.tm_sec);
+                 h, ctx.localTime.tm_min, ctx.localTime.tm_sec);
       } else {
-        snprintf(timeStr, timeN, "%02d:%02d",
-                 ctx.localTime.tm_hour, ctx.localTime.tm_min);
+        snprintf(timeStr, timeN, "%02d:%02d", h, ctx.localTime.tm_min);
       }
       snprintf(dateStr, dateN, "%s  %02d.%02d.%04d",
-               weekdayName(ctx),
+               flintTrWeekday(ctx.localTime.tm_wday),
                ctx.localTime.tm_mday, ctx.localTime.tm_mon + 1,
                ctx.localTime.tm_year + 1900);
     } else {
       snprintf(timeStr, timeN, ctx.showSeconds ? "--:--:--" : "--:--");
-      snprintf(dateStr, dateN, ctx.lang == 1 ? "waiting for time" : "ожидание времени");
+      snprintf(dateStr, dateN, "%s", flintTr(FlintStr::WaitingForTime));
     }
   }
 
@@ -168,10 +197,45 @@ private:
   }
 
   void drawWifiDot(const FaceContext& ctx) {
-    auto& gfx = displayGfx();
-    gfx.fillCircle(ctx.screenW - 14, 14, 4,
-                   ctx.wifiConnected ? pal_.wifiOn : pal_.wifiOff);
+    flintGlanceDraw(ctx, GLANCE_WIFI, GlanceRect{static_cast<int16_t>(ctx.screenW - 22), 6, 16, 16});
     lastWifi_ = ctx.wifiConnected;
+  }
+
+  bool drawWeatherBadge(const FaceContext& ctx, bool force) {
+    if (!profile_.showWeather) {
+      if (force) {
+        auto& gfx = displayGfx();
+        gfx.fillRect(0, 0, 100, 28, pageBg());
+      }
+      return force;
+    }
+
+    const WeatherState& w = ctx.weather;
+    char temp[12];
+    if (w.ok) {
+      snprintf(temp, sizeof(temp), "%+.0f", static_cast<double>(w.tempC));
+    } else if (w.loading) {
+      snprintf(temp, sizeof(temp), "..");
+    } else {
+      snprintf(temp, sizeof(temp), "--");
+    }
+
+    const bool dirty = force || (w.ok != lastWxOk_) || (w.loading != lastWxLoading_)
+                       || (w.code != lastWeatherCode_) || (strcmp(temp, lastTemp_) != 0);
+    if (!dirty) {
+      return false;
+    }
+
+    flintGlanceDraw(ctx, GLANCE_WEATHER, GlanceRect{0, 0, 100, 28});
+    if (w.dailyOk) {
+      flintGlanceDraw(ctx, GLANCE_DAILY_RANGE, GlanceRect{0, 28, 100, 18});
+    }
+    lastWeatherCode_ = w.ok ? w.code : -1;
+    lastWxOk_ = w.ok;
+    lastWxLoading_ = w.loading;
+    strncpy(lastTemp_, temp, sizeof(lastTemp_) - 1);
+    lastTemp_[sizeof(lastTemp_) - 1] = '\0';
+    return true;
   }
 
   void drawModeLabel(const FaceContext& ctx, bool force) {
@@ -183,7 +247,7 @@ private:
       }
       return;
     }
-    const char* label = profile_.nameRu;
+    const char* label = dayModeName(ctx.dayMode);
     if (!force && strcmp(label, lastModeLabel_) == 0) return;
 
     displaySetFont(gfx, bodyFont());
@@ -196,61 +260,6 @@ private:
     gfx.drawString(label, x, MODE_LABEL_Y);
     strncpy(lastModeLabel_, label, sizeof(lastModeLabel_) - 1);
     lastModeLabel_[sizeof(lastModeLabel_) - 1] = '\0';
-  }
-
-  bool drawWeatherBadge(const FaceContext& ctx, bool force) {
-    auto& gfx = displayGfx();
-    if (!profile_.showWeather) {
-      if (force) gfx.fillRect(0, 0, 100, 28, pageBg());
-      return force;
-    }
-
-    char temp[12];
-    int iconCode = -1;
-    const WeatherState& w = ctx.weather;
-    if (w.ok) {
-      snprintf(temp, sizeof(temp), "%+.0f", w.tempC);
-      iconCode = w.code;
-    } else if (w.loading) {
-      snprintf(temp, sizeof(temp), "..");
-    } else {
-      snprintf(temp, sizeof(temp), "--");
-    }
-
-    bool dirty = false;
-    bool iconDirty = force || (w.ok != lastWxOk_) || (w.loading != lastWxLoading_)
-                     || (iconCode != lastWeatherCode_);
-    if (iconDirty) {
-      gfx.fillRect(0, 0, 100, 28, pageBg());
-      flintDrawIcon(gfx, flintWeatherIcon(iconCode), WX_ICON_CX, WX_ICON_CY,
-                    pal_.accent, pageBg());
-      lastWeatherCode_ = iconCode;
-      lastWxOk_ = w.ok;
-      lastWxLoading_ = w.loading;
-      lastTemp_[0] = '\0';
-      dirty = true;
-    }
-
-    if (lastTemp_[0] == '\0' || strcmp(temp, lastTemp_) != 0) {
-      displaySetFont(gfx, tempFont());
-      if (lastTemp_[0] != '\0' && strlen(temp) < strlen(lastTemp_)) {
-        int asc = displayFontAscent(gfx);
-        int desc = displayFontDescent(gfx);
-        gfx.fillRect(WX_TEMP_X, WX_TEMP_Y - asc, 60, asc - desc + 2, pageBg());
-        lastTemp_[0] = '\0';
-      }
-      if (lastTemp_[0] == '\0') {
-        char blank[12] = "";
-        drawOpaqueDiff(gfx, temp, blank, WX_TEMP_X, WX_TEMP_Y,
-                       tempFont(), pal_.textSecondary, pageBg());
-        strcpy(lastTemp_, temp);
-      } else {
-        drawOpaqueDiff(gfx, temp, lastTemp_, WX_TEMP_X, WX_TEMP_Y,
-                       tempFont(), pal_.textSecondary, pageBg());
-      }
-      dirty = true;
-    }
-    return dirty;
   }
 
   void ensureTimeLayout(const FaceContext& ctx, bool withSeconds) {
@@ -278,14 +287,48 @@ private:
     const int digits = withSeconds ? 6 : 4;
     const int colons = withSeconds ? 2 : 1;
     const int total = digitW_ * digits + colonW_ * colons;
-    int x = (ctx.screenW - total) / 2;
+    const int ampmReserve = hour12_ ? 42 : 0;
+    int x = (ctx.screenW - total - ampmReserve) / 2;
     if (x < 0) x = 0;
     for (int i = 0; i < timeLen_; i++) {
       timeCellX_[i] = x;
       const bool colonSlot = withSeconds ? (i == 2 || i == 5) : (i == 2);
       x += colonSlot ? colonW_ : digitW_;
     }
+    timeEndX_ = x;
     timeLayoutReady_ = true;
+  }
+
+  // Returns true if AM/PM label was redrawn.
+  bool drawAmpm(const FaceContext& ctx, bool force) {
+    auto& gfx = displayGfx();
+    if (!hour12_ || !ctx.hasTime) {
+      if (lastAmpm_[0] != '\0') {
+        displaySetFont(gfx, bodyFont());
+        const int asc = displayFontAscent(gfx);
+        const int desc = displayFontDescent(gfx);
+        gfx.fillRect(timeEndX_, TIME_Y - asc, 48, asc - desc + 2, pageBg());
+        lastAmpm_[0] = '\0';
+        return true;
+      }
+      return false;
+    }
+
+    const char* label = (ctx.localTime.tm_hour >= 12) ? flintTr(FlintStr::PM) : flintTr(FlintStr::AM);
+    if (!force && strcmp(label, lastAmpm_) == 0) {
+      return false;
+    }
+
+    displaySetFont(gfx, bodyFont());
+    const int asc = displayFontAscent(gfx);
+    const int desc = displayFontDescent(gfx);
+    const int x = timeEndX_ + 6;
+    gfx.fillRect(x, TIME_Y - asc, 40, asc - desc + 2, pageBg());
+    gfx.setTextColor(pal_.textSecondary, pageBg());
+    gfx.drawString(label, x, TIME_Y - 4);
+    strncpy(lastAmpm_, label, sizeof(lastAmpm_) - 1);
+    lastAmpm_[sizeof(lastAmpm_) - 1] = '\0';
+    return true;
   }
 
   void drawTimeGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg, uint16_t bg) {
@@ -322,16 +365,20 @@ private:
 
   void drawDate(const FaceContext& ctx, const char* dateStr, bool force) {
     if (!force && strcmp(dateStr, lastDate_) == 0) return;
-    auto& gfx = displayGfx();
-    displaySetFont(gfx, bodyFont());
-    int w = displayTextWidth(gfx, dateStr);
-    int x = (ctx.screenW - w) / 2;
-    int asc = displayFontAscent(gfx);
-    int desc = displayFontDescent(gfx);
-    gfx.fillRect(0, DATE_Y - asc, ctx.screenW, asc - desc + 2, pageBg());
-    gfx.setTextColor(pal_.textSecondary, pageBg());
-    gfx.drawString(dateStr, x, DATE_Y);
-    strcpy(lastDate_, dateStr);
+    (void)dateStr;
+    flintGlanceDraw(ctx, GLANCE_DATE,
+                    GlanceRect{0, static_cast<int16_t>(DATE_Y - 16),
+                               static_cast<int16_t>(ctx.screenW), 22});
+    // Cache formatted string for dirty check
+    char buf[32];
+    if (ctx.hasTime) {
+      snprintf(buf, sizeof(buf), "%s  %02d.%02d.%04d",
+               flintTrWeekday(ctx.localTime.tm_wday), ctx.localTime.tm_mday,
+               ctx.localTime.tm_mon + 1, ctx.localTime.tm_year + 1900);
+    } else {
+      snprintf(buf, sizeof(buf), "%s", flintTr(FlintStr::WaitingForTime));
+    }
+    strcpy(lastDate_, buf);
   }
 
   void paintFull(const FaceContext& ctx) {
@@ -339,9 +386,11 @@ private:
     profile_ = ctx.dayProfile;
     pal_ = ctx.palette;
     showSeconds_ = ctx.showSeconds;
+    hour12_ = ctx.hour12;
     timeLayoutReady_ = false;
 
-    LOGD("face", "digital full mode=%s canvas=%d", profile_.nameRu, (int)displayHasCanvas());
+    LOGD("face", "digital full mode=%s canvas=%d", dayModeName(ctx.dayMode),
+         (int)displayHasCanvas());
 
     auto& gfx = displayGfx();
     gfx.fillScreen(pageBg());
@@ -352,7 +401,7 @@ private:
       gfx.drawFastHLine(0, y, ctx.screenW, colorLerp(pageBg(), pal_.bgBottom, t));
     }
 
-    lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = '\0';
+    lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
     lastWeatherCode_ = -999;
     lastWxOk_ = !ctx.weather.ok;
     lastWxLoading_ = !ctx.weather.loading;
@@ -365,19 +414,12 @@ private:
     char dateStr[32];
     formatTimeDate(ctx, timeStr, sizeof(timeStr), dateStr, sizeof(dateStr));
     drawTime(ctx, timeStr, true);
+    drawAmpm(ctx, true);
     drawDate(ctx, dateStr, true);
 
     displayPresent();
     force_ = false;
   }
-};
-
-const char* DigitalFace::WEEKDAYS_RU[] = {
-  "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"
-};
-
-const char* DigitalFace::WEEKDAYS_EN[] = {
-  "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 };
 
 Face* createDigitalFace() {

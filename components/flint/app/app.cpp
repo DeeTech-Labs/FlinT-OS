@@ -1,25 +1,36 @@
 #include "app.h"
 #include "config/config.h"
 #include "config/debug.h"
-#include "display/display.h"
-#include "net/wifi_net.h"
-#include "time/clock_time.h"
-#include "weather/weather.h"
 #include "day_mode/day_mode.h"
+#include "display/display.h"
+#include "event/event.h"
+#include "net/wifi_net.h"
 #include "shell/shell.h"
+#include "time/clock_time.h"
+#include "ui/splash.h"
 #include "ui/ui.h"
 #include "ui/ui_dirty.h"
 #include "util/flint_sys.h"
+#include "weather/weather.h"
 
 #include <stdio.h>
 
 void appSetup() {
-  flintDelay(200);
   printf("\n======== FlinT OS boot ========\n");
   LOGI("app", "DEBUG_LEVEL=%d", DEBUG_LEVEL);
 
+  // Init panel ASAP (fills brand bg) — no delay before this, avoids white flash.
   displayBegin();
   LOGI("disp", "screen %dx%d canvas=%d", SCR_W, SCR_H, (int)displayHasCanvas());
+
+  flintEventInit();
+  splashShow();  // ~3 s brand anim; blocks before face
+
+  // Show last-known time immediately (NVS); NTP will correct after Wi‑Fi.
+  clockTimeSoftBegin();
+  if (clockTimeIsValid()) {
+    flintEventEmit(FLINT_EVT_TIME_VALID);
+  }
 
   shellBegin();
   shellTick();
@@ -36,10 +47,9 @@ static void maintainServices() {
     return;
   }
 
-  // Start NTP as soon as Wi‑Fi is up. Restart only if first sync stalls.
   static uint32_t lastNtpBeginMs = 0;
-  const bool needFirst = !clockTimeIsValid();
-  const bool needResync = clockTimeIsValid()
+  const bool needFirst = !clockTimeIsNtpSynced();
+  const bool needResync = clockTimeIsNtpSynced()
                           && (flintMillis() - clockTimeLastSyncMs()) > NTP_RESYNC_MS;
 
   if (needFirst || needResync) {
@@ -51,9 +61,9 @@ static void maintainServices() {
     }
   }
 
-  const bool wasValid = clockTimeIsValid();
-  if (clockTimePollNtp() && !wasValid) {
-    uiMarkDirty(UI_DIRTY_TIME_VALID | UI_DIRTY_FORCE);
+  const bool wasNtp = clockTimeIsNtpSynced();
+  if (clockTimePollNtp() && !wasNtp && clockTimeIsNtpSynced()) {
+    flintEventEmit(FLINT_EVT_TIME_VALID);
   }
 }
 
@@ -79,15 +89,16 @@ static void scanTimeEvents() {
   }
 
   if (mode != lastMode) {
-    uiMarkDirty(UI_DIRTY_DAY_MODE);
+    flintEventEmit(FLINT_EVT_DAY_MODE);
     lastMode = mode;
   }
   if (ti.tm_min != lastMin) {
-    uiMarkDirty(UI_DIRTY_MINUTE);
+    flintEventEmit(FLINT_EVT_MINUTE);
     lastMin = ti.tm_min;
+    clockTimePersist();
   }
   if (ti.tm_sec != lastSec) {
-    uiMarkDirty(UI_DIRTY_SECOND);
+    flintEventEmit(FLINT_EVT_SECOND);
     lastSec = ti.tm_sec;
   }
 }
@@ -109,8 +120,10 @@ static void debugHeartbeat() {
   if (clockTimeGetLocal(&ti)) {
     modeName = dayModeNameRu(dayModeFromHour(ti.tm_hour));
   }
-  LOGI("hb", "wifi=%d time=%s mode=%s wx=%s temp=%.1f heap=%u dirty=0x%x",
-       (int)wifiNetIsConnected(), tbuf, modeName,
+  LOGI("hb", "wifi=%d time=%s%s mode=%s wx=%s temp=%.1f heap=%u dirty=0x%x",
+       (int)wifiNetIsConnected(), tbuf,
+       clockTimeIsValid() && !clockTimeIsNtpSynced() ? "~" : "",
+       modeName,
        w.ok ? weatherCodeRu(w.code) : (w.loading ? "loading" : "none"),
        w.ok ? w.tempC : 0.0f,
        (unsigned)flintFreeHeap(),
@@ -125,7 +138,6 @@ void appLoop() {
   shellTick();
   debugHeartbeat();
 
-  // Idle longer when nothing to paint (event-driven faces).
   if (uiHasDirty()) {
     flintDelay(20);
   } else {

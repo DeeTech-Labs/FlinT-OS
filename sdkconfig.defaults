@@ -22,13 +22,20 @@ CONFIG_COMPILER_CXX_RTTI=n
 CONFIG_LOG_DEFAULT_LEVEL_WARN=y
 CONFIG_LOG_DEFAULT_LEVEL=2
 
-# Wi-Fi STA only (SoftAP / enterprise not used yet)
+# No Bluetooth (wall clock is Wi-Fi STA only)
+# CONFIG_BT_ENABLED is not set
+
+# Wi-Fi STA only (SoftAP / enterprise not used)
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
 CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
 CONFIG_ESP_WIFI_SOFTAP_SUPPORT=n
 CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT=n
 
-# Weather uses plain HTTP — no TLS client / CA bundle in firmware
+# IPv4-only — weather + NTP do not need IPv6
+CONFIG_LWIP_IPV6=n
+
+# Weather uses plain HTTP — no TLS client / CA bundle / websocket framing
 CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=n
-# CONFIG_MBEDTLS_CERTIFICATE_BUNDLE is not set
+CONFIG_WS_TRANSPORT=n
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n

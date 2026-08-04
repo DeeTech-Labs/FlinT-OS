@@ -1,0 +1,128 @@
+# FlinT OS UI strings — message catalog template (gettext .pot)
+# msgid is the stable English key ().
+# Generate firmware tables: python3 tools/gen_i18n_catalog.py
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: FlinT-OS 0.1\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Faces"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "face"
+msgstr ""
+
+msgid "seconds"
+msgstr ""
+
+msgid "hour"
+msgstr ""
+
+msgid "lang"
+msgstr ""
+
+msgid "lat"
+msgstr ""
+
+msgid "lon"
+msgstr ""
+
+msgid "off"
+msgstr ""
+
+msgid "on"
+msgstr ""
+
+msgid "auto"
+msgstr ""
+
+msgid "24h"
+msgstr ""
+
+msgid "12h"
+msgstr ""
+
+msgid "p/n  Enter  Esc"
+msgstr ""
+
+msgid "p/n  +/-  Enter  Esc"
+msgstr ""
+
+msgid "Waiting for time"
+msgstr ""
+
+msgid "Morning"
+msgstr ""
+
+msgid "Day"
+msgstr ""
+
+msgid "Evening"
+msgstr ""
+
+msgid "Night"
+msgstr ""
+
+msgid "Sun"
+msgstr ""
+
+msgid "Mon"
+msgstr ""
+
+msgid "Tue"
+msgstr ""
+
+msgid "Wed"
+msgstr ""
+
+msgid "Thu"
+msgstr ""
+
+msgid "Fri"
+msgstr ""
+
+msgid "Sat"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Cloudy"
+msgstr ""
+
+msgid "Fog"
+msgstr ""
+
+msgid "Drizzle"
+msgstr ""
+
+msgid "Rain"
+msgstr ""
+
+msgid "Snow"
+msgstr ""
+
+msgid "Showers"
+msgstr ""
+
+msgid "Thunder"
+msgstr ""
+
+msgid "Weather"
+msgstr ""
+
+msgid "AM"
+msgstr ""
+
+msgid "PM"
+msgstr ""
+
+msgid "timezone"
+msgstr ""

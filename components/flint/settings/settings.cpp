@@ -1,6 +1,8 @@
 #include "settings/settings.h"
 #include "config/config.h"
 #include "config/debug.h"
+#include "i18n/i18n.h"
+#include "time/tz_db.h"
 
 #include <string.h>
 
@@ -15,17 +17,25 @@ static void settingsApplyDefaults() {
   gSettings.activeFace[sizeof(gSettings.activeFace) - 1] = '\0';
   gSettings.showSeconds = SETTINGS_SEC_AUTO;
   gSettings.lang = SETTINGS_LANG_RU;
+  gSettings.hourFormat = SETTINGS_HOUR_24;
   gSettings.wxLat = WEATHER_LAT;
   gSettings.wxLon = WEATHER_LON;
+  strncpy(gSettings.tzId, DEFAULT_TZ_ID, sizeof(gSettings.tzId) - 1);
+  gSettings.tzId[sizeof(gSettings.tzId) - 1] = '\0';
 }
 
 void settingsLoad() {
+  if (gLoaded) {
+    return;
+  }
   settingsApplyDefaults();
 
   nvs_handle_t h;
   esp_err_t err = nvs_open("flint", NVS_READONLY, &h);
   if (err != ESP_OK) {
     LOGI("set", "nvs empty — defaults face=%s", gSettings.activeFace);
+    flintI18nSetLang(gSettings.lang);
+    clockTimeApplyTz(gSettings.tzId);
     gLoaded = true;
     return;
   }
@@ -43,8 +53,11 @@ void settingsLoad() {
   if (nvs_get_u8(h, "lang", &u8) == ESP_OK) {
     gSettings.lang = u8;
   }
+  u8 = SETTINGS_HOUR_24;
+  if (nvs_get_u8(h, "hour_fmt", &u8) == ESP_OK) {
+    gSettings.hourFormat = u8;
+  }
 
-  // floats stored as i32 * 10000
   int32_t i32 = 0;
   if (nvs_get_i32(h, "wx_lat", &i32) == ESP_OK) {
     gSettings.wxLat = i32 / 10000.0f;
@@ -53,11 +66,18 @@ void settingsLoad() {
     gSettings.wxLon = i32 / 10000.0f;
   }
 
+  len = sizeof(gSettings.tzId);
+  if (nvs_get_str(h, "tz_id", gSettings.tzId, &len) != ESP_OK) {
+    strncpy(gSettings.tzId, DEFAULT_TZ_ID, sizeof(gSettings.tzId) - 1);
+  }
+
   nvs_close(h);
   gLoaded = true;
-  LOGI("set", "loaded face=%s sec=%u lang=%u lat=%.4f lon=%.4f",
+  flintI18nSetLang(gSettings.lang);
+  clockTimeApplyTz(gSettings.tzId);
+  LOGI("set", "loaded face=%s sec=%u lang=%u tz=%s",
        gSettings.activeFace, (unsigned)gSettings.showSeconds, (unsigned)gSettings.lang,
-       gSettings.wxLat, gSettings.wxLon);
+       gSettings.tzId);
 }
 
 void settingsSave() {
@@ -71,8 +91,10 @@ void settingsSave() {
   nvs_set_str(h, "active_face", gSettings.activeFace);
   nvs_set_u8(h, "show_sec", gSettings.showSeconds);
   nvs_set_u8(h, "lang", gSettings.lang);
+  nvs_set_u8(h, "hour_fmt", gSettings.hourFormat);
   nvs_set_i32(h, "wx_lat", (int32_t)(gSettings.wxLat * 10000.0f));
   nvs_set_i32(h, "wx_lon", (int32_t)(gSettings.wxLon * 10000.0f));
+  nvs_set_str(h, "tz_id", gSettings.tzId);
   nvs_commit(h);
   nvs_close(h);
   LOGI("set", "saved face=%s", gSettings.activeFace);
@@ -101,7 +123,13 @@ void settingsSetShowSeconds(uint8_t mode) {
 }
 
 void settingsSetLang(uint8_t lang) {
-  gSettings.lang = lang;
+  gSettings.lang = (lang == SETTINGS_LANG_EN) ? SETTINGS_LANG_EN : SETTINGS_LANG_RU;
+  flintI18nSetLang(gSettings.lang);
+  settingsSave();
+}
+
+void settingsSetHourFormat(uint8_t fmt) {
+  gSettings.hourFormat = (fmt == SETTINGS_HOUR_12) ? SETTINGS_HOUR_12 : SETTINGS_HOUR_24;
   settingsSave();
 }
 
@@ -111,10 +139,22 @@ void settingsSetWeatherCoords(float lat, float lon) {
   settingsSave();
 }
 
+void settingsSetTzId(const char* id) {
+  const TzEntry* e = tzDbFind(id);
+  strncpy(gSettings.tzId, e->id, sizeof(gSettings.tzId) - 1);
+  gSettings.tzId[sizeof(gSettings.tzId) - 1] = '\0';
+  clockTimeApplyTz(gSettings.tzId);
+  settingsSave();
+}
+
 bool settingsResolveShowSeconds(bool dayProfileShowSeconds) {
   const FlintSettings& s = settingsGet();
   if (s.showSeconds == SETTINGS_SEC_AUTO) {
     return dayProfileShowSeconds;
   }
   return s.showSeconds == SETTINGS_SEC_ON;
+}
+
+bool settingsUse12Hour() {
+  return settingsGet().hourFormat == SETTINGS_HOUR_12;
 }

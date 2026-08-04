@@ -11,17 +11,16 @@ enum DayMode : uint8_t {
 };
 
 struct DayModeProfile {
-  DayMode mode;
-  const char* nameRu;     // «утро» / «день» / …
-  bool showSeconds;       // ночь: только ЧЧ:ММ
-  bool showWeather;       // бейдж погоды
-  bool showModeLabel;     // подпись режима сверху
-  uint8_t washHeight;     // высота нижней «вуали»
+  bool showSeconds;
+  bool showWeather;
+  bool showModeLabel;
+  uint8_t washHeight;
 };
 
 DayMode dayModeFromHour(int hour);
 const DayModeProfile& dayModeProfile(DayMode mode);
-const char* dayModeNameRu(DayMode mode);
+const char* dayModeNameRu(DayMode mode);  // legacy alias → flintTrDayMode
+const char* dayModeName(DayMode mode);    // localized
 
 // Палитра под режим + лёгкая подстройка от погоды
 UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk);

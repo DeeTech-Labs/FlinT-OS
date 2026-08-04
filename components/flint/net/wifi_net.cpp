@@ -1,12 +1,13 @@
 #include "wifi_net.h"
 #include "config/config.h"
 #include "config/debug.h"
-#include "ui/ui_dirty.h"
+#include "event/event.h"
 #include "util/flint_sys.h"
 
 #include <string.h>
 
 #include "esp_event.h"
+#include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
@@ -15,23 +16,43 @@
 static EventGroupHandle_t s_wifi_events = nullptr;
 static esp_netif_t* s_sta = nullptr;
 static bool s_started = false;
+static bool s_connecting = false;
+static uint32_t s_connectStartedMs = 0;
+static uint32_t s_lastReconnectMs = 0;
 
 static const int WIFI_OK_BIT = BIT0;
 
+static void wifiMarkConnecting() {
+  s_connecting = true;
+  s_connectStartedMs = flintMillis() ? flintMillis() : 1;
+}
+
 static void wifiEventHandler(void* arg, esp_event_base_t base, int32_t id, void* data) {
   (void)arg;
-  (void)data;
   if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
+    wifiMarkConnecting();
     esp_wifi_connect();
   } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
     xEventGroupClearBits(s_wifi_events, WIFI_OK_BIT);
-    uiMarkDirty(UI_DIRTY_WIFI);
-    LOGI("wifi", "disconnected — will retry");
+    s_connecting = false;
+    flintEventEmit(FLINT_EVT_WIFI);
+
+    // Immediate retry on drop — do NOT also reconnect from maintain() while in-flight.
+    const uint32_t now = flintMillis();
+    if (now - s_lastReconnectMs >= 2000UL) {
+      s_lastReconnectMs = now ? now : 1;
+      wifiMarkConnecting();
+      LOGI("wifi", "disconnected — reconnect");
+      esp_wifi_connect();
+    } else {
+      LOGI("wifi", "disconnected — backoff");
+    }
   } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+    s_connecting = false;
     xEventGroupSetBits(s_wifi_events, WIFI_OK_BIT);
-    uiMarkDirty(UI_DIRTY_WIFI);
+    flintEventEmit(FLINT_EVT_WIFI);
     ip_event_got_ip_t* event = static_cast<ip_event_got_ip_t*>(data);
-    LOGI("wifi", "up ip=" IPSTR " rssi pending", IP2STR(&event->ip_info.ip));
+    LOGI("wifi", "up ip=" IPSTR, IP2STR(&event->ip_info.ip));
   }
 }
 
@@ -47,6 +68,9 @@ void wifiNetBegin() {
     return;
   }
   LOGI("wifi", "begin SSID=\"%s\"", WIFI_SSID);
+
+  // Quiet driver noise (FT-PSK fallback, etc.); app logs stay on LOGI.
+  esp_log_level_set("wifi", ESP_LOG_ERROR);
 
   s_wifi_events = xEventGroupCreate();
   s_sta = esp_netif_create_default_wifi_sta();
@@ -64,10 +88,12 @@ void wifiNetBegin() {
   strncpy(reinterpret_cast<char*>(wifi_config.sta.password), WIFI_PASS,
           sizeof(wifi_config.sta.password));
   wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+  // Prefer stable WPA2; avoid FT/WPA3 negotiation surprises on home APs.
+  wifi_config.sta.pmf_cfg.capable = true;
+  wifi_config.sta.pmf_cfg.required = false;
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-  // Modem sleep stalls UI on C3 while radio wakes.
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_start());
   s_started = true;
@@ -118,13 +144,27 @@ void wifiNetMaintain() {
   wasConnected = now;
 
   if (now) {
+    s_connecting = false;
     return;
   }
 
-  static uint32_t lastTry = 0;
-  if (flintMillis() - lastTry > WIFI_RETRY_MS) {
-    lastTry = flintMillis();
-    LOGI("wifi", "reconnect()");
-    esp_wifi_connect();
+  // Association / DHCP still in progress — do not call esp_wifi_connect() again
+  // (causes "sta is connected, disconnect before connecting").
+  if (s_connecting) {
+    const uint32_t elapsed = flintMillis() - s_connectStartedMs;
+    if (elapsed < WIFI_CONNECT_TIMEOUT_MS) {
+      return;
+    }
+    LOGI("wifi", "connect timeout — retry");
+    s_connecting = false;
   }
+
+  const uint32_t nowMs = flintMillis();
+  if (nowMs - s_lastReconnectMs < WIFI_RETRY_MS) {
+    return;
+  }
+  s_lastReconnectMs = nowMs ? nowMs : 1;
+  wifiMarkConnecting();
+  LOGI("wifi", "reconnect()");
+  esp_wifi_connect();
 }

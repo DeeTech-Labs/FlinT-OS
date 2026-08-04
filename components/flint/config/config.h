@@ -7,15 +7,12 @@
 // Pins: ESP32-C3 + GMT028-05 (ST7789)
 // Secrets (Wi‑Fi): components/flint/config/secrets.h  ← local only
 
-// Timezone (Орёл / Москва, UTC+3, без DST)
-static constexpr long GMT_OFFSET_SEC = 3 * 3600;
-static constexpr int DAYLIGHT_OFFSET_SEC = 0;
 inline constexpr const char* NTP_SERVER = "pool.ntp.org";
 
-// Open-Meteo — Орёл, Россия
+// Open-Meteo — Орёл, Россия (timezone comes from settings / tz_db)
 static constexpr float WEATHER_LAT = 52.9651f;
 static constexpr float WEATHER_LON = 36.0694f;
-inline constexpr const char* WEATHER_TZ = "Europe%2FMoscow";
+inline constexpr const char* DEFAULT_TZ_ID = "Europe/Moscow";
 
 // Display pins
 static const int TFT_CS = 10;
@@ -41,7 +38,7 @@ static const uint32_t WIFI_RETRY_MS = 15000UL;
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000UL;
 
 // Face / theme API (bump when Face ABI / FaceContext breaks)
-static constexpr uint16_t FLINT_OS_API_VERSION = 2;
+static constexpr uint16_t FLINT_OS_API_VERSION = 3;
 // Factory default when NVS has no active_face yet (picker / settings override).
 inline constexpr const char* ACTIVE_FACE_ID = "digital";
 

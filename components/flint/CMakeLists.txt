@@ -1,11 +1,14 @@
 # FlinT OS — application component (all product logic lives here)
 
 set(FLINT_SRC_DIRS
+    anim
     app
     display
     display/fonts
     day_mode
+    event
     faces
+    i18n
     net
     settings
     shell

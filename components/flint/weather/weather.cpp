@@ -1,9 +1,11 @@
 #include "weather.h"
 #include "config/config.h"
 #include "config/debug.h"
+#include "event/event.h"
+#include "i18n/i18n.h"
 #include "net/wifi_net.h"
 #include "settings/settings.h"
-#include "ui/ui_dirty.h"
+#include "time/tz_db.h"
 #include "util/flint_sys.h"
 
 #include <stdio.h>
@@ -15,13 +17,15 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-static WeatherState gWeather = {false, false, 0, 0, 0};
-static WeatherState gWeatherSnap = {false, false, 0, 0, 0};
+static WeatherState gWeather{};
+static WeatherState gWeatherSnap{};
 static SemaphoreHandle_t gWxMutex = nullptr;
 static TaskHandle_t gWxTask = nullptr;
 
 static uint32_t gNextAttemptMs = 0;
 static uint32_t gFailBackoffMs = 5000;
+
+static constexpr int kHttpCapMax = 12288;
 
 static void wxLock() {
   if (gWxMutex) xSemaphoreTake(gWxMutex, portMAX_DELAY);
@@ -33,7 +37,7 @@ static void wxUnlock() {
 
 static void wxPublishLocked() {
   gWeatherSnap = gWeather;
-  uiMarkDirty(UI_DIRTY_WEATHER);
+  flintEventEmit(FLINT_EVT_WEATHER);
 }
 
 const WeatherState weatherGet() {
@@ -54,30 +58,108 @@ uint32_t weatherLastFetchMs() {
   return weatherGet().updatedMs;
 }
 
-const char* weatherCodeRu(int code) {
-  if (code == 0) return "ясно";
-  if (code <= 3) return "облачно";
-  if (code == 45 || code == 48) return "туман";
-  if (code >= 51 && code <= 57) return "морось";
-  if (code >= 61 && code <= 67) return "дождь";
-  if (code >= 71 && code <= 77) return "снег";
-  if (code >= 80 && code <= 82) return "ливень";
-  if (code >= 85 && code <= 86) return "снег";
-  if (code >= 95) return "гроза";
-  return "погода";
+const char* weatherCodeLabel(int code) {
+  return flintTrWeatherCode(code);
 }
 
-static bool parseWeatherJson(const char* body, float* tempOut, int* codeOut) {
+const char* weatherCodeRu(int code) {
+  return weatherCodeLabel(code);
+}
+
+static const char* findArrayAfterKey(const char* body, const char* key) {
+  const char* k = strstr(body, key);
+  if (!k) return nullptr;
+  const char* br = strchr(k, '[');
+  return br;
+}
+
+static bool parseFloatList(const char* arr, float* out, int maxN, int* got) {
+  if (!arr || !out || maxN <= 0) return false;
+  *got = 0;
+  const char* p = arr + 1;
+  while (*p && *got < maxN) {
+    while (*p == ' ' || *p == ',') p++;
+    if (*p == ']') break;
+    char* end = nullptr;
+    float v = strtof(p, &end);
+    if (end == p) break;
+    out[(*got)++] = v;
+    p = end;
+  }
+  return *got > 0;
+}
+
+static bool parseIntList(const char* arr, int* out, int maxN, int* got) {
+  if (!arr || !out || maxN <= 0) return false;
+  *got = 0;
+  const char* p = arr + 1;
+  while (*p && *got < maxN) {
+    while (*p == ' ' || *p == ',') p++;
+    if (*p == ']') break;
+    char* end = nullptr;
+    long v = strtol(p, &end, 10);
+    if (end == p) break;
+    out[(*got)++] = static_cast<int>(v);
+    p = end;
+  }
+  return *got > 0;
+}
+
+static bool parseWeatherJson(const char* body, WeatherState* out) {
   const char* cur = strstr(body, "\"current\"");
   if (!cur) return false;
 
   const char* tKey = strstr(cur, "\"temperature_2m\":");
   if (!tKey) return false;
-  *tempOut = strtof(tKey + 17, nullptr);
+  out->tempC = strtof(tKey + 17, nullptr);
 
   const char* cKey = strstr(cur, "\"weather_code\":");
   if (!cKey) return false;
-  *codeOut = static_cast<int>(strtol(cKey + 15, nullptr, 10));
+  out->code = static_cast<int>(strtol(cKey + 15, nullptr, 10));
+
+  out->dailyOk = false;
+  out->hourlyCount = 0;
+
+  const char* daily = strstr(body, "\"daily\"");
+  if (daily) {
+    float tMax[2]{};
+    float tMin[2]{};
+    int codes[2]{};
+    int nMax = 0, nMin = 0, nCode = 0;
+    const char* aMax = findArrayAfterKey(daily, "\"temperature_2m_max\"");
+    const char* aMin = findArrayAfterKey(daily, "\"temperature_2m_min\"");
+    const char* aCode = findArrayAfterKey(daily, "\"weather_code\"");
+    if (aMax && aMin && aCode && parseFloatList(aMax, tMax, 2, &nMax)
+        && parseFloatList(aMin, tMin, 2, &nMin) && parseIntList(aCode, codes, 2, &nCode)
+        && nMax > 0 && nMin > 0 && nCode > 0) {
+      out->daily.tMaxCx10 = static_cast<int16_t>(tMax[0] * 10.0f);
+      out->daily.tMinCx10 = static_cast<int16_t>(tMin[0] * 10.0f);
+      out->daily.code = static_cast<int16_t>(codes[0]);
+      out->dailyOk = true;
+    }
+  }
+
+  const char* hourly = strstr(body, "\"hourly\"");
+  if (hourly) {
+    float temps[24]{};
+    int codes[24]{};
+    int nT = 0, nC = 0;
+    const char* aT = findArrayAfterKey(hourly, "\"temperature_2m\"");
+    const char* aC = findArrayAfterKey(hourly, "\"weather_code\"");
+    if (aT && aC && parseFloatList(aT, temps, 24, &nT) && parseIntList(aC, codes, 24, &nC)) {
+      const int n = nT < nC ? nT : nC;
+      uint8_t count = 0;
+      for (int h = 0; h < 24 && count < 8; h += 3) {
+        if (h >= n) break;
+        out->hourly[count].hour = static_cast<int8_t>(h);
+        out->hourly[count].tempCx10 = static_cast<int16_t>(temps[h] * 10.0f);
+        out->hourly[count].code = static_cast<int16_t>(codes[h]);
+        count++;
+      }
+      out->hourlyCount = count;
+    }
+  }
+
   return true;
 }
 
@@ -93,8 +175,12 @@ static esp_err_t httpEventHandler(esp_http_client_event_t* evt) {
 
   if (evt->event_id == HTTP_EVENT_ON_DATA && evt->data && evt->data_len > 0) {
     if (buf->len + evt->data_len + 1 > buf->cap) {
-      int ncap = buf->cap ? buf->cap * 2 : 1024;
+      int ncap = buf->cap ? buf->cap * 2 : 2048;
       while (ncap < buf->len + evt->data_len + 1) ncap *= 2;
+      if (ncap > kHttpCapMax) ncap = kHttpCapMax;
+      if (buf->len + evt->data_len + 1 > ncap) {
+        return ESP_FAIL;
+      }
       char* nd = static_cast<char*>(realloc(buf->data, ncap));
       if (!nd) return ESP_FAIL;
       buf->data = nd;
@@ -118,20 +204,24 @@ static bool weatherFetchOnce() {
   wxUnlock();
 
   const FlintSettings& s = settingsGet();
-  char url[192];
+  char tzEnc[48];
+  tzDbUrlEncodeId(s.tzId, tzEnc, sizeof(tzEnc));
+
+  char url[288];
   snprintf(url, sizeof(url),
            "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-           "&current=temperature_2m,weather_code&timezone=%s",
-           s.wxLat, s.wxLon, WEATHER_TZ);
+           "&current=temperature_2m,weather_code"
+           "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+           "&hourly=temperature_2m,weather_code&forecast_days=1&timezone=%s",
+           s.wxLat, s.wxLon, tzEnc);
 
-  LOGI("wx", "async GET lat=%.4f lon=%.4f", s.wxLat, s.wxLon);
-  LOGD("wx", "url %s", url);
+  LOGI("wx", "async GET lat=%.4f lon=%.4f tz=%s", s.wxLat, s.wxLon, s.tzId);
 
   HttpBuf buf{nullptr, 0, 0};
   esp_http_client_config_t cfg = {};
   cfg.url = url;
   cfg.method = HTTP_METHOD_GET;
-  cfg.timeout_ms = 2500;
+  cfg.timeout_ms = 8000;
   cfg.event_handler = httpEventHandler;
   cfg.user_data = &buf;
 
@@ -161,9 +251,8 @@ static bool weatherFetchOnce() {
     return false;
   }
 
-  float t = 0;
-  int w = 0;
-  if (!parseWeatherJson(buf.data, &t, &w)) {
+  WeatherState parsed{};
+  if (!parseWeatherJson(buf.data, &parsed)) {
     LOGE("wx", "JSON parse failed");
     free(buf.data);
     wxLock();
@@ -175,15 +264,20 @@ static bool weatherFetchOnce() {
   free(buf.data);
 
   wxLock();
-  gWeather.tempC = t;
-  gWeather.code = w;
+  gWeather.tempC = parsed.tempC;
+  gWeather.code = parsed.code;
+  gWeather.dailyOk = parsed.dailyOk;
+  gWeather.daily = parsed.daily;
+  gWeather.hourlyCount = parsed.hourlyCount;
+  memcpy(gWeather.hourly, parsed.hourly, sizeof(parsed.hourly));
   gWeather.ok = true;
   gWeather.loading = false;
   gWeather.updatedMs = flintMillis();
   wxPublishLocked();
   wxUnlock();
 
-  LOGI("wx", "ok temp=%.1fC code=%d (%s)", t, w, weatherCodeRu(w));
+  LOGI("wx", "ok temp=%.1fC code=%d daily=%d hourly=%u",
+       parsed.tempC, parsed.code, (int)parsed.dailyOk, (unsigned)parsed.hourlyCount);
   return true;
 }
 
@@ -221,7 +315,15 @@ void weatherStartService() {
     gWxMutex = xSemaphoreCreateMutex();
   }
   if (!gWxTask) {
-    // Low priority so HTTP never starves the face redraw loop.
-    xTaskCreate(weatherTask, "weather", 8192, nullptr, 1, &gWxTask);
+    xTaskCreate(weatherTask, "weather", 10240, nullptr, 1, &gWxTask);
   }
+}
+
+void weatherRequestRefresh() {
+  wxLock();
+  gWeather.ok = false;
+  gWeather.updatedMs = 0;
+  wxUnlock();
+  gNextAttemptMs = 0;
+  gFailBackoffMs = 5000;
 }

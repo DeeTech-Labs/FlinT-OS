@@ -5,24 +5,25 @@
 //
 // Include ONLY the Face SDK (+ std headers). Do not include net/, weather APIs,
 // settings/, app/, or config/secrets.h. Read FaceContext; draw via display/resources.
+// Localized UI strings: flintTr(FlintStr::…), flintTrWeekday(), flintTrDayMode().
 
 #include "sdk/flint_face_sdk.h"
 
 class MyFace : public Face {
 public:
   const FaceInfo& info() const override {
-    // minApi must be <= FLINT_OS_API_VERSION (currently 2)
-    static const FaceInfo i{"myface", "My Face", "you", 1, 2};
+    // minApi must be <= FLINT_OS_API_VERSION (currently 3)
+    static const FaceInfo i{"myface", "My Face", "you", 1, 3};
     return i;
   }
 
   void onForceRedraw(const FaceContext& ctx) override {
     auto& gfx = displayGfx();
     gfx.fillScreen(ctx.palette.bgTop);
-    displaySetFont(gfx, flintFont(FlintFontId::Body));
-    displayDrawText(gfx, ctx.showSeconds ? "hello :ss" : "hello",
+    displayDrawText(gfx, flintTr(FlintStr::WaitingForTime),
                     20, 40, ctx.palette.accent, ctx.palette.bgTop,
                     flintFont(FlintFontId::Body));
+    // Optional complications: flintGlanceDraw(ctx, GLANCE_WEATHER, {0,0,100,28});
     displayPresent();
   }
 

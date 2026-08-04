@@ -29,6 +29,7 @@ third_party/LovyanGFX/
 
 # Editor / OS
 .vscode/
+.cursor/
 .idea/
 .clangd
 *.swp

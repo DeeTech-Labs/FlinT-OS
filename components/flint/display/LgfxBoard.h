@@ -8,19 +8,52 @@
 
 #include "config/config.h"
 
+namespace flint_lgfx {
+
+// Stock ST7789 init ends with DISPON while GRAM is still empty/zero.
+// With panel invert that reads as a white flash before we can paint.
+// Defer DISPON until after the first fill (see displayBegin).
+struct Panel_ST7789_NoDispOn : public lgfx::Panel_ST7789 {
+ protected:
+  const uint8_t* getInitCommands(uint8_t listno) const override {
+    static constexpr uint8_t list0[] = {
+        CMD_GCTRL, 1, 0x35,
+        CMD_VCOMS, 1, 0x28,
+        CMD_LCMCTRL, 1, 0x0C,
+        CMD_VDVVRHEN, 2, 0x01, 0xFF,
+        CMD_VRHS, 1, 0x10,
+        CMD_VDVSET, 1, 0x20,
+        CMD_PWCTRL1, 2, 0xa4, 0xa1,
+        CMD_RAMCTRL, 2, 0x00, 0xC0,
+        CMD_PVGAMCTRL, 14, 0xd0, 0x00, 0x02, 0x07, 0x0a, 0x28, 0x32, 0x44, 0x42, 0x06,
+        0x0e, 0x12, 0x14, 0x17,
+        CMD_NVGAMCTRL, 14, 0xd0, 0x00, 0x02, 0x07, 0x0a, 0x28, 0x31, 0x54, 0x47, 0x0e,
+        0x1c, 0x17, 0x1b, 0x1e,
+        CMD_SLPOUT, 0 + CMD_INIT_DELAY, 130,
+        CMD_IDMOFF, 0,
+        // CMD_DISPON omitted on purpose
+        0xFF, 0xFF,
+    };
+    switch (listno) {
+      case 0:
+        return list0;
+      default:
+        return nullptr;
+    }
+  }
+};
+
+}  // namespace flint_lgfx
+
 class LGFX : public lgfx::LGFX_Device {
-  lgfx::Panel_ST7789 _panel_instance;
+  flint_lgfx::Panel_ST7789_NoDispOn _panel_instance;
   lgfx::Bus_SPI _bus_instance;
 
  public:
   LGFX() {
     {
       auto cfg = _bus_instance.config();
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(ESP32C3)
       cfg.spi_host = SPI2_HOST;
-#else
-      cfg.spi_host = SPI2_HOST;
-#endif
       cfg.spi_mode = 0;
       cfg.freq_write = 40000000;
       cfg.freq_read = 16000000;

@@ -1,0 +1,17 @@
+{
+  "default": "ru_RU",
+  "locales": [
+    {
+      "id": "ru_RU",
+      "settings_id": 0,
+      "name": "Русский",
+      "dir": "ru_RU"
+    },
+    {
+      "id": "en_US",
+      "settings_id": 1,
+      "name": "English",
+      "dir": "en_US"
+    }
+  ]
+}

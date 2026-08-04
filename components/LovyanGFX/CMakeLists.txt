@@ -44,17 +44,19 @@ set(LGFX_SRCS
     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/Light_PWM.cpp
 )
 
-if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
-    set(LGFX_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm esp_driver_ledc esp_driver_i2s hal)
-elseif(IDF_VERSION_MAJOR GREATER_EQUAL 5)
-    if(IDF_VERSION_MINOR GREATER_EQUAL 1)
-        set(LGFX_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm)
-    else()
-        set(LGFX_REQUIRES nvs_flash efuse esp_lcd driver esp_timer)
-    endif()
-else()
-    set(LGFX_REQUIRES nvs_flash efuse esp_lcd)
-endif()
+# SPI bus + LEDC backlight only. No I2S parallel, RGB, or esp_lcd panel stack.
+# esp_driver_i2c stays: platforms/esp32/common.cpp includes I2C headers unconditionally.
+set(LGFX_REQUIRES
+    efuse
+    esp_timer
+    esp_mm
+    esp_driver_gpio
+    esp_driver_spi
+    esp_driver_ledc
+    esp_driver_i2c
+    freertos
+    log
+)
 
 idf_component_register(
     SRCS ${LGFX_SRCS}
@@ -64,4 +66,8 @@ idf_component_register(
 
 # LGFXBase.cpp references JPG/PNG/QR helpers; codecs are omitted and unused
 # methods are dropped by --gc-sections.
-target_compile_options(${COMPONENT_LIB} PRIVATE -Os -ffunction-sections -fdata-sections)
+# Silence ESP-IDF LEDC deprecation in Light_PWM (upstream still sets intr_type).
+target_compile_options(${COMPONENT_LIB} PRIVATE
+    -Os -ffunction-sections -fdata-sections
+    -Wno-deprecated-declarations
+)

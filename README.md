@@ -27,11 +27,12 @@
 
 | Built-in today | Coming next |
 |----------------|-------------|
-| Digital face + day modes | More community faces |
-| Soft-clock + SNTP | SoftAP provisioning |
-| Open-Meteo weather (async) | Hardware buttons (serial keys for now) |
-| Wi‑Fi, NVS settings, face picker | Power abstractions |
-| Event-driven face redraw | |
+| Digital face + day modes + glances | More community faces |
+| Soft-clock + SNTP + timezone DB | SoftAP provisioning |
+| Open-Meteo current + daily/hourly | Hardware buttons (serial keys for now) |
+| Wi‑Fi, NVS settings, face picker | OTA flow |
+| Event bus | |
+| Boot splash | |
 
 Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Face SDK: `components/flint/sdk/flint_face_sdk.h`
 
@@ -59,14 +60,16 @@ In the IDF monitor, type keys (no Enter needed except where noted):
 
 | Key | Action |
 |-----|--------|
-| `Enter` | Face picker |
+| `Enter` | Face picker (from face) / apply face / open Face row |
 | `s` | Settings |
-| `p` / `n` | Prev / next (picker or settings row) |
-| `+` / `-` | Adjust setting |
+| `p` / `n` | Navigate (picker item or settings row) |
+| `+` / `-` | Adjust selected setting only |
 | `q` / `Esc` | Back to face |
 | `h` | Help in log |
 
-Active face and prefs are stored in NVS.
+Active face and prefs are stored in NVS (face, seconds, hour format, language, timezone, weather lat/lon).
+
+Settings: `p`/`n` navigate, `+/-` change value, `Enter` only opens face picker from the Face row. Shell transitions are instant (no fade wash).
 
 Dependencies:
 - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — slim local component (`components/LovyanGFX`); `src/` sparse-cloned to `third_party/LovyanGFX/` (no upstream examples)

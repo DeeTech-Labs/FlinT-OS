@@ -20,9 +20,7 @@ struct FaceContext {
 
   // Resolved prefs (shell/settings) — faces must not read NVS themselves.
   bool showSeconds;
-  uint8_t lang;  // SettingsLang
-  float weatherLat;
-  float weatherLon;
+  bool hour12;  // false = 24h, true = 12h + AM/PM
 
   int screenW;
   int screenH;

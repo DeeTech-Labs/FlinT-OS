@@ -9,6 +9,8 @@
 
 #include "faces/Face.h"
 #include "faces/FaceContext.h"
+#include "faces/glance.h"
 #include "display/display.h"
 #include "display/ui_palette.h"
 #include "sdk/resources.h"
+#include "i18n/i18n.h"

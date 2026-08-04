@@ -1,6 +1,7 @@
 #include "day_mode.h"
 #include "config/config.h"
 #include "display/display.h"
+#include "i18n/i18n.h"
 
 DayMode dayModeFromHour(int hour) {
   // [nightStart..24) U [0..morningStart) = ночь
@@ -18,11 +19,11 @@ DayMode dayModeFromHour(int hour) {
 
 const DayModeProfile& dayModeProfile(DayMode mode) {
   static const DayModeProfile kProfiles[] = {
-      // mode, name, seconds, weather, label, wash
-      {DAY_MODE_MORNING, "утро", true, true, true, 70},
-      {DAY_MODE_DAY, "день", true, true, true, 55},
-      {DAY_MODE_EVENING, "вечер", true, true, true, 80},
-      {DAY_MODE_NIGHT, "ночь", false, true, true, 40},
+      // seconds, weather, label, wash
+      {true, true, true, 70},   // morning
+      {true, true, true, 55},   // day
+      {true, true, true, 80},   // evening
+      {false, true, true, 40},  // night
   };
   switch (mode) {
     case DAY_MODE_MORNING: return kProfiles[0];
@@ -33,8 +34,12 @@ const DayModeProfile& dayModeProfile(DayMode mode) {
   }
 }
 
+const char* dayModeName(DayMode mode) {
+  return flintTrDayMode(static_cast<uint8_t>(mode));
+}
+
 const char* dayModeNameRu(DayMode mode) {
-  return dayModeProfile(mode).nameRu;
+  return dayModeName(mode);
 }
 
 static uint16_t weatherAccent(int code, uint16_t base) {

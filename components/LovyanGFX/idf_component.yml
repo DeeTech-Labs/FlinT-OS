@@ -1,0 +1,3 @@
+## Local slim build override for LovyanGFX (sources fetched via flint dep).
+version: "1.0.0"
+description: FlinT OS slim LovyanGFX CMake (ST7789 SPI only)

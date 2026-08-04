@@ -1,0 +1,4 @@
+# Entry has no extra managed deps — see components/flint/idf_component.yml
+dependencies:
+  idf:
+    version: ">=5.0"

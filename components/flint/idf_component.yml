@@ -1,0 +1,4 @@
+## FlinT application dependencies (LovyanGFX is local slim component)
+dependencies:
+  idf:
+    version: ">=5.0"

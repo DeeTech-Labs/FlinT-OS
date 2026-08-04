@@ -1,30 +1,37 @@
-// TEMPLATE — copy into src/faces/face_YOURNAME.cpp (this file is NOT compiled).
-// See docs/THEMES.md and docs/ARCHITECTURE.md
+// TEMPLATE — copy to components/flint/faces/face_YOURNAME.cpp (not compiled here).
+// Register in components/flint/faces/faces_builtin.cpp:
+//   Face* createYourFace();
+//   FaceRegistry::add(createYourFace);
+//
+// Include ONLY the Face SDK (+ std headers). Do not include net/, weather APIs,
+// settings/, app/, or config/secrets.h. Read FaceContext; draw via display/resources.
 
-#include "src/faces/Face.h"
-#include "src/faces/FaceRegistry.h"
-#include "src/display/display.h"
+#include "sdk/flint_face_sdk.h"
 
 class MyFace : public Face {
 public:
   const FaceInfo& info() const override {
-    static const FaceInfo i{"myface", "My Face", "you", 1, 1};
+    // minApi must be <= FLINT_OS_API_VERSION (currently 2)
+    static const FaceInfo i{"myface", "My Face", "you", 1, 2};
     return i;
   }
 
   void onForceRedraw(const FaceContext& ctx) override {
     auto& gfx = displayGfx();
     gfx.fillScreen(ctx.palette.bgTop);
-    displayPresent();  // push LovyanGFX sprite → panel (no-op if direct draw)
+    displaySetFont(gfx, flintFont(FlintFontId::Body));
+    displayDrawText(gfx, ctx.showSeconds ? "hello :ss" : "hello",
+                    20, 40, ctx.palette.accent, ctx.palette.bgTop,
+                    flintFont(FlintFontId::Body));
+    displayPresent();
   }
 
   void onTick(const FaceContext& ctx) override {
     (void)ctx;
+    // Shell calls onTick only on dirty events (second/minute/weather/wifi/…).
   }
 };
 
-static Face* createMyFace() {
+Face* createMyFace() {
   return new MyFace();
 }
-
-FLINT_REGISTER_FACE(createMyFace);

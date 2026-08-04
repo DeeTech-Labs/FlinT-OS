@@ -12,9 +12,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/status-alpha-yellow?style=flat-square" alt="Status"/>
   <img src="https://img.shields.io/badge/platform-ESP32--C3-blue?style=flat-square" alt="ESP32-C3"/>
+  <img src="https://img.shields.io/badge/framework-ESP--IDF-red?style=flat-square" alt="ESP-IDF"/>
   <img src="https://img.shields.io/badge/display-ST7789%20240×320-orange?style=flat-square" alt="ST7789"/>
   <img src="https://img.shields.io/badge/faces-pluggable-brightgreen?style=flat-square" alt="Faces"/>
-  <img src="https://img.shields.io/badge/Arduino-compatible-00979D?style=flat-square&logo=arduino&logoColor=white" alt="Arduino"/>
   <img src="https://img.shields.io/badge/org-DeeTech%20Labs-111111?style=flat-square" alt="DeeTech Labs"/>
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="Apache 2.0"/>
 </p>
@@ -27,68 +27,78 @@
 
 | Built-in today | Coming next |
 |----------------|-------------|
-| Digital face + day modes (morning / day / evening / night) | More community faces |
-| Soft-clock + NTP | NVS settings / face picker |
-| Open-Meteo weather (async) | SoftAP provisioning |
-| Wi‑Fi, modular `src/` layout | Power / input abstractions |
+| Digital face + day modes | More community faces |
+| Soft-clock + SNTP | SoftAP provisioning |
+| Open-Meteo weather (async) | Hardware buttons (serial keys for now) |
+| Wi‑Fi, NVS settings, face picker | Power abstractions |
+| Event-driven face redraw | |
+
+Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Face SDK: `components/flint/sdk/flint_face_sdk.h`
 
 ---
 
-## Quick start
+## Quick start (ESP-IDF)
 
-1. **Board:** ESP32C3 Dev Module (USB CDC On Boot: Enabled)
-2. **Flash / partition** (важно — иначе скетч не влезет):
-   - Flash Size: **4MB (32Mb)**
-   - Partition Scheme: **Huge APP (3MB No OTA/1MB SPIFFS)**  
-     или **Minimal SPIFFS** (~1.9MB app).  
-     Если в отчёте компиляции «Всего доступно **1310720**» — всё ещё **Default** (1.28MB); схему не применили.
-   - В корне скетча лежит [`partitions.csv`](partitions.csv) (3MB app) — если в Tools есть **Custom**, выбери его.
-3. **Libraries** (Arduino Library Manager):
-   - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — SPI/DMA display driver + sprites
-   - [LVGL](https://lvgl.io/) **8.3.x** (not 9.x) — UI framework; pair with LovyanGFX flush
-   - Sketch-root [`lv_conf.h`](lv_conf.h) (`LV_CONF_INCLUDE_SIMPLE`)
-4. **Secrets:**
+1. **Board:** ESP32-C3 (USB Serial/JTAG)
+2. **ESP-IDF** v5.x / v6.x activated (`source …/activate_idf_….sh` or EIM)
+3. **Secrets:**
    ```bash
-   cp src/config/secrets.example.h src/config/secrets.h
+   cp components/flint/config/secrets.example.h components/flint/config/secrets.h
    ```
-   Edit `src/config/secrets.h` with your Wi‑Fi credentials (`secrets.h` is gitignored).
-5. Open the sketch folder in Arduino IDE (folder name must be `flint_os`) and flash `flint_os.ino`.
+   Edit Wi‑Fi credentials (`secrets.h` is gitignored).
+4. **Build & flash:**
+   ```bash
+   idf.py set-target esp32c3
+   idf.py build
+   idf.py -p /dev/ttyACM0 flash monitor
+   ```
 
-> Includes are sketch-root relative, e.g. `#include "src/app/app.h"`.  
-> Если flash всё ещё тесен: в `src/config/config.h` поставь `#define FLINT_ENABLE_LVGL 0` (faces на LovyanGFX без LVGL).
+### Serial controls (no buttons yet)
+
+In the IDF monitor, type keys (no Enter needed except where noted):
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Face picker |
+| `s` | Settings |
+| `p` / `n` | Prev / next (picker or settings row) |
+| `+` / `-` | Adjust setting |
+| `q` / `Esc` | Back to face |
+| `h` | Help in log |
+
+Active face and prefs are stored in NVS.
+
+Dependencies:
+- [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — slim local component (`components/LovyanGFX`); `src/` sparse-cloned to `third_party/LovyanGFX/` (no upstream examples)
+
+Flash is kept lean: no LVGL, no C++ exceptions, STA-only Wi‑Fi, HTTP weather (no TLS CA bundle). See `sdkconfig.defaults`.
+
 ---
 
 ## Project layout
 
 ```
-FlinT OS /
-├── flint_os.ino           # entry (setup / loop)
-├── lv_conf.h              # LVGL 8.x config (sketch root)
-├── brand/                 # logo & identity
-├── community/             # face templates for contributors
-└── src/
-    ├── app/               # orchestration
-    ├── config/            # pins, defaults, secrets (local)
-    ├── display/           # LovyanGFX HAL + LVGL port + fonts
-    ├── day_mode/          # time-of-day profiles
-    ├── time/              # soft-clock + NTP
-    ├── net/               # Wi‑Fi
-    ├── weather/           # Open-Meteo (background task)
-    ├── ui/                # active-face shell
-    └── faces/             # ← drop your face here
+flint_os/
+├── main/                 # entry only (app_main)
+├── components/
+│   ├── flint/            # ★ all product code
+│   │   ├── app/ shell/ settings/ sdk/
+│   │   ├── faces/        # Face API + themes
+│   │   └── display/ net/ time/ weather/ …
+│   └── LovyanGFX/        # slim CMake (ST7789 SPI)
+├── third_party/LovyanGFX/# upstream sources (gitignored, cloned on build)
+├── community/            # face templates
+└── brand/
 ```
 
 ---
 
 ## Add a face
 
-1. Copy `community/face_template.cpp.example` → `src/faces/face_yourname.cpp`
-2. Implement `Face`, register with `FLINT_REGISTER_FACE(...)`
-3. Set in `src/config/config.h`:
-   ```cpp
-   static const char* ACTIVE_FACE_ID = "yourname";
-   ```
-4. Build & flash — **no core edits required**
+1. Copy `community/face_template.cpp.example` → `components/flint/faces/face_yourname.cpp`
+2. `#include "sdk/flint_face_sdk.h"` only — implement `Face`, export `Face* createYourFace()`
+3. Register in `components/flint/faces/faces_builtin.cpp`
+4. Build & flash; pick via serial face picker (or default `ACTIVE_FACE_ID` on empty NVS)
 
 ---
 
@@ -122,14 +132,12 @@ copyright notice, license text, and attribution from [`NOTICE`](NOTICE)
 
 ## Contributing
 
-FlinT OS is a small community platform: pluggable faces, stable core.
-
-- Prefer **new files under `src/faces/`** over edits to services
-- Keep `onTick` non-blocking (no HTTP / long `delay`)
-- Never commit `src/config/secrets.h`
+- Prefer **new files under `components/flint/faces/`** over edits to services
+- Include only `sdk/flint_face_sdk.h` from faces; keep `onTick` non-blocking
+- Never commit `components/flint/config/secrets.h`
 
 ---
 
 <p align="center">
-  <sub>FlinT OS · DeeTech Labs · Apache 2.0</sub>
+  <sub>FlinT OS · DeeTech Labs · Apache 2.0 · ESP-IDF</sub>
 </p>

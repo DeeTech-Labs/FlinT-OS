@@ -1,5 +1,5 @@
 # FlinT OS — 4MB flash, single large app (no OTA). Fits LovyanGFX + LVGL + Wi‑Fi.
-# Arduino IDE: Tools → Partition Scheme → Custom (if listed) or Huge APP (3MB No OTA)
+# ESP-IDF: sdkconfig.defaults enables CONFIG_PARTITION_TABLE_CUSTOM
 # Name,   Type, SubType, Offset,  Size, Flags
 nvs,      data, nvs,     0x9000,  0x5000,
 otadata,  data, ota,     0xe000,  0x2000,

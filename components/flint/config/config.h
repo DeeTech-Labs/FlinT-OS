@@ -38,7 +38,7 @@ static const uint32_t WIFI_RETRY_MS = 15000UL;
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000UL;
 
 // Face / theme API (bump when Face ABI / FaceContext breaks)
-static constexpr uint16_t FLINT_OS_API_VERSION = 3;
+static constexpr uint16_t FLINT_OS_API_VERSION = 4;
 // Factory default when NVS has no active_face yet (picker / settings override).
 inline constexpr const char* ACTIVE_FACE_ID = "digital";
 

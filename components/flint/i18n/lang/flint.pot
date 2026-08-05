@@ -25,6 +25,12 @@ msgstr ""
 msgid "hour"
 msgstr ""
 
+msgid "date"
+msgstr ""
+
+msgid "date sep"
+msgstr ""
+
 msgid "lang"
 msgstr ""
 

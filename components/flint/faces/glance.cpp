@@ -4,6 +4,7 @@
 #include "display/ui_tokens.h"
 #include "i18n/i18n.h"
 #include "sdk/resources.h"
+#include "time/date_fmt.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -62,11 +63,12 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
     }
 
     case GLANCE_DATE: {
-      char dateStr[32];
+      char dateStr[40];
       if (ctx.hasTime) {
-        snprintf(dateStr, sizeof(dateStr), "%s  %02d.%02d.%04d",
-                 flintTrWeekday(ctx.localTime.tm_wday), ctx.localTime.tm_mday,
-                 ctx.localTime.tm_mon + 1, ctx.localTime.tm_year + 1900);
+        char num[16];
+        flintFormatDate(num, sizeof(num), ctx.localTime, ctx.dateFormat, ctx.dateSep);
+        snprintf(dateStr, sizeof(dateStr), "%s  %s", flintTrWeekday(ctx.localTime.tm_wday),
+                 num);
       } else {
         snprintf(dateStr, sizeof(dateStr), "%s", flintTr(FlintStr::WaitingForTime));
       }

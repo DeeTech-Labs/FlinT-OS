@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate components/flint/i18n/i18n_catalog.inc from flint.pot + locale .po files.
 
-: msgid is the stable English key; msgstr is the translation.
+msgid is the stable English key; msgstr is the translation.
 lang_map.json points each locale at its flint.po (see i18n/lang/*/lang_map.json).
 """
 

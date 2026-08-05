@@ -1,5 +1,5 @@
 # FlinT OS UI strings — message catalog template (gettext .pot)
-# msgid is the stable English key ().
+# msgid is the stable English key.
 # Generate firmware tables: python3 tools/gen_i18n_catalog.py
 #
 msgid ""

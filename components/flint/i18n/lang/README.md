@@ -6,7 +6,7 @@ Authoring lives here, next to firmware:
 |------|------|
 | `flint.pot` | Template of English `msgid` keys |
 | `en_US/flint.po` / `ru_RU/flint.po` | Translations (`msgstr`) |
-| `*/lang_map.json` | Locale descriptor (points at `.po`) |
+| `*/lang_map.json` | Locale descriptor (points at that locale’s `.po`) |
 | `lang_index.json` | List of locales ↔ settings `lang` id |
 
 Runtime: `flintTr(FlintStr::…)` in `i18n/i18n.h` (also via Face SDK).

@@ -23,6 +23,12 @@ msgstr "Секунды"
 msgid "hour"
 msgstr "Часы"
 
+msgid "date"
+msgstr "Дата"
+
+msgid "date sep"
+msgstr "Разделитель"
+
 msgid "lang"
 msgstr "Язык"
 

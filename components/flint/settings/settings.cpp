@@ -18,6 +18,8 @@ static void settingsApplyDefaults() {
   gSettings.showSeconds = SETTINGS_SEC_AUTO;
   gSettings.lang = SETTINGS_LANG_RU;
   gSettings.hourFormat = SETTINGS_HOUR_24;
+  gSettings.dateFormat = SETTINGS_DATE_DMY4;
+  gSettings.dateSep = SETTINGS_DATE_SEP_DOT;
   gSettings.wxLat = WEATHER_LAT;
   gSettings.wxLon = WEATHER_LON;
   strncpy(gSettings.tzId, DEFAULT_TZ_ID, sizeof(gSettings.tzId) - 1);
@@ -57,6 +59,14 @@ void settingsLoad() {
   if (nvs_get_u8(h, "hour_fmt", &u8) == ESP_OK) {
     gSettings.hourFormat = u8;
   }
+  u8 = SETTINGS_DATE_DMY4;
+  if (nvs_get_u8(h, "date_fmt", &u8) == ESP_OK && u8 < SETTINGS_DATE_FORMAT_COUNT) {
+    gSettings.dateFormat = u8;
+  }
+  u8 = SETTINGS_DATE_SEP_DOT;
+  if (nvs_get_u8(h, "date_sep", &u8) == ESP_OK && u8 < SETTINGS_DATE_SEP_COUNT) {
+    gSettings.dateSep = u8;
+  }
 
   int32_t i32 = 0;
   if (nvs_get_i32(h, "wx_lat", &i32) == ESP_OK) {
@@ -92,6 +102,8 @@ void settingsSave() {
   nvs_set_u8(h, "show_sec", gSettings.showSeconds);
   nvs_set_u8(h, "lang", gSettings.lang);
   nvs_set_u8(h, "hour_fmt", gSettings.hourFormat);
+  nvs_set_u8(h, "date_fmt", gSettings.dateFormat);
+  nvs_set_u8(h, "date_sep", gSettings.dateSep);
   nvs_set_i32(h, "wx_lat", (int32_t)(gSettings.wxLat * 10000.0f));
   nvs_set_i32(h, "wx_lon", (int32_t)(gSettings.wxLon * 10000.0f));
   nvs_set_str(h, "tz_id", gSettings.tzId);
@@ -133,6 +145,18 @@ void settingsSetHourFormat(uint8_t fmt) {
   settingsSave();
 }
 
+void settingsSetDateFormat(uint8_t fmt) {
+  gSettings.dateFormat =
+      (fmt < SETTINGS_DATE_FORMAT_COUNT) ? fmt : static_cast<uint8_t>(SETTINGS_DATE_DMY4);
+  settingsSave();
+}
+
+void settingsSetDateSep(uint8_t sep) {
+  gSettings.dateSep =
+      (sep < SETTINGS_DATE_SEP_COUNT) ? sep : static_cast<uint8_t>(SETTINGS_DATE_SEP_DOT);
+  settingsSave();
+}
+
 void settingsSetWeatherCoords(float lat, float lon) {
   gSettings.wxLat = lat;
   gSettings.wxLon = lon;
@@ -157,4 +181,12 @@ bool settingsResolveShowSeconds(bool dayProfileShowSeconds) {
 
 bool settingsUse12Hour() {
   return settingsGet().hourFormat == SETTINGS_HOUR_12;
+}
+
+uint8_t settingsDateFormat() {
+  return settingsGet().dateFormat;
+}
+
+uint8_t settingsDateSep() {
+  return settingsGet().dateSep;
 }

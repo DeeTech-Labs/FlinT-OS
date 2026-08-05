@@ -2,6 +2,7 @@
 #include "faces/glance.h"
 #include "config/debug.h"
 #include "display/ui_tokens.h"
+#include "time/date_fmt.h"
 #include "util/flint_sys.h"
 
 #include <string.h>
@@ -26,7 +27,8 @@ public:
 
   void onTick(const FaceContext& ctx) override {
     if (ctx.dayMode != mode_ || force_ || ctx.hour12 != hour12_
-        || ctx.showSeconds != showSeconds_) {
+        || ctx.showSeconds != showSeconds_
+        || ctx.dateFormat != dateFormat_ || ctx.dateSep != dateSep_) {
       paintFull(ctx);
       return;
     }
@@ -105,6 +107,8 @@ private:
   bool force_ = true;
   bool showSeconds_ = true;
   bool hour12_ = false;
+  uint8_t dateFormat_ = SETTINGS_DATE_DMY4;
+  uint8_t dateSep_ = SETTINGS_DATE_SEP_DOT;
 
   char lastTime_[16] = "";
   char lastDate_[32] = "";
@@ -157,10 +161,9 @@ private:
       } else {
         snprintf(timeStr, timeN, "%02d:%02d", h, ctx.localTime.tm_min);
       }
-      snprintf(dateStr, dateN, "%s  %02d.%02d.%04d",
-               flintTrWeekday(ctx.localTime.tm_wday),
-               ctx.localTime.tm_mday, ctx.localTime.tm_mon + 1,
-               ctx.localTime.tm_year + 1900);
+      char num[16];
+      flintFormatDate(num, sizeof(num), ctx.localTime, ctx.dateFormat, ctx.dateSep);
+      snprintf(dateStr, dateN, "%s  %s", flintTrWeekday(ctx.localTime.tm_wday), num);
     } else {
       snprintf(timeStr, timeN, ctx.showSeconds ? "--:--:--" : "--:--");
       snprintf(dateStr, dateN, "%s", flintTr(FlintStr::WaitingForTime));
@@ -404,11 +407,11 @@ private:
                     GlanceRect{0, static_cast<int16_t>(UiTok::kDateY - 16),
                                static_cast<int16_t>(ctx.screenW),
                                static_cast<int16_t>(UiTok::kDateBandH)});
-    char buf[32];
+    char buf[40];
     if (ctx.hasTime) {
-      snprintf(buf, sizeof(buf), "%s  %02d.%02d.%04d",
-               flintTrWeekday(ctx.localTime.tm_wday), ctx.localTime.tm_mday,
-               ctx.localTime.tm_mon + 1, ctx.localTime.tm_year + 1900);
+      char num[16];
+      flintFormatDate(num, sizeof(num), ctx.localTime, ctx.dateFormat, ctx.dateSep);
+      snprintf(buf, sizeof(buf), "%s  %s", flintTrWeekday(ctx.localTime.tm_wday), num);
     } else {
       snprintf(buf, sizeof(buf), "%s", flintTr(FlintStr::WaitingForTime));
     }
@@ -421,6 +424,8 @@ private:
     pal_ = ctx.palette;
     showSeconds_ = ctx.showSeconds;
     hour12_ = ctx.hour12;
+    dateFormat_ = ctx.dateFormat;
+    dateSep_ = ctx.dateSep;
     timeLayoutReady_ = false;
 
     LOGD("face", "digital full mode=%s canvas=%d", dayModeName(ctx.dayMode),

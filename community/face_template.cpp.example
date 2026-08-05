@@ -19,7 +19,7 @@
 class MyFace : public Face {
 public:
   const FaceInfo& info() const override {
-    // minApi must be <= FLINT_OS_API_VERSION (currently 3)
+    // minApi must be <= FLINT_OS_API_VERSION (currently 4)
     static const FaceInfo i{"myface", "My Face", "you", 1, 3};
     return i;
   }

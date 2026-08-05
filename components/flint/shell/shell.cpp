@@ -10,6 +10,7 @@
 #include "sdk/resources.h"
 #include "settings/settings.h"
 #include "time/tz_db.h"
+#include "time/date_fmt.h"
 #include "ui/chrome.h"
 #include "ui/ui.h"
 #include "ui/ui_dirty.h"
@@ -33,6 +34,8 @@ enum SettingsRow : uint8_t {
   SET_ROW_FACE = 0,
   SET_ROW_SECONDS,
   SET_ROW_HOUR,
+  SET_ROW_DATE,
+  SET_ROW_DATE_SEP,
   SET_ROW_LANG,
   SET_ROW_TZ,
   SET_ROW_LAT,
@@ -145,6 +148,14 @@ static const char* hourLabel(uint8_t fmt) {
   return fmt == SETTINGS_HOUR_12 ? flintTr(FlintStr::N12h) : flintTr(FlintStr::N24h);
 }
 
+static void dateFormatLabel(char* out, size_t outN, uint8_t fmt, uint8_t sep) {
+  flintDateFormatSample(out, outN, fmt, sep);
+}
+
+static void dateSepLabel(char* out, size_t outN, uint8_t sep) {
+  snprintf(out, outN, "%c", flintDateSepChar(sep));
+}
+
 static void formatSettingsLine(char* out, size_t outN, int row) {
   const FlintSettings& s = settingsGet();
   switch (row) {
@@ -157,6 +168,18 @@ static void formatSettingsLine(char* out, size_t outN, int row) {
     case SET_ROW_HOUR:
       snprintf(out, outN, "%s     %s", flintTr(FlintStr::Hour), hourLabel(s.hourFormat));
       break;
+    case SET_ROW_DATE: {
+      char sample[16];
+      dateFormatLabel(sample, sizeof(sample), s.dateFormat, s.dateSep);
+      snprintf(out, outN, "%s   %s", flintTr(FlintStr::Date), sample);
+      break;
+    }
+    case SET_ROW_DATE_SEP: {
+      char sep[4];
+      dateSepLabel(sep, sizeof(sep), s.dateSep);
+      snprintf(out, outN, "%s    %s", flintTr(FlintStr::DateSep), sep);
+      break;
+    }
     case SET_ROW_LANG:
       snprintf(out, outN, "%s     %s", flintTr(FlintStr::Lang), langLabel(s.lang));
       break;
@@ -354,6 +377,32 @@ static void cycleHourFormat() {
   flintEventEmit(FLINT_EVT_FORCE_REDRAW);
 }
 
+static void cycleDateFormat(int dir) {
+  const FlintSettings& s = settingsGet();
+  int next = static_cast<int>(s.dateFormat) + (dir > 0 ? 1 : -1);
+  if (next < 0) {
+    next = SETTINGS_DATE_FORMAT_COUNT - 1;
+  } else if (next >= SETTINGS_DATE_FORMAT_COUNT) {
+    next = 0;
+  }
+  settingsSetDateFormat(static_cast<uint8_t>(next));
+  markSettingsLayoutChanged();
+  flintEventEmit(FLINT_EVT_FORCE_REDRAW);
+}
+
+static void cycleDateSep(int dir) {
+  const FlintSettings& s = settingsGet();
+  int next = static_cast<int>(s.dateSep) + (dir > 0 ? 1 : -1);
+  if (next < 0) {
+    next = SETTINGS_DATE_SEP_COUNT - 1;
+  } else if (next >= SETTINGS_DATE_SEP_COUNT) {
+    next = 0;
+  }
+  settingsSetDateSep(static_cast<uint8_t>(next));
+  markSettingsLayoutChanged();
+  flintEventEmit(FLINT_EVT_FORCE_REDRAW);
+}
+
 static void cycleTz(int dir) {
   int idx = tzDbIndexOf(settingsGet().tzId);
   if (idx < 0) {
@@ -396,6 +445,12 @@ static void adjustSelected(int dir) {
       break;
     case SET_ROW_HOUR:
       cycleHourFormat();
+      break;
+    case SET_ROW_DATE:
+      cycleDateFormat(dir);
+      break;
+    case SET_ROW_DATE_SEP:
+      cycleDateSep(dir);
       break;
     case SET_ROW_LANG:
       cycleLang();

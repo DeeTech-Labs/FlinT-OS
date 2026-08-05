@@ -26,6 +26,8 @@ FaceContext uiBuildContext() {
 
   ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
   ctx.hour12 = settingsUse12Hour();
+  ctx.dateFormat = settingsDateFormat();
+  ctx.dateSep = settingsDateSep();
 
   ctx.screenW = SCR_W;
   ctx.screenH = SCR_H;

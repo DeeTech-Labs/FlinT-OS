@@ -1,0 +1,28 @@
+{
+  "id": "flint_spark",
+  "idf_target": "esp32c3",
+  "flash_mb": 4,
+  "display": "st7789_spi_240x280",
+  "rotation": 3,
+  "pinout": {
+    "display": {
+      "cs": 10,
+      "dc": 9,
+      "rst": 8,
+      "mosi": 7,
+      "sclk": 6,
+      "miso": -1,
+      "busy": -1
+    }
+  },
+  "backlight": {
+    "gpio": -1,
+    "active": "high"
+  },
+  "canvas": {
+    "strategy": "bss",
+    "max_w": 280,
+    "max_h": 240
+  },
+  "layout": "280x240_landscape"
+}

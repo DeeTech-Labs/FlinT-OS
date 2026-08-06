@@ -40,7 +40,7 @@ Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Face SDK: `compo
 
 ## Quick start (ESP-IDF)
 
-1. **Board:** ESP32-C3 (USB Serial/JTAG)
+1. **Board:** FlinT Spark (ESP32-C3, USB Serial/JTAG)
 2. **ESP-IDF** v5.x / v6.x activated (`source …/activate_idf_….sh` or EIM)
 3. **Secrets:**
    ```bash
@@ -53,6 +53,12 @@ Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Face SDK: `compo
    idf.py build
    idf.py -p /dev/ttyACM0 flash monitor
    ```
+   Optional board profile (default **FlinT Spark** / `flint_spark`):
+   ```bash
+   idf.py -DFLINT_BOARD=flint_spark build
+   # or: python3 tools/gen_board_catalog.py --board flint_spark --build
+   ```
+   See [`components/flint/board/README.md`](components/flint/board/README.md) (full setup guide).
 
 ### Serial controls (no buttons yet)
 
@@ -74,7 +80,7 @@ Settings: `p`/`n` navigate, `+/-` change value, `Enter` only opens face picker f
 Dependencies:
 - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — slim local component (`components/LovyanGFX`); `src/` sparse-cloned to `third_party/LovyanGFX/` (no upstream examples)
 
-Flash is kept lean: no LVGL, no C++ exceptions, STA-only Wi‑Fi, HTTP weather (no TLS CA bundle). See `sdkconfig.defaults`.
+Flash is kept lean: no LVGL, no C++ exceptions, STA-only Wi‑Fi, HTTP weather (no TLS CA bundle). See `config/sdkconfig.defaults`.
 
 ---
 
@@ -83,12 +89,16 @@ Flash is kept lean: no LVGL, no C++ exceptions, STA-only Wi‑Fi, HTTP weather (
 ```
 flint_os/
 ├── main/                 # entry only (app_main)
+├── config/               # sdkconfig.defaults + partitions.csv
 ├── components/
 │   ├── flint/            # ★ all product code
+│   │   ├── board/        # ★ hardware profiles (JSON → board_config.inc)
 │   │   ├── app/ shell/ settings/ sdk/
 │   │   ├── faces/        # Face API + themes
 │   │   └── display/ net/ time/ weather/ …
-│   └── LovyanGFX/        # slim CMake (ST7789 SPI)
+│   └── LovyanGFX/        # slim CMake (bus sources from board)
+├── tools/                # codegen — see tools/README.md (or: ./flint_tools)
+├── flint_tools           # bash picker for tools/*.py
 ├── third_party/LovyanGFX/# upstream sources (gitignored, cloned on build)
 ├── community/            # face templates
 └── brand/
@@ -107,6 +117,8 @@ flint_os/
 
 ## Hardware (reference)
 
+Default device: **FlinT Spark** (`flint_spark` in `components/flint/board/`).
+
 | Signal | ESP32-C3 |
 |--------|----------|
 | SCK | GPIO 6 |
@@ -118,6 +130,9 @@ flint_os/
 | GND | GND |
 
 Display: GMT028-class panel, **ST7789** 240×280 SPI (landscape UI 280×240).
+
+To change pins or panel: edit JSON under `components/flint/board/`
+(and rebuild with `-DFLINT_BOARD=…`). Common SPI panels need no C++ — see the board guide.
 
 ---
 
@@ -137,6 +152,7 @@ copyright notice, license text, and attribution from [`NOTICE`](NOTICE)
 
 - Prefer **new files under `components/flint/faces/`** over edits to services
 - Include only `sdk/flint_face_sdk.h` from faces; keep `onTick` non-blocking
+- Hardware variants: see guide in [`components/flint/board/README.md`](components/flint/board/README.md)
 - Never commit `components/flint/config/secrets.h`
 
 ---

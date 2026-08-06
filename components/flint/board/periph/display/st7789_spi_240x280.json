@@ -1,0 +1,28 @@
+{
+  "id": "st7789_spi_240x280",
+  "type": "display",
+  "panel": "ST7789",
+  "bus": "spi",
+  "panel_width": 240,
+  "panel_height": 280,
+  "offset_x": 0,
+  "offset_y": 20,
+  "invert": false,
+  "rgb_order": false,
+  "spi_3wire": true,
+  "readable": false,
+  "freq_write_hz": 40000000,
+  "freq_read_hz": 16000000,
+  "quirks": {
+    "defer_dispon": true
+  },
+  "impl": "lgfx_spi_stock",
+  "lgfx_sources": [
+    "platforms/esp32/Bus_SPI.cpp"
+  ],
+  "idf_requires": [
+    "esp_driver_spi",
+    "esp_driver_ledc",
+    "esp_driver_gpio"
+  ]
+}

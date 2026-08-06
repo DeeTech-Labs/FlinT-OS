@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# Interactive launcher for Python scripts under tools/.
+# Usage:
+#   ./flint_tools
+#   ./flint_tools 1 -- --list
+#   ./flint_tools gen_board_catalog -- --set-default
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_DIR="$ROOT/tools"
+cd "$ROOT"
+
+script_summary() {
+  local path="$1"
+  python3 - "$path" <<'PY'
+import ast, sys
+path = sys.argv[1]
+try:
+    src = open(path, encoding="utf-8").read()
+    tree = ast.parse(src, filename=path)
+except (OSError, SyntaxError):
+    print("(unreadable)")
+    raise SystemExit(0)
+doc = ast.get_docstring(tree)
+if doc:
+    for line in doc.strip().splitlines():
+        line = line.strip()
+        if line:
+            print(line)
+            raise SystemExit(0)
+for node in tree.body:
+    if isinstance(node, ast.Assign):
+        for t in node.targets:
+            if isinstance(t, ast.Name) and t.id == "PROG_DESCRIPTION":
+                v = node.value
+                if isinstance(v, ast.Constant) and isinstance(v.value, str):
+                    print(v.value.strip().splitlines()[0].strip())
+                    raise SystemExit(0)
+print("(no description)")
+PY
+}
+
+mapfile -t TOOL_PATHS < <(find "$TOOLS_DIR" -maxdepth 1 -type f -name '*.py' ! -name '_*' | sort)
+
+if ((${#TOOL_PATHS[@]} == 0)); then
+  echo "no Python tools in tools/" >&2
+  exit 1
+fi
+
+# Split launcher args from tool args at "--"
+LAUNCHER_ARGS=()
+TOOL_ARGS=()
+seen_dd=0
+for a in "$@"; do
+  if ((seen_dd)); then
+    TOOL_ARGS+=("$a")
+  elif [[ "$a" == "--" ]]; then
+    seen_dd=1
+  else
+    LAUNCHER_ARGS+=("$a")
+  fi
+done
+
+if ((${#LAUNCHER_ARGS[@]} > 1)); then
+  echo "usage: ./flint_tools [n|name] [-- tool-args…]" >&2
+  echo "  (interactive menu if choice omitted)" >&2
+  exit 1
+fi
+
+CHOICE="${LAUNCHER_ARGS[0]:-}"
+
+resolve_choice() {
+  local raw="$1"
+  local i name stem
+  if [[ "$raw" =~ ^[0-9]+$ ]]; then
+    if ((raw >= 1 && raw <= ${#TOOL_PATHS[@]})); then
+      echo "${TOOL_PATHS[raw - 1]}"
+      return 0
+    fi
+    echo "invalid choice '$raw'; enter 1–${#TOOL_PATHS[@]}" >&2
+    return 1
+  fi
+  for path in "${TOOL_PATHS[@]}"; do
+    name="$(basename "$path")"
+    stem="${name%.py}"
+    if [[ "$raw" == "$name" || "$raw" == "$stem" ]]; then
+      echo "$path"
+      return 0
+    fi
+  done
+  echo -n "unknown tool '$raw'; available: " >&2
+  local names=()
+  for path in "${TOOL_PATHS[@]}"; do
+    names+=("$(basename "$path")")
+  done
+  (IFS=', '; echo "${names[*]}") >&2
+  return 1
+}
+
+SELECTED=""
+
+if [[ -n "$CHOICE" ]]; then
+  SELECTED="$(resolve_choice "$CHOICE")" || exit 1
+else
+  if [[ ! -t 0 ]]; then
+    echo "./flint_tools needs a TTY for the menu, or pass a choice:" >&2
+    echo "  ./flint_tools <n|name> [-- tool-args…]" >&2
+    exit 1
+  fi
+
+  echo "FlinT OS tools:"
+  i=1
+  for path in "${TOOL_PATHS[@]}"; do
+    name="$(basename "$path")"
+    summary="$(script_summary "$path")"
+    printf '  %d. %s\n' "$i" "$name"
+    printf '     %s\n' "$summary"
+    ((i++)) || true
+  done
+  echo "  0. cancel"
+
+  while true; do
+    read -r -p "Choice [number]: " raw || {
+      echo
+      echo "cancelled"
+      exit 0
+    }
+    raw="${raw#"${raw%%[![:space:]]*}"}"
+    raw="${raw%"${raw##*[![:space:]]}"}"
+    case "$raw" in
+      "" | 0 | q | Q)
+        echo "cancelled"
+        exit 0
+        ;;
+    esac
+    if SELECTED="$(resolve_choice "$raw" 2>/dev/null)"; then
+      break
+    fi
+    echo "  invalid choice '$raw'; enter 1–${#TOOL_PATHS[@]}, name, or 0 to cancel"
+  done
+
+  if ((${#TOOL_ARGS[@]} == 0)); then
+    read -r -p "Extra args (Enter for none): " extra || extra=""
+    if [[ -n "${extra// }" ]]; then
+      # shellcheck disable=SC2206
+      TOOL_ARGS=($extra)
+    fi
+  fi
+fi
+
+name="$(basename "$SELECTED")"
+echo "+ python3 tools/$name${TOOL_ARGS[*]:+ ${TOOL_ARGS[*]}}"
+exec python3 "$SELECTED" "${TOOL_ARGS[@]}"

@@ -1,8 +1,17 @@
-# Slim LovyanGFX for FlinT OS (ST7789 SPI + sprite + u8g2 fonts).
+# Slim LovyanGFX for FlinT OS (sprite + u8g2 fonts; extra sources from board/).
 # Upstream sources live in third_party/LovyanGFX (cloned on first configure).
 
 get_filename_component(FLINT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 set(LGFX_ROOT "${FLINT_ROOT}/third_party/LovyanGFX")
+
+# board_build.cmake is produced by tools/gen_board_catalog.py (root CMakeLists).
+set(FLINT_BOARD_BUILD "${FLINT_ROOT}/components/flint/board/board_build.cmake")
+if(EXISTS "${FLINT_BOARD_BUILD}")
+    include("${FLINT_BOARD_BUILD}")
+    message(STATUS "LovyanGFX board bus=${FLINT_BOARD_DISPLAY_BUS} impl=${FLINT_BOARD_DISPLAY_IMPL}")
+else()
+    message(FATAL_ERROR "Missing ${FLINT_BOARD_BUILD} — run tools/gen_board_catalog.py or reconfigure")
+endif()
 
 if(NOT EXISTS "${LGFX_ROOT}/src/LovyanGFX.hpp")
     message(STATUS "Cloning LovyanGFX (src only) into ${LGFX_ROOT}")
@@ -40,23 +49,34 @@ set(LGFX_SRCS
     ${LGFX_ROOT}/src/lgfx/v1/panel/Panel_Device.cpp
     ${LGFX_ROOT}/src/lgfx/v1/panel/Panel_LCD.cpp
     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/common.cpp
-    ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/Bus_SPI.cpp
     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/Light_PWM.cpp
 )
 
-# SPI bus + LEDC backlight only. No I2S parallel, RGB, or esp_lcd panel stack.
+# Bus / panel extras come from periph JSON via board_build.cmake — no per-board
+# edits in this file.
+if(NOT DEFINED FLINT_BOARD_LGFX_SOURCES OR FLINT_BOARD_LGFX_SOURCES STREQUAL "")
+    message(FATAL_ERROR "FLINT_BOARD_LGFX_SOURCES empty — regenerate board_build.cmake")
+endif()
+foreach(_flint_lgfx_rel IN LISTS FLINT_BOARD_LGFX_SOURCES)
+    list(APPEND LGFX_SRCS "${LGFX_ROOT}/src/lgfx/v1/${_flint_lgfx_rel}")
+endforeach()
+
+# Base IDF deps always present; periph may add more (spi, esp_lcd, …).
 # esp_driver_i2c stays: platforms/esp32/common.cpp includes I2C headers unconditionally.
 set(LGFX_REQUIRES
     efuse
     esp_timer
     esp_mm
     esp_driver_gpio
-    esp_driver_spi
     esp_driver_ledc
     esp_driver_i2c
     freertos
     log
 )
+if(DEFINED FLINT_BOARD_IDF_REQUIRES AND NOT FLINT_BOARD_IDF_REQUIRES STREQUAL "")
+    list(APPEND LGFX_REQUIRES ${FLINT_BOARD_IDF_REQUIRES})
+endif()
+list(REMOVE_DUPLICATES LGFX_REQUIRES)
 
 idf_component_register(
     SRCS ${LGFX_SRCS}

@@ -2,9 +2,10 @@
 
 #include <stdint.h>
 #include "config/secrets.h"
+#include "board/board_config.inc"
 
 // FlinT OS — shared configuration (safe to commit)
-// Pins: ESP32-C3 + ST7789 240×280
+// Display pins / panel: components/flint/board/ (see board_config.inc)
 // Secrets (Wi‑Fi): components/flint/config/secrets.h  ← local only
 
 inline constexpr const char* NTP_SERVER = "pool.ntp.org";
@@ -14,15 +15,13 @@ static constexpr float WEATHER_LAT = 52.9651f;
 static constexpr float WEATHER_LON = 36.0694f;
 inline constexpr const char* DEFAULT_TZ_ID = "Europe/Moscow";
 
-// Display pins
-static const int TFT_CS = 10;
-static const int TFT_DC = 9;
-static const int TFT_RST = 8;
-static const int TFT_MOSI = 7;
-static const int TFT_SCLK = 6;
-
-// Landscape 280x240 (panel 240×280 portrait). 1 = normal, 3 = 180° flip.
-static const uint8_t TFT_ROTATION = 3;
+// Display pins / rotation (from selected FLINT_BOARD)
+static const int TFT_CS = FLINT_TFT_CS;
+static const int TFT_DC = FLINT_TFT_DC;
+static const int TFT_RST = FLINT_TFT_RST;
+static const int TFT_MOSI = FLINT_TFT_MOSI;
+static const int TFT_SCLK = FLINT_TFT_SCLK;
+static const uint8_t TFT_ROTATION = FLINT_TFT_ROTATION;
 
 // Serial debug: 0=off, 1=info, 2=verbose
 #ifndef DEBUG_LEVEL

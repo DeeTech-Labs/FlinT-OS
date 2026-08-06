@@ -7,15 +7,14 @@ LGFX tft;
 static LGFX_Sprite gCanvas(&tft);
 static bool gHasCanvas = false;
 
-// Full RGB565 backbuffer in BSS — heap on ESP32-C3 often has no contiguous
-// large block after Wi-Fi/IDF init. Partitions.csv does not affect RAM.
-// Landscape max for 240×280 panel: 280×240.
-static constexpr int kFbMaxW = 280;
-static constexpr int kFbMaxH = 240;
+// Full RGB565 backbuffer — size from selected board canvas (board_config.inc).
+// BSS strategy: heap on ESP32-C3 often has no contiguous block after Wi-Fi/IDF.
+static constexpr int kFbMaxW = FLINT_FB_MAX_W;
+static constexpr int kFbMaxH = FLINT_FB_MAX_H;
 alignas(16) static uint16_t s_framebuf[kFbMaxW * kFbMaxH];
 
-int SCR_W = 280;
-int SCR_H = 240;
+int SCR_W = FLINT_FB_MAX_W;
+int SCR_H = FLINT_FB_MAX_H;
 
 static bool clampRect(int& x, int& y, int& w, int& h) {
   if (w <= 0 || h <= 0) {
@@ -49,8 +48,8 @@ static void pushRectRaw(const uint16_t* buf, int x, int y, int w, int h) {
 }
 
 void displayBegin() {
-  // Panel init keeps DISPON off (see Panel_ST7789_NoDispOn) so empty GRAM
-  // never flashes white under invert.
+  // With FLINT_PANEL_DEFER_DISPON, panel init omits DISPON so empty GRAM
+  // never flashes before the first fill.
   tft.init();
   tft.setRotation(TFT_ROTATION);
   tft.setColorDepth(16);
@@ -60,9 +59,11 @@ void displayBegin() {
 
   const uint16_t bootBg = rgb565(8, 10, 18);
   tft.fillScreen(bootBg);
+#if FLINT_PANEL_DEFER_DISPON
   tft.startWrite();
   tft.writeCommand(0x29);  // DISPON — first visible frame is already brand bg
   tft.endWrite();
+#endif
 
   if (SCR_W > kFbMaxW || SCR_H > kFbMaxH) {
     gHasCanvas = false;
@@ -72,8 +73,9 @@ void displayBegin() {
     gCanvas.setBuffer(s_framebuf, SCR_W, SCR_H, 16);
     gCanvas.setTextWrap(false);
     gHasCanvas = true;
-    LOGI("disp", "ST7789 %dx%d canvas BSS=%u heap=%u", SCR_W, SCR_H,
-         (unsigned)(sizeof(s_framebuf)), (unsigned)flintFreeHeap());
+    LOGI("disp", "%s %dx%d canvas %s=%u heap=%u board=%s", FLINT_DISPLAY_PANEL, SCR_W,
+         SCR_H, FLINT_CANVAS_STRATEGY, (unsigned)(sizeof(s_framebuf)),
+         (unsigned)flintFreeHeap(), FLINT_BOARD_ID);
   }
 
   if (!gHasCanvas) {
@@ -84,7 +86,8 @@ void displayBegin() {
     tft.drawString("Low RAM", SCR_W / 2, SCR_H / 2 - 10);
     tft.setTextColor(rgb565(160, 170, 180));
     tft.drawString("canvas OOM", SCR_W / 2, SCR_H / 2 + 14);
-    LOGE("disp", "ST7789 canvas OOM heap=%u — UI halted", (unsigned)flintFreeHeap());
+    LOGE("disp", "%s canvas OOM heap=%u — UI halted", FLINT_DISPLAY_PANEL,
+         (unsigned)flintFreeHeap());
   }
 }
 

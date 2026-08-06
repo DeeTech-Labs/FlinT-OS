@@ -1,0 +1,10 @@
+{
+  "default": "flint_spark",
+  "boards": [
+    {
+      "id": "flint_spark",
+      "name": "FlinT Spark",
+      "file": "flint_spark.json"
+    }
+  ]
+}

@@ -17,4 +17,6 @@ After editing `.po` / `.pot`:
 python3 tools/gen_i18n_catalog.py
 ```
 
+See also [`tools/README.md`](../../../../tools/README.md).
+
 This regenerates `i18n_catalog.inc` (compiled into the firmware).

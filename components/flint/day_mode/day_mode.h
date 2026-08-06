@@ -24,3 +24,7 @@ const char* dayModeName(DayMode mode);    // localized
 
 // Палитра под режим + лёгкая подстройка от погоды
 UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk);
+
+// Bottom gradient wash as a few stepped fillRect bands (force redraw hot path).
+void dayModeDrawWash(int screenW, int screenH, uint16_t bgTop, uint16_t bgBottom,
+                     uint8_t washHeight);

@@ -1,9 +1,10 @@
 #include "faces/FaceRegistry.h"
 
-// Factories live in face_*.cpp — declare here, list once below.
+// Factories + FaceInfo live in face_*.cpp — declare here, list once below.
 Face* createDigitalFace();
+const FaceInfo& digitalFaceInfo();
 
 void facesRegisterBuiltins() {
-  FaceRegistry::add(createDigitalFace);
-  // Community / extra faces: FaceRegistry::add(createYourFace);
+  FaceRegistry::add(createDigitalFace, digitalFaceInfo());
+  // Community / extra faces: FaceRegistry::add(createYourFace, yourFaceInfo());
 }

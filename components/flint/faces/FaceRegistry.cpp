@@ -8,7 +8,13 @@ namespace FaceRegistry {
 namespace {
 
 static const int kMaxFaces = 16;
-static FaceFactory gFactories[kMaxFaces];
+
+struct FaceEntry {
+  FaceFactory factory;
+  FaceInfo info;
+};
+
+static FaceEntry gEntries[kMaxFaces];
 static int gFactoryCount = 0;
 
 static Face* gActive = nullptr;
@@ -20,25 +26,22 @@ bool apiOk(const FaceInfo& info) {
 
 }  // namespace
 
-bool add(FaceFactory factory) {
+bool add(FaceFactory factory, const FaceInfo& info) {
   if (!factory || gFactoryCount >= kMaxFaces) {
     return false;
   }
-
-  Face* probe = factory();
-  if (!probe) {
+  if (!info.id || !info.id[0]) {
     return false;
   }
-  const FaceInfo& info = probe->info();
   if (!apiOk(info)) {
     LOGE("face", "reject \"%s\": needs API %u, have %u",
-         info.id ? info.id : "?", (unsigned)info.minApi, (unsigned)FLINT_OS_API_VERSION);
-    delete probe;
+         info.id, (unsigned)info.minApi, (unsigned)FLINT_OS_API_VERSION);
     return false;
   }
-  delete probe;
 
-  gFactories[gFactoryCount++] = factory;
+  gEntries[gFactoryCount].factory = factory;
+  gEntries[gFactoryCount].info = info;
+  gFactoryCount++;
   return true;
 }
 
@@ -50,14 +53,7 @@ const FaceInfo* infoAt(int index) {
   if (index < 0 || index >= gFactoryCount) {
     return nullptr;
   }
-  Face* tmp = gFactories[index]();
-  if (!tmp) {
-    return nullptr;
-  }
-  static FaceInfo infoCopy;
-  infoCopy = tmp->info();
-  delete tmp;
-  return &infoCopy;
+  return &gEntries[index].info;
 }
 
 Face* createById(const char* id) {
@@ -65,14 +61,9 @@ Face* createById(const char* id) {
     return nullptr;
   }
   for (int i = 0; i < gFactoryCount; i++) {
-    Face* f = gFactories[i]();
-    if (!f) {
-      continue;
+    if (strcmp(gEntries[i].info.id, id) == 0) {
+      return gEntries[i].factory();
     }
-    if (strcmp(f->info().id, id) == 0) {
-      return f;
-    }
-    delete f;
   }
   return nullptr;
 }

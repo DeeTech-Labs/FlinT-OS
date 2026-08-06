@@ -268,8 +268,10 @@ static void drawSettingsPartial() {
     if (vis < 0 || vis >= UiTok::kShellVisibleRows) {
       return;
     }
+    const DisplayRect band = chromeListRowRect(ctx, UiTok::shellRowFillY(vis), UiTok::kShellRowH);
+    displaySetClipRect(band.x, band.y, band.w, band.h);
     paintSettingsRow(ctx, row, vis, 255);
-    rects[n++] = chromeListRowRect(ctx, UiTok::shellRowFillY(vis), UiTok::kShellRowH);
+    rects[n++] = band;
   };
 
   if (gPrevSettingsRow != gSettingsRow) {
@@ -279,15 +281,24 @@ static void drawSettingsPartial() {
     addRow(gSettingsRow);
   }
 
-  chromeCounter(ctx, gSettingsRow + 1, SET_ROW_COUNT, 255);
-  paintSettingsScroll(ctx);
-  rects[n++] = DisplayRect{static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - 48),
-                           static_cast<int16_t>(UiTok::contentTop() - 2), 52, 22};
-  rects[n++] = DisplayRect{
-      static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - UiTok::kShellScrollW - 1),
-      static_cast<int16_t>(UiTok::kShellRowsTop),
-      static_cast<int16_t>(UiTok::kShellScrollW + 2),
-      static_cast<int16_t>(UiTok::kShellVisibleRows * UiTok::kShellRowH)};
+  {
+    const DisplayRect counterBand{static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - 48),
+                                  static_cast<int16_t>(UiTok::contentTop() - 2), 52, 22};
+    displaySetClipRect(counterBand.x, counterBand.y, counterBand.w, counterBand.h);
+    chromeCounter(ctx, gSettingsRow + 1, SET_ROW_COUNT, 255);
+    rects[n++] = counterBand;
+  }
+  {
+    const DisplayRect scrollBand{
+        static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - UiTok::kShellScrollW - 1),
+        static_cast<int16_t>(UiTok::kShellRowsTop),
+        static_cast<int16_t>(UiTok::kShellScrollW + 2),
+        static_cast<int16_t>(UiTok::kShellVisibleRows * UiTok::kShellRowH)};
+    displaySetClipRect(scrollBand.x, scrollBand.y, scrollBand.w, scrollBand.h);
+    paintSettingsScroll(ctx);
+    rects[n++] = scrollBand;
+  }
+  displayClearClipRect();
 
   displayPresentRects(rects, n);
   gPrevSettingsRow = gSettingsRow;
@@ -334,13 +345,16 @@ static void drawPickerPartial() {
     if (index < 0 || index >= FaceRegistry::count()) {
       return;
     }
+    const DisplayRect band = chromeListRowRect(ctx, UiTok::shellRowFillY(index), UiTok::kShellRowH);
+    displaySetClipRect(band.x, band.y, band.w, band.h);
     paintPickerRow(ctx, index, 255);
-    rects[n++] = chromeListRowRect(ctx, UiTok::shellRowFillY(index), UiTok::kShellRowH);
+    rects[n++] = band;
   };
   if (gPrevPickerIndex != gPickerIndex) {
     add(gPrevPickerIndex);
   }
   add(gPickerIndex);
+  displayClearClipRect();
   displayPresentRects(rects, n);
   gPrevPickerIndex = gPickerIndex;
   gOverlayDirty = OVL_NONE;
@@ -494,10 +508,11 @@ void shellTick() {
 
   switch (gState) {
     case SHELL_FACE: {
-      // Drive face micro-animations (~15 Hz) without a second framebuffer.
+      // Colon pulse only while seconds are visible — skip always-on motion dirty
+      // when the face is minute-driven.
       static uint32_t lastMotionMs = 0;
       const uint32_t now = flintMillis();
-      if (now - lastMotionMs >= 66) {
+      if (uiWantsSeconds() && (now - lastMotionMs >= UiTok::kColonPulseTickMs)) {
         uiMarkDirty(UI_DIRTY_MOTION);
         lastMotionMs = now;
       }

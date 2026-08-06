@@ -19,9 +19,9 @@ FaceContext uiBuildContext() {
   const int hour = ctx.hasTime ? ctx.localTime.tm_hour : 12;
   ctx.dayMode = dayModeFromHour(hour);
   ctx.dayProfile = dayModeProfile(ctx.dayMode);
-  ctx.weather = weatherGet();
-  ctx.palette = dayModeBuildPalette(ctx.dayMode, ctx.weather.ok ? ctx.weather.code : 0,
-                                    ctx.weather.ok);
+  ctx.weather = &weatherSnapshot();
+  ctx.palette = dayModeBuildPalette(ctx.dayMode, ctx.weather->ok ? ctx.weather->code : 0,
+                                    ctx.weather->ok);
   ctx.wifiConnected = wifiNetIsConnected();
 
   ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);

@@ -9,11 +9,12 @@
 #include <stdio.h>
 
 // Built-in reference face. Draws via Face SDK (display + resources).
+static const FaceInfo kDigitalFaceInfo{"digital", "Digital", "FlinT OS", 3, 3};
+
 class DigitalFace : public Face {
 public:
   const FaceInfo& info() const override {
-    static const FaceInfo i{"digital", "Digital", "FlinT OS", 3, 3};
-    return i;
+    return kDigitalFaceInfo;
   }
 
   void onActivate(const FaceContext& ctx) override {
@@ -36,7 +37,19 @@ public:
     char timeStr[16];
     char dateStr[32];
     formatTimeDate(ctx, timeStr, sizeof(timeStr), dateStr, sizeof(dateStr));
+    ensureTimeLayout(ctx, showSeconds_);
 
+    displaySetFont(displayGfx(), timeFont());
+    const int asc = displayFontAscent(displayGfx());
+    const DisplayRect timeBand = tightTimeBand(ctx, asc);
+    const DisplayRect ampmBand = tightAmpmBand(ctx, asc);
+    const DisplayRect weatherBand = tightWeatherBand(ctx);
+    const DisplayRect wifiBand{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
+                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
+                               static_cast<int16_t>(UiTok::kWifiSize),
+                               static_cast<int16_t>(UiTok::kWifiSize)};
+
+    displaySetClipRect(weatherBand.x, weatherBand.y, weatherBand.w, weatherBand.h);
     bool weatherDirty = drawWeatherBadge(ctx, false);
     bool timeDirty = false;
     bool dateDirty = false;
@@ -44,6 +57,10 @@ public:
     bool ampmDirty = false;
     bool colonDirty = false;
 
+    DisplayRect dateBand{};
+    displaySetClipRect(timeBand.x, timeBand.y,
+                       static_cast<int16_t>(timeBand.w + (hour12_ ? ampmBand.w + UiTok::kGapSm : 0)),
+                       timeBand.h);
     if (strcmp(timeStr, lastTime_) != 0) {
       drawTime(ctx, timeStr, false);
       timeDirty = true;
@@ -51,14 +68,23 @@ public:
       colonDirty = pulseColons(ctx);
     }
     ampmDirty = drawAmpm(ctx, false);
+
     if (strcmp(dateStr, lastDate_) != 0) {
-      drawDate(ctx, dateStr, false);
+      dateBand = tightDateBand(ctx, dateStr);
+      displaySetClipRect(dateBand.x, dateBand.y, dateBand.w, dateBand.h);
+      flintGlanceDraw(ctx, GLANCE_DATE,
+                      GlanceRect{dateBand.x, dateBand.y, dateBand.w, dateBand.h});
+      strncpy(lastDate_, dateStr, sizeof(lastDate_) - 1);
+      lastDate_[sizeof(lastDate_) - 1] = '\0';
       dateDirty = true;
     }
     if (ctx.wifiConnected != lastWifi_) {
+      displaySetClipRect(wifiBand.x, wifiBand.y, wifiBand.w, wifiBand.h);
       drawWifiDot(ctx);
       wifiDirty = true;
     }
+    displayClearClipRect();
+
     if (!(weatherDirty || timeDirty || dateDirty || wifiDirty || ampmDirty || colonDirty)) {
       return;
     }
@@ -67,31 +93,28 @@ public:
       return;
     }
 
-    DisplayRect rects[5];
+    DisplayRect rects[6];
     int n = 0;
-    displaySetFont(displayGfx(), timeFont());
-    const int asc = displayFontAscent(displayGfx());
-
-    if (timeDirty || ampmDirty || colonDirty) {
-      rects[n++] = DisplayRect{0, static_cast<int16_t>(UiTok::timeY(ctx.screenH) - asc),
-                               static_cast<int16_t>(ctx.screenW),
-                               static_cast<int16_t>(timeGlyphH_ + 2)};
+    if (colonDirty && !timeDirty && !ampmDirty) {
+      n = appendColonRects(ctx, asc, rects, 6);
+    } else if (timeDirty) {
+      DisplayRect band = timeBand;
+      if (hour12_ || ampmDirty) {
+        const int right = ampmBand.x + ampmBand.w;
+        band.w = static_cast<int16_t>(right - band.x);
+      }
+      rects[n++] = band;
+    } else if (ampmDirty) {
+      rects[n++] = ampmBand;
     }
     if (weatherDirty) {
-      rects[n++] = DisplayRect{0, 0,
-                               static_cast<int16_t>(UiTok::wxX(ctx.screenW) + UiTok::wxW(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::statusH(ctx.screenH))};
+      rects[n++] = weatherBand;
     }
     if (dateDirty) {
-      rects[n++] = DisplayRect{0, static_cast<int16_t>(UiTok::dateY(ctx.screenH) - 16),
-                               static_cast<int16_t>(ctx.screenW),
-                               static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))};
+      rects[n++] = dateBand;
     }
     if (wifiDirty) {
-      rects[n++] = DisplayRect{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
-                               static_cast<int16_t>(UiTok::kWifiSize),
-                               static_cast<int16_t>(UiTok::kWifiSize)};
+      rects[n++] = wifiBand;
     }
 
     if (n == 1) {
@@ -121,6 +144,7 @@ private:
   bool lastWxOk_ = false;
   bool lastWxLoading_ = false;
   uint8_t lastColonFade_ = 255;
+  int lastDatePresentW_ = 0;
 
   int digitW_ = 0;
   int colonW_ = 0;
@@ -138,8 +162,73 @@ private:
     force_ = true;
     timeLayoutReady_ = false;
     lastColonFade_ = 255;
+    lastDatePresentW_ = 0;
     lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
     lastWeatherCode_ = -999;
+  }
+
+  DisplayRect tightTimeBand(const FaceContext& ctx, int asc) const {
+    const int x = timeLayoutReady_ ? timeCellX_[0] : UiTok::contentLeft();
+    const int w = timeLayoutReady_ ? (timeEndX_ - x) : UiTok::contentWidth(ctx.screenW);
+    return DisplayRect{static_cast<int16_t>(x),
+                       static_cast<int16_t>(UiTok::timeY(ctx.screenH) - asc),
+                       static_cast<int16_t>(w),
+                       static_cast<int16_t>(timeGlyphH_ > 0 ? timeGlyphH_ + 2 : 40)};
+  }
+
+  DisplayRect tightAmpmBand(const FaceContext& ctx, int asc) const {
+    const int x = timeEndX_ + UiTok::kGapSm;
+    return DisplayRect{static_cast<int16_t>(x),
+                       static_cast<int16_t>(UiTok::timeY(ctx.screenH) - asc), 48,
+                       static_cast<int16_t>(timeGlyphH_ > 0 ? timeGlyphH_ + 2 : 24)};
+  }
+
+  DisplayRect tightWeatherBand(const FaceContext& ctx) const {
+    const int x = UiTok::wxX(ctx.screenW);
+    const int y = UiTok::wxY(ctx.screenH);
+    const int w = UiTok::wxW(ctx.screenW) > UiTok::rangeW(ctx.screenW)
+                      ? UiTok::wxW(ctx.screenW)
+                      : UiTok::rangeW(ctx.screenW);
+    const int h = (UiTok::rangeY(ctx.screenH) + UiTok::rangeH(ctx.screenH)) - y;
+    return DisplayRect{static_cast<int16_t>(x), static_cast<int16_t>(y),
+                       static_cast<int16_t>(w), static_cast<int16_t>(h > 0 ? h : UiTok::statusH(ctx.screenH))};
+  }
+
+  DisplayRect tightDateBand(const FaceContext& ctx, const char* dateStr) {
+    auto& gfx = displayGfx();
+    displaySetFont(gfx, bodyFont());
+    const int tw = displayTextWidth(gfx, dateStr);
+    const int bandH = UiTok::dateBandH(ctx.screenH);
+    int presentW = tw + 16;
+    if (presentW < lastDatePresentW_) {
+      presentW = lastDatePresentW_;
+    }
+    if (presentW > ctx.screenW) {
+      presentW = ctx.screenW;
+    }
+    int x = (ctx.screenW - presentW) / 2;
+    if (x < 0) {
+      x = 0;
+    }
+    lastDatePresentW_ = tw + 16;
+    return DisplayRect{static_cast<int16_t>(x),
+                       static_cast<int16_t>(UiTok::dateY(ctx.screenH) - 16),
+                       static_cast<int16_t>(presentW), static_cast<int16_t>(bandH)};
+  }
+
+  int appendColonRects(const FaceContext& ctx, int asc, DisplayRect* out, int cap) const {
+    int n = 0;
+    const int ty = UiTok::timeY(ctx.screenH) - asc;
+    const int h = timeGlyphH_ > 0 ? timeGlyphH_ + 2 : 40;
+    for (int i = 0; lastTime_[i] != '\0' && n < cap; i++) {
+      if (lastTime_[i] != ':') {
+        continue;
+      }
+      out[n++] = DisplayRect{static_cast<int16_t>(timeCellX_[i]), static_cast<int16_t>(ty),
+                             static_cast<int16_t>(colonW_ > 0 ? colonW_ : digitW_),
+                             static_cast<int16_t>(h)};
+    }
+    return n;
   }
 
   uint16_t pageBg() const { return pal_.bgTop; }
@@ -223,10 +312,13 @@ private:
       return force;
     }
 
-    const WeatherState& w = ctx.weather;
+    if (!ctx.weather) {
+      return force;
+    }
+    const WeatherState& w = *ctx.weather;
     char temp[12];
     if (w.ok) {
-      snprintf(temp, sizeof(temp), "%+.0f", static_cast<double>(w.tempC));
+      snprintf(temp, sizeof(temp), "%+d", weatherTempCWhole(w.tempCx10));
     } else if (w.loading) {
       snprintf(temp, sizeof(temp), "..");
     } else {
@@ -380,13 +472,14 @@ private:
   }
 
   bool pulseColons(const FaceContext& ctx) {
-    if (!ctx.hasTime || lastTime_[0] == '\0') {
+    // Motion gated: no colon pulse when seconds are off (shell skips MOTION too).
+    if (!ctx.showSeconds || !ctx.hasTime || lastTime_[0] == '\0') {
       return false;
     }
     const uint8_t fade = colonFadeNow();
-    // Quantize to avoid SPI spam.
-    if (static_cast<int>(fade) - static_cast<int>(lastColonFade_) < 12
-        && static_cast<int>(lastColonFade_) - static_cast<int>(fade) < 12) {
+    // Quantize to avoid SPI spam (~11 Hz ticks × coarse steps).
+    if (static_cast<int>(fade) - static_cast<int>(lastColonFade_) < 16
+        && static_cast<int>(lastColonFade_) - static_cast<int>(fade) < 16) {
       return false;
     }
     lastColonFade_ = fade;
@@ -424,21 +517,22 @@ private:
   }
 
   void drawDate(const FaceContext& ctx, const char* dateStr, bool force) {
-    if (!force && strcmp(dateStr, lastDate_) == 0) return;
-    (void)dateStr;
-    flintGlanceDraw(ctx, GLANCE_DATE,
-                    GlanceRect{0, static_cast<int16_t>(UiTok::dateY(ctx.screenH) - 16),
-                               static_cast<int16_t>(ctx.screenW),
-                               static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))});
-    char buf[40];
-    if (ctx.hasTime) {
-      char num[16];
-      flintFormatDate(num, sizeof(num), ctx.localTime, ctx.dateFormat, ctx.dateSep);
-      snprintf(buf, sizeof(buf), "%s  %s", flintTrWeekday(ctx.localTime.tm_wday), num);
-    } else {
-      snprintf(buf, sizeof(buf), "%s", flintTr(FlintStr::WaitingForTime));
+    if (!force && strcmp(dateStr, lastDate_) == 0) {
+      return;
     }
-    strcpy(lastDate_, buf);
+    DisplayRect band;
+    if (force) {
+      lastDatePresentW_ = 0;
+      (void)tightDateBand(ctx, dateStr);
+      band = DisplayRect{0, static_cast<int16_t>(UiTok::dateY(ctx.screenH) - 16),
+                         static_cast<int16_t>(ctx.screenW),
+                         static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))};
+    } else {
+      band = tightDateBand(ctx, dateStr);
+    }
+    flintGlanceDraw(ctx, GLANCE_DATE, GlanceRect{band.x, band.y, band.w, band.h});
+    strncpy(lastDate_, dateStr, sizeof(lastDate_) - 1);
+    lastDate_[sizeof(lastDate_) - 1] = '\0';
   }
 
   void paintFull(const FaceContext& ctx) {
@@ -454,20 +548,17 @@ private:
     LOGD("face", "digital full mode=%s canvas=%d", dayModeName(ctx.dayMode),
          (int)displayHasCanvas());
 
+    displayClearClipRect();
     auto& gfx = displayGfx();
     gfx.fillScreen(pageBg());
-    const int wash = profile_.washHeight;
-    const int y0 = ctx.screenH - wash;
-    for (int y = y0; y < ctx.screenH; y++) {
-      uint8_t t = wash > 1 ? (uint8_t)(((y - y0) * 100) / wash) : 0;
-      gfx.drawFastHLine(0, y, ctx.screenW, colorLerp(pageBg(), pal_.bgBottom, t));
-    }
+    dayModeDrawWash(ctx.screenW, ctx.screenH, pageBg(), pal_.bgBottom, profile_.washHeight);
 
     lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
     lastWeatherCode_ = -999;
-    lastWxOk_ = !ctx.weather.ok;
-    lastWxLoading_ = !ctx.weather.loading;
+    lastWxOk_ = !(ctx.weather && ctx.weather->ok);
+    lastWxLoading_ = !(ctx.weather && ctx.weather->loading);
     lastColonFade_ = 255;
+    lastDatePresentW_ = 0;
 
     drawWifiDot(ctx);
     drawModeLabel(ctx, true);
@@ -488,4 +579,8 @@ private:
 
 Face* createDigitalFace() {
   return new DigitalFace();
+}
+
+const FaceInfo& digitalFaceInfo() {
+  return kDigitalFaceInfo;
 }

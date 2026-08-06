@@ -41,6 +41,8 @@ static void wifiEventHandler(void* arg, esp_event_base_t base, int32_t id, void*
     const uint32_t now = flintMillis();
     if (now - s_lastReconnectMs >= 2000UL) {
       s_lastReconnectMs = now ? now : 1;
+      // Brief full-radio while associating; MIN_MODEM resumes on GOT_IP.
+      esp_wifi_set_ps(WIFI_PS_NONE);
       wifiMarkConnecting();
       LOGI("wifi", "disconnected — reconnect");
       esp_wifi_connect();
@@ -49,10 +51,12 @@ static void wifiEventHandler(void* arg, esp_event_base_t base, int32_t id, void*
     }
   } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
     s_connecting = false;
+    // Modem sleep after link is up — keeps association on a wall clock.
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
     xEventGroupSetBits(s_wifi_events, WIFI_OK_BIT);
     flintEventEmit(FLINT_EVT_WIFI);
     ip_event_got_ip_t* event = static_cast<ip_event_got_ip_t*>(data);
-    LOGI("wifi", "up ip=" IPSTR, IP2STR(&event->ip_info.ip));
+    LOGI("wifi", "up ip=" IPSTR " ps=min_modem", IP2STR(&event->ip_info.ip));
   }
 }
 
@@ -94,6 +98,7 @@ void wifiNetBegin() {
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+  // Full radio only while associating; GOT_IP switches to MIN_MODEM.
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_start());
   s_started = true;
@@ -126,7 +131,8 @@ void wifiNetMaintain() {
   bool now = wifiNetIsConnected();
 
   if (now && !wasConnected) {
-    esp_wifi_set_ps(WIFI_PS_NONE);
+    // Rising edge: ensure modem sleep even if GOT_IP handler raced.
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
     wifi_ap_record_t ap{};
     int8_t rssi = 0;
     if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
@@ -136,7 +142,7 @@ void wifiNetMaintain() {
     if (s_sta) {
       esp_netif_get_ip_info(s_sta, &ip);
     }
-    LOGI("wifi", "up ip=" IPSTR " rssi=%d", IP2STR(&ip.ip), (int)rssi);
+    LOGI("wifi", "up ip=" IPSTR " rssi=%d ps=min_modem", IP2STR(&ip.ip), (int)rssi);
   }
   if (!now && wasConnected) {
     LOGE("wifi", "down");
@@ -164,6 +170,7 @@ void wifiNetMaintain() {
     return;
   }
   s_lastReconnectMs = nowMs ? nowMs : 1;
+  esp_wifi_set_ps(WIFI_PS_NONE);
   wifiMarkConnecting();
   LOGI("wifi", "reconnect()");
   esp_wifi_connect();

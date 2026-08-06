@@ -93,10 +93,12 @@ constexpr int kSplashMarkMax = 52;
 // —— Motion (ms) ——
 constexpr uint32_t kAnimOverlayInMs = 200;
 constexpr uint32_t kAnimSelectMs = 80;
-constexpr uint32_t kSplashTotalMs = 3000;
-constexpr uint32_t kSplashAnimMs = 900;
-constexpr uint32_t kSplashFrameMs = 33;
+constexpr uint32_t kSplashTotalMs = 1600;
+constexpr uint32_t kSplashAnimMs = 550;
+constexpr uint32_t kSplashFrameMs = 40;
 constexpr uint32_t kColonPulsePeriodMs = 1000;
+// Shell motion dirty cadence while seconds (colon pulse) are active.
+constexpr uint32_t kColonPulseTickMs = 90;
 
 inline int contentLeft() { return kSafeInset; }
 inline int contentRight(int screenW) { return screenW - kSafeInset; }

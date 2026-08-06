@@ -33,9 +33,9 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
       }
       char temp[12];
       int iconCode = -1;
-      const WeatherState& w = ctx.weather;
+      const WeatherState& w = *ctx.weather;
       if (w.ok) {
-        snprintf(temp, sizeof(temp), "%+.0f", static_cast<double>(w.tempC));
+        snprintf(temp, sizeof(temp), "%+d", weatherTempCWhole(w.tempCx10));
         iconCode = w.code;
       } else if (w.loading) {
         snprintf(temp, sizeof(temp), "..");
@@ -83,14 +83,13 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r) {
     }
 
     case GLANCE_DAILY_RANGE: {
-      if (!ctx.weather.dailyOk) {
+      if (!ctx.weather->dailyOk) {
         return false;
       }
       char line[24];
-      const float tMin = ctx.weather.daily.tMinCx10 / 10.0f;
-      const float tMax = ctx.weather.daily.tMaxCx10 / 10.0f;
-      snprintf(line, sizeof(line), "%+.0f/%+.0f", static_cast<double>(tMin),
-               static_cast<double>(tMax));
+      snprintf(line, sizeof(line), "%+d/%+d",
+               weatherTempCWhole(ctx.weather->daily.tMinCx10),
+               weatherTempCWhole(ctx.weather->daily.tMaxCx10));
       gfx.fillRect(r.x, r.y, r.w, r.h, pal.bgTop);
       // Temp font matches current-temp size budget; Body glyphs overflow a 16px band.
       displayDrawText(gfx, line, r.x + UiTok::kGapSm, r.y + r.h - 2, pal.textSecondary, pal.bgTop,

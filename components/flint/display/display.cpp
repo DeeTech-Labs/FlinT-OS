@@ -37,14 +37,13 @@ static bool clampRect(int& x, int& y, int& w, int& h) {
   return w > 0 && h > 0;
 }
 
-static void pushRectRaw(const uint16_t* buf, int x, int y, int w, int h) {
-  tft.startWrite();
-  for (int row = 0; row < h; row++) {
-    const uint16_t* src = buf + (size_t)(y + row) * (size_t)SCR_W + x;
-    tft.setAddrWindow(x, y + row, w, 1);
-    tft.writePixels(src, w);
-  }
-  tft.endWrite();
+// Dirty band → panel via LovyanGFX DMA. Clip + full-FB pushImageDMA keeps
+// src stride = SCR_W so Panel_LCD queues strided rows in one window (instead of
+// setAddrWindow per scanline).
+static void pushRectDma(const uint16_t* buf, int x, int y, int w, int h) {
+  tft.setClipRect(x, y, w, h);
+  tft.pushImageDMA(0, 0, SCR_W, SCR_H, buf);
+  tft.clearClipRect();
 }
 
 void displayBegin() {
@@ -121,7 +120,7 @@ void displayPresentRect(int x, int y, int w, int h) {
     displayPresent();
     return;
   }
-  pushRectRaw(buf, x, y, w, h);
+  pushRectDma(buf, x, y, w, h);
 }
 
 void displayPresentRects(const DisplayRect* rects, int count) {
@@ -134,7 +133,8 @@ void displayPresentRects(const DisplayRect* rects, int count) {
     return;
   }
 
-  // Single transaction for multiple dirty bands.
+  // Nested startWrite inside pushImageDMA is fine; outer txn keeps CS asserted
+  // across multiple dirty bands.
   tft.startWrite();
   for (int i = 0; i < count; i++) {
     int x = rects[i].x;
@@ -144,13 +144,17 @@ void displayPresentRects(const DisplayRect* rects, int count) {
     if (!clampRect(x, y, w, h)) {
       continue;
     }
-    for (int row = 0; row < h; row++) {
-      const uint16_t* src = buf + (size_t)(y + row) * (size_t)SCR_W + x;
-      tft.setAddrWindow(x, y + row, w, 1);
-      tft.writePixels(src, w);
-    }
+    pushRectDma(buf, x, y, w, h);
   }
   tft.endWrite();
+}
+
+void displaySetClipRect(int x, int y, int w, int h) {
+  displayGfx().setClipRect(x, y, w, h);
+}
+
+void displayClearClipRect() {
+  displayGfx().clearClipRect();
 }
 
 uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {

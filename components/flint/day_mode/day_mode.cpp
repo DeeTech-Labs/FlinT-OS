@@ -127,3 +127,33 @@ UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk) {
 
   return p;
 }
+
+void dayModeDrawWash(int screenW, int screenH, uint16_t bgTop, uint16_t bgBottom,
+                     uint8_t washHeight) {
+  if (washHeight == 0 || screenW <= 0 || screenH <= 0) {
+    return;
+  }
+  auto& gfx = displayGfx();
+  const int wash = washHeight < screenH ? washHeight : screenH;
+  const int y0 = screenH - wash;
+  // Coarse vertical steps — visually close to per-scanline lerp, far cheaper.
+  constexpr int kMaxSteps = 8;
+  int steps = wash / 6;
+  if (steps < 2) {
+    steps = 2;
+  }
+  if (steps > kMaxSteps) {
+    steps = kMaxSteps;
+  }
+  for (int i = 0; i < steps; i++) {
+    const int y = y0 + (i * wash) / steps;
+    const int yNext = y0 + ((i + 1) * wash) / steps;
+    const int h = yNext - y;
+    if (h <= 0) {
+      continue;
+    }
+    const uint8_t t =
+        steps > 1 ? static_cast<uint8_t>((i * 100) / (steps - 1)) : static_cast<uint8_t>(100);
+    gfx.fillRect(0, y, screenW, h, colorLerp(bgTop, bgBottom, t));
+  }
+}

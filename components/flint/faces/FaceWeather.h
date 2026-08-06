@@ -3,13 +3,7 @@
 #include <stdint.h>
 
 // Snapshot-only weather fields for FaceContext / SDK.
-// Faces must not call weatherGet() — shell fills FaceContext.
-
-struct WeatherHourly {
-  int8_t hour;       // 0–23 local
-  int16_t tempCx10;  // temp * 10
-  int16_t code;
-};
+// Faces must not call weather APIs — shell fills FaceContext.weather.
 
 struct WeatherDaily {
   int16_t tMaxCx10;
@@ -20,12 +14,15 @@ struct WeatherDaily {
 struct WeatherState {
   bool ok;
   bool loading;
-  float tempC;
-  int code;
+  int16_t tempCx10;  // current temp * 10 (°C)
+  int16_t code;
   uint32_t updatedMs;
 
   bool dailyOk;
   WeatherDaily daily;
-  uint8_t hourlyCount;
-  WeatherHourly hourly[8];
 };
+
+// Whole °C from Cx10 (truncate toward zero; matches prior %+ .0f for typical values).
+inline int weatherTempCWhole(int16_t tempCx10) {
+  return static_cast<int>(tempCx10 / 10);
+}

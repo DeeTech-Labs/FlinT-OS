@@ -115,17 +115,18 @@ static void debugHeartbeat() {
     snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d", ti.tm_hour, ti.tm_min, ti.tm_sec);
   }
 
-  WeatherState w = weatherGet();
+  const WeatherState& w = weatherSnapshot();
   const char* modeName = "-";
   if (clockTimeGetLocal(&ti)) {
     modeName = dayModeNameRu(dayModeFromHour(ti.tm_hour));
   }
-  LOGI("hb", "wifi=%d time=%s%s mode=%s wx=%s temp=%.1f heap=%u dirty=0x%x",
+  LOGI("hb", "wifi=%d time=%s%s mode=%s wx=%s temp=%d.%d heap=%u dirty=0x%x",
        (int)wifiNetIsConnected(), tbuf,
        clockTimeIsValid() && !clockTimeIsNtpSynced() ? "~" : "",
        modeName,
        w.ok ? weatherCodeRu(w.code) : (w.loading ? "loading" : "none"),
-       w.ok ? w.tempC : 0.0f,
+       w.ok ? weatherTempCWhole(w.tempCx10) : 0,
+       w.ok ? ((w.tempCx10 >= 0 ? w.tempCx10 : -w.tempCx10) % 10) : 0,
        (unsigned)flintFreeHeap(),
        (unsigned)uiPeekDirty());
 #endif

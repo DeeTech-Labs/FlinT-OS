@@ -11,7 +11,8 @@
   "rgb_order": false,
   "spi_3wire": true,
   "readable": false,
-  "freq_write_hz": 40000000,
+  "_comment_freq_write": "80 MHz write — validate signal integrity on each PCB (traces, series resistors, panel). Fall back to 40 MHz if artifacts appear.",
+  "freq_write_hz": 80000000,
   "freq_read_hz": 16000000,
   "quirks": {
     "defer_dispon": true

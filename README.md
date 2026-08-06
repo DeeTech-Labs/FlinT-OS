@@ -80,7 +80,7 @@ Settings: `p`/`n` navigate, `+/-` change value, `Enter` only opens face picker f
 Dependencies:
 - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — slim local component (`components/LovyanGFX`); `src/` sparse-cloned to `third_party/LovyanGFX/` (no upstream examples)
 
-Flash is kept lean: no LVGL, no C++ exceptions, STA-only Wi‑Fi, HTTP weather (no TLS CA bundle). See `config/sdkconfig.defaults`.
+Flash is kept lean: no LVGL, no C++ exceptions, STA-only WPA2 Wi‑Fi (no SoftAP/WPA3), trimmed LWIP/mbedTLS, HTTP weather (no HTTPS/CA bundle). See `config/sdkconfig.defaults`.
 
 ---
 

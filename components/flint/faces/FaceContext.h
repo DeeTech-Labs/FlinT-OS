@@ -15,7 +15,9 @@ struct FaceContext {
   DayModeProfile dayProfile;
   UiPalette palette;
 
-  WeatherState weather;
+  // Published weather snap for this tick (never null after uiBuildContext).
+  // Do not retain across ticks — pointer targets weather service storage.
+  const WeatherState* weather;
   bool wifiConnected;
 
   // Resolved prefs (shell/settings) — faces must not read NVS themselves.

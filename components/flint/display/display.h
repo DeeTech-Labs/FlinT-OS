@@ -25,6 +25,11 @@ void displayPresent();  // push canvas → panel (no-op without canvas)
 void displayPresentRect(int x, int y, int w, int h);
 void displayPresentRects(const DisplayRect* rects, int count);
 
+// Clip drawing on the active canvas (sprite or panel). Use around partial paints
+// so glyphs cannot smear outside dirty bands; always clear when done.
+void displaySetClipRect(int x, int y, int w, int h);
+void displayClearClipRect();
+
 uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
 uint16_t colorLerp(uint16_t a, uint16_t b, uint8_t t /*0..255*/);
 

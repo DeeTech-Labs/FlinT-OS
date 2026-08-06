@@ -1,6 +1,6 @@
 #pragma once
 
-// FlinT Face SDK — the only public surface community faces should include.
+// FlinT OS Face SDK — the only public surface community faces should include.
 //
 // Allowed: this header (+ C/C++ std headers).
 // Forbidden: net/, weather/*.cpp APIs, app/, settings/, config/secrets.h, shell/.

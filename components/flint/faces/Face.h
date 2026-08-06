@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "config/flint_version.h"
 #include "faces/FaceContext.h"
 
 // Community face contract (see docs/ARCHITECTURE.md + sdk/flint_face_sdk.h).
@@ -10,9 +11,9 @@
 struct FaceInfo {
   const char* id;       // unique, e.g. "digital"
   const char* name;     // human title
-  const char* author;
+  const char* author;   // developer org, e.g. "DeeTech Labs"
   uint16_t version;     // theme version
-  uint16_t minApi;      // min FLINT_OS_API_VERSION
+  uint16_t minApi;      // must be <= FLINT_OS_API_VERSION (flint_version.h)
 };
 
 class Face {

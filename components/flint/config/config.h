@@ -2,9 +2,11 @@
 
 #include <stdint.h>
 #include "config/secrets.h"
+#include "config/flint_version.h"
 #include "board/board_config.inc"
 
 // FlinT OS — shared configuration (safe to commit)
+// Versions: config/flint_version.h
 // Display pins / panel: components/flint/board/ (see board_config.inc)
 // Secrets (Wi‑Fi): components/flint/config/secrets.h  ← local only
 
@@ -36,8 +38,6 @@ static const uint32_t WEATHER_REFRESH_MS = 15UL * 60UL * 1000UL;
 static const uint32_t WIFI_RETRY_MS = 15000UL;
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000UL;
 
-// Face / theme API (bump when Face ABI / FaceContext breaks)
-static constexpr uint16_t FLINT_OS_API_VERSION = 4;
 // Factory default when NVS has no active_face yet (picker / settings override).
 inline constexpr const char* ACTIVE_FACE_ID = "digital";
 

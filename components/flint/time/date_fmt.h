@@ -27,5 +27,9 @@ char flintDateSepChar(uint8_t sep);
 void flintFormatDate(char* out, size_t outN, const struct tm& ti, uint8_t dateFormat,
                      uint8_t dateSep);
 
+// Weekday + numeric date, or waiting-for-time copy when !hasTime.
+void flintFormatDateLine(char* out, size_t outN, bool hasTime, const struct tm& ti,
+                         uint8_t dateFormat, uint8_t dateSep);
+
 // Fixed sample label for settings UI (unambiguous day/month): uses 31 Dec 2026.
 void flintDateFormatSample(char* out, size_t outN, uint8_t dateFormat, uint8_t dateSep);

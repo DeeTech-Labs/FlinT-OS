@@ -1,6 +1,7 @@
 #include "i18n/i18n.h"
 
 #include "day_mode/day_mode.h"
+#include "sdk/resources.h"
 
 static uint8_t gLang = FLINT_I18N_RU;
 
@@ -48,14 +49,25 @@ const char* flintTrDayMode(uint8_t dayMode) {
 }
 
 const char* flintTrWeatherCode(int code) {
-  if (code == 0) return flintTr(FlintStr::Clear);
-  if (code <= 3) return flintTr(FlintStr::Cloudy);
-  if (code == 45 || code == 48) return flintTr(FlintStr::Fog);
-  if (code >= 51 && code <= 57) return flintTr(FlintStr::Drizzle);
-  if (code >= 61 && code <= 67) return flintTr(FlintStr::Rain);
-  if (code >= 71 && code <= 77) return flintTr(FlintStr::Snow);
-  if (code >= 80 && code <= 82) return flintTr(FlintStr::Showers);
-  if (code >= 85 && code <= 86) return flintTr(FlintStr::Snow);
-  if (code >= 95) return flintTr(FlintStr::Thunder);
-  return flintTr(FlintStr::Weather);
+  switch (flintWeatherClass(code)) {
+    case FlintWxClass::Clear:
+      return flintTr(FlintStr::Clear);
+    case FlintWxClass::Cloudy:
+      return flintTr(FlintStr::Cloudy);
+    case FlintWxClass::Fog:
+      return flintTr(FlintStr::Fog);
+    case FlintWxClass::Drizzle:
+      return flintTr(FlintStr::Drizzle);
+    case FlintWxClass::Rain:
+      return flintTr(FlintStr::Rain);
+    case FlintWxClass::Showers:
+      return flintTr(FlintStr::Showers);
+    case FlintWxClass::Snow:
+      return flintTr(FlintStr::Snow);
+    case FlintWxClass::Storm:
+      return flintTr(FlintStr::Thunder);
+    case FlintWxClass::Unknown:
+    default:
+      return flintTr(FlintStr::Weather);
+  }
 }

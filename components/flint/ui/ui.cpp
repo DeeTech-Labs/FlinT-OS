@@ -12,6 +12,8 @@
 #include "faces/FaceContext.h"
 
 static DayMode gLastMode = DAY_MODE_DAY;
+static FaceContext gLastCtx{};
+static bool gHaveLastCtx = false;
 
 FaceContext uiBuildContext() {
   FaceContext ctx{};
@@ -23,6 +25,7 @@ FaceContext uiBuildContext() {
   ctx.palette = dayModeBuildPalette(ctx.dayMode, ctx.weather->ok ? ctx.weather->code : 0,
                                     ctx.weather->ok);
   ctx.wifiConnected = wifiNetIsConnected();
+  ctx.wifiBars = wifiNetBars();
 
   ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
   ctx.hour12 = settingsUse12Hour();
@@ -31,10 +34,14 @@ FaceContext uiBuildContext() {
 
   ctx.screenW = SCR_W;
   ctx.screenH = SCR_H;
+  ctx.dirty = 0;
   return ctx;
 }
 
 bool uiWantsSeconds() {
+  if (gHaveLastCtx) {
+    return gLastCtx.showSeconds;
+  }
   struct tm ti{};
   const bool has = clockTimeGetLocal(&ti);
   const int hour = has ? ti.tm_hour : 12;
@@ -55,6 +62,7 @@ void uiFaceBegin(const char* preferredFaceId) {
     }
   }
 
+  gHaveLastCtx = false;
   uiMarkDirty(UI_DIRTY_FORCE);
 }
 
@@ -64,6 +72,8 @@ void uiFaceActivateCurrent() {
     return;
   }
   FaceContext ctx = uiBuildContext();
+  gLastCtx = ctx;
+  gHaveLastCtx = true;
   face->onActivate(ctx);
   gLastMode = ctx.dayMode;
 }
@@ -87,10 +97,21 @@ void uiFaceTick() {
     return;
   }
 
+  // Colon pulse only: reuse last context (skip palette / clock / format rebuild).
+  if ((dirty & ~UI_DIRTY_MOTION) == 0 && gHaveLastCtx) {
+    gLastCtx.dirty = dirty;
+    face->onTick(gLastCtx);
+    return;
+  }
+
   FaceContext ctx = uiBuildContext();
+  ctx.dirty = dirty;
   if (!ctx.showSeconds) {
     dirty &= ~UI_DIRTY_SECOND;
+    ctx.dirty = dirty;
     if (!dirty) {
+      gLastCtx = ctx;
+      gHaveLastCtx = true;
       return;
     }
   }
@@ -99,6 +120,9 @@ void uiFaceTick() {
                      || ctx.dayMode != gLastMode;
   // UI_DIRTY_SETTINGS is soft — onTick handles layout-affecting
   // changes when FORCE was emitted explicitly from shell.
+
+  gLastCtx = ctx;
+  gHaveLastCtx = true;
 
   if (force) {
     if (ctx.dayMode != gLastMode) {

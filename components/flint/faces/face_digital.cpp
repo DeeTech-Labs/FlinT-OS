@@ -3,13 +3,16 @@
 #include "config/debug.h"
 #include "display/ui_tokens.h"
 #include "time/date_fmt.h"
+#include "ui/ui_dirty.h"
 #include "util/flint_sys.h"
 
 #include <string.h>
 #include <stdio.h>
 
 // Built-in reference face. Draws via Face SDK (display + resources).
-static const FaceInfo kDigitalFaceInfo{"digital", "Digital", "FlinT OS", 3, 3};
+static const FaceInfo kDigitalFaceInfo{"digital", "Digital", "DeeTech Labs",
+                                       FLINT_FACE_DIGITAL_VERSION,
+                                       FLINT_FACE_DIGITAL_MIN_API};
 
 class DigitalFace : public Face {
 public:
@@ -27,6 +30,28 @@ public:
   }
 
   void onTick(const FaceContext& ctx) override {
+    // Motion-only: pulse colons without reformatting time/weather/palette work.
+    if (ctx.dirty != 0 && (ctx.dirty & ~UI_DIRTY_MOTION) == 0) {
+      if (mode_ != ctx.dayMode || force_ || !timeLayoutReady_) {
+        paintFull(ctx);
+        return;
+      }
+      if (!pulseColons(ctx)) {
+        return;
+      }
+      if (!displayHasCanvas()) {
+        return;
+      }
+      DisplayRect rects[2];
+      const int n = appendColonRects(ctx, timeAsc_, rects, 2);
+      if (n == 1) {
+        displayPresentRect(rects[0].x, rects[0].y, rects[0].w, rects[0].h);
+      } else if (n > 1) {
+        displayPresentRects(rects, n);
+      }
+      return;
+    }
+
     if (ctx.dayMode != mode_ || force_ || ctx.hour12 != hour12_
         || ctx.showSeconds != showSeconds_
         || ctx.dateFormat != dateFormat_ || ctx.dateSep != dateSep_) {
@@ -40,7 +65,7 @@ public:
     ensureTimeLayout(ctx, showSeconds_);
 
     displaySetFont(displayGfx(), timeFont());
-    const int asc = displayFontAscent(displayGfx());
+    const int asc = timeAsc_;
     const DisplayRect timeBand = tightTimeBand(ctx, asc);
     const DisplayRect ampmBand = tightAmpmBand(ctx, asc);
     const DisplayRect weatherBand = tightWeatherBand(ctx);
@@ -73,12 +98,12 @@ public:
       dateBand = tightDateBand(ctx, dateStr);
       displaySetClipRect(dateBand.x, dateBand.y, dateBand.w, dateBand.h);
       flintGlanceDraw(ctx, GLANCE_DATE,
-                      GlanceRect{dateBand.x, dateBand.y, dateBand.w, dateBand.h});
+                      GlanceRect{dateBand.x, dateBand.y, dateBand.w, dateBand.h}, dateStr);
       strncpy(lastDate_, dateStr, sizeof(lastDate_) - 1);
       lastDate_[sizeof(lastDate_) - 1] = '\0';
       dateDirty = true;
     }
-    if (ctx.wifiConnected != lastWifi_) {
+    if (ctx.wifiBars != lastWifiBars_) {
       displaySetClipRect(wifiBand.x, wifiBand.y, wifiBand.w, wifiBand.h);
       drawWifiDot(ctx);
       wifiDirty = true;
@@ -140,7 +165,7 @@ private:
   char lastTemp_[12] = "";
   char lastModeLabel_[16] = "";
   int lastWeatherCode_ = -999;
-  bool lastWifi_ = false;
+  uint8_t lastWifiBars_ = 0xFF;
   bool lastWxOk_ = false;
   bool lastWxLoading_ = false;
   uint8_t lastColonFade_ = 255;
@@ -148,9 +173,12 @@ private:
 
   int digitW_ = 0;
   int colonW_ = 0;
+  int glyphWDigit_[10] = {0};
+  int glyphWDash_ = 0;
   int timeCellX_[8] = {0};
   int timeEndX_ = 0;
   int timeGlyphH_ = 0;
+  int timeAsc_ = 0;
   bool timeLayoutReady_ = false;
   bool layoutWithSeconds_ = true;
   uint8_t timeLen_ = 8;
@@ -251,13 +279,11 @@ private:
       } else {
         snprintf(timeStr, timeN, "%02d:%02d", h, ctx.localTime.tm_min);
       }
-      char num[16];
-      flintFormatDate(num, sizeof(num), ctx.localTime, ctx.dateFormat, ctx.dateSep);
-      snprintf(dateStr, dateN, "%s  %s", flintTrWeekday(ctx.localTime.tm_wday), num);
     } else {
       snprintf(timeStr, timeN, ctx.showSeconds ? "--:--:--" : "--:--");
-      snprintf(dateStr, dateN, "%s", flintTr(FlintStr::WaitingForTime));
     }
+    flintFormatDateLine(dateStr, dateN, ctx.hasTime, ctx.localTime, ctx.dateFormat,
+                        ctx.dateSep);
   }
 
   uint8_t colonFadeNow() const {
@@ -290,7 +316,7 @@ private:
                                static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
                                static_cast<int16_t>(UiTok::kWifiSize),
                                static_cast<int16_t>(UiTok::kWifiSize)});
-    lastWifi_ = ctx.wifiConnected;
+    lastWifiBars_ = ctx.wifiBars;
   }
 
   bool drawWeatherBadge(const FaceContext& ctx, bool force) {
@@ -317,13 +343,7 @@ private:
     }
     const WeatherState& w = *ctx.weather;
     char temp[12];
-    if (w.ok) {
-      snprintf(temp, sizeof(temp), "%+d", weatherTempCWhole(w.tempCx10));
-    } else if (w.loading) {
-      snprintf(temp, sizeof(temp), "..");
-    } else {
-      snprintf(temp, sizeof(temp), "--");
-    }
+    weatherFormatTempC(temp, sizeof(temp), w);
 
     const bool dirty = force || (w.ok != lastWxOk_) || (w.loading != lastWxLoading_)
                        || (w.code != lastWeatherCode_) || (strcmp(temp, lastTemp_) != 0);
@@ -333,7 +353,8 @@ private:
 
     flintGlanceDraw(ctx, GLANCE_WEATHER,
                     GlanceRect{static_cast<int16_t>(wx), static_cast<int16_t>(wy),
-                               static_cast<int16_t>(ww), static_cast<int16_t>(wh)});
+                               static_cast<int16_t>(ww), static_cast<int16_t>(wh)},
+                    temp);
     if (w.dailyOk) {
       flintGlanceDraw(ctx, GLANCE_DAILY_RANGE,
                       GlanceRect{static_cast<int16_t>(rx), static_cast<int16_t>(ry),
@@ -386,17 +407,19 @@ private:
     digitW_ = 0;
     for (char c = '0'; c <= '9'; c++) {
       char t[2] = {c, 0};
-      int w = displayTextWidth(gfx, t);
+      const int w = displayTextWidth(gfx, t);
+      glyphWDigit_[c - '0'] = w;
       if (w > digitW_) digitW_ = w;
     }
     {
       char t[2] = {'-', 0};
-      int w = displayTextWidth(gfx, t);
-      if (w > digitW_) digitW_ = w;
+      glyphWDash_ = displayTextWidth(gfx, t);
+      if (glyphWDash_ > digitW_) digitW_ = glyphWDash_;
     }
     colonW_ = displayTextWidth(gfx, ":");
     if (colonW_ < 1) colonW_ = digitW_ / 3;
-    timeGlyphH_ = displayFontAscent(gfx) - displayFontDescent(gfx) + 2;
+    timeAsc_ = displayFontAscent(gfx);
+    timeGlyphH_ = timeAsc_ - displayFontDescent(gfx) + 2;
     layoutWithSeconds_ = withSeconds;
     timeLen_ = withSeconds ? 8 : 5;
 
@@ -463,10 +486,18 @@ private:
     const int cellW = isColon ? colonW_ : digitW_;
     const int x = timeCellX_[index];
     const int ty = UiTok::timeY(screenH);
-    const int asc = displayFontAscent(gfx);
-    gfx.fillRect(x, ty - asc, cellW, timeGlyphH_, bg);
+    gfx.fillRect(x, ty - timeAsc_, cellW, timeGlyphH_, bg);
     char tmp[2] = {ch, 0};
-    int gw = displayTextWidth(gfx, tmp);
+    int gw = colonW_;
+    if (!isColon) {
+      if (ch >= '0' && ch <= '9') {
+        gw = glyphWDigit_[ch - '0'];
+      } else if (ch == '-') {
+        gw = glyphWDash_;
+      } else {
+        gw = digitW_;
+      }
+    }
     gfx.setTextColor(fg, bg);
     gfx.drawString(tmp, x + (cellW - gw) / 2, ty);
   }
@@ -500,8 +531,7 @@ private:
     const int ty = UiTok::timeY(ctx.screenH);
     if (force || (lastTime_[0] != '\0' && strlen(lastTime_) != strlen(timeStr))) {
       displaySetFont(gfx, timeFont());
-      int asc = displayFontAscent(gfx);
-      gfx.fillRect(0, ty - asc, ctx.screenW, timeGlyphH_ + 2, pageBg());
+      gfx.fillRect(0, ty - timeAsc_, ctx.screenW, timeGlyphH_ + 2, pageBg());
       lastTime_[0] = '\0';
     }
     lastColonFade_ = colonFadeNow();
@@ -530,7 +560,7 @@ private:
     } else {
       band = tightDateBand(ctx, dateStr);
     }
-    flintGlanceDraw(ctx, GLANCE_DATE, GlanceRect{band.x, band.y, band.w, band.h});
+    flintGlanceDraw(ctx, GLANCE_DATE, GlanceRect{band.x, band.y, band.w, band.h}, dateStr);
     strncpy(lastDate_, dateStr, sizeof(lastDate_) - 1);
     lastDate_[sizeof(lastDate_) - 1] = '\0';
   }

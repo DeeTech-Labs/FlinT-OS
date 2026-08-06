@@ -19,4 +19,6 @@ struct GlanceRect {
 };
 
 // Draw a complication into the current display target. Returns true if painted.
-bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r);
+// Optional `label` skips re-formatting for WEATHER / DATE (face already built it).
+bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r,
+                     const char* label = nullptr);

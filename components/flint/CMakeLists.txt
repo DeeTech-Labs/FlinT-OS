@@ -1,4 +1,4 @@
-# FlinT OS — application component (all product logic lives here)
+# FlinT OS — application component (firmware logic for FlinT devices)
 
 get_filename_component(FLINT_COMPONENT_DIR "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
 
@@ -9,11 +9,12 @@ if(DEFINED IDF_TARGET AND NOT "${FLINT_BOARD_IDF_TARGET}" STREQUAL "${IDF_TARGET
         "FLINT_BOARD '${FLINT_BOARD_ID}' expects idf_target=${FLINT_BOARD_IDF_TARGET}, "
         "but IDF_TARGET=${IDF_TARGET}. Run: idf.py set-target ${FLINT_BOARD_IDF_TARGET}")
 endif()
-message(STATUS "FlinT board ${FLINT_BOARD_ID} (${FLINT_BOARD_DISPLAY_ID}, bus=${FLINT_BOARD_DISPLAY_BUS})")
+message(STATUS "FlinT OS board ${FLINT_BOARD_ID} (${FLINT_BOARD_DISPLAY_ID}, bus=${FLINT_BOARD_DISPLAY_BUS})")
 
 set(FLINT_SRC_DIRS
     anim
     app
+    assets
     display
     display/fonts
     day_mode
@@ -45,4 +46,5 @@ idf_component_register(
         log
         esp_driver_usb_serial_jtag
         LovyanGFX
+        joltwallet__littlefs
 )

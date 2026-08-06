@@ -2,6 +2,7 @@
 #include "config/config.h"
 #include "display/display.h"
 #include "i18n/i18n.h"
+#include "sdk/resources.h"
 
 DayMode dayModeFromHour(int hour) {
   // [nightStart..24) U [0..morningStart) = ночь
@@ -42,17 +43,6 @@ const char* dayModeNameRu(DayMode mode) {
   return dayModeName(mode);
 }
 
-static uint16_t weatherAccent(int code, uint16_t base) {
-  if (code == 0) return rgb565(255, 200, 70);
-  if (code <= 3) return rgb565(160, 190, 220);
-  if (code == 45 || code == 48) return rgb565(170, 180, 190);
-  if (code >= 51 && code <= 67) return rgb565(80, 160, 255);
-  if (code >= 71 && code <= 86) return rgb565(200, 230, 255);
-  if (code >= 80 && code <= 82) return rgb565(70, 140, 255);
-  if (code >= 95) return rgb565(180, 120, 255);
-  return base;
-}
-
 static void fillChromeRoles(UiPalette& p) {
   p.divider = colorLerp(p.bgTop, p.accent, 70);
   p.selectionBg = colorLerp(p.bgTop, p.panel, 200);
@@ -80,11 +70,11 @@ UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk) {
 
     case DAY_MODE_DAY:
       // ясный дневной teal
-      p.bgTop = rgb565(8, 12, 20);
+      p.bgTop = UiColor::dayBgTop();
       p.bgBottom = rgb565(16, 34, 46);
-      p.accent = rgb565(72, 224, 214);
+      p.accent = UiColor::dayAccent();
       p.textPrimary = rgb565(244, 250, 255);
-      p.textSecondary = rgb565(132, 158, 178);
+      p.textSecondary = UiColor::dayTextSecondary();
       p.panel = rgb565(20, 32, 42);
       break;
 
@@ -116,11 +106,11 @@ UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk) {
 
   // Ночью погода почти не красит акцент (бережём «тихий» режим)
   if (weatherOk && mode != DAY_MODE_NIGHT) {
-    p.accent = colorLerp(p.accent, weatherAccent(weatherCode, p.accent), 140);
+    p.accent = colorLerp(p.accent, flintWeatherAccent(weatherCode, p.accent), 140);
     p.glow = p.accent;
     p.divider = colorLerp(p.bgTop, p.accent, 70);
   } else if (weatherOk && mode == DAY_MODE_NIGHT) {
-    p.accent = colorLerp(p.accent, weatherAccent(weatherCode, p.accent), 40);
+    p.accent = colorLerp(p.accent, flintWeatherAccent(weatherCode, p.accent), 40);
     p.glow = p.accent;
     p.divider = colorLerp(p.bgTop, p.accent, 50);
   }

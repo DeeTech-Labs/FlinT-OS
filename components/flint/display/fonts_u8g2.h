@@ -10,7 +10,6 @@ extern "C" {
 #endif
 extern const uint8_t u8g2_font_logisoso46_tn[];
 extern const uint8_t u8g2_font_10x20_t_cyrillic[];
-extern const uint8_t u8g2_font_9x15_tn[];
 #ifdef __cplusplus
 }
 #endif
@@ -22,10 +21,5 @@ inline const lgfx::IFont* flintFontTimeLarge() {
 
 inline const lgfx::IFont* flintFontBody() {
   static const lgfx::U8g2font font(u8g2_font_10x20_t_cyrillic);
-  return &font;
-}
-
-inline const lgfx::IFont* flintFontTemp() {
-  static const lgfx::U8g2font font(u8g2_font_9x15_tn);
   return &font;
 }

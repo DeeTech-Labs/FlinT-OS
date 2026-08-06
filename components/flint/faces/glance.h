@@ -5,10 +5,8 @@
 #include "faces/FaceContext.h"
 
 enum GlanceKind : uint8_t {
-  GLANCE_WEATHER = 0,
-  GLANCE_WIFI,
+  GLANCE_WIFI = 0,
   GLANCE_DATE,
-  GLANCE_DAILY_RANGE,
 };
 
 struct GlanceRect {
@@ -19,6 +17,6 @@ struct GlanceRect {
 };
 
 // Draw a complication into the current display target. Returns true if painted.
-// Optional `label` skips re-formatting for WEATHER / DATE (face already built it).
+// Optional `label` skips re-formatting for DATE (face already built it).
 bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r,
                      const char* label = nullptr);

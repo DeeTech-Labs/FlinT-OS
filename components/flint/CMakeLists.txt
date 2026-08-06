@@ -26,7 +26,6 @@ set(FLINT_SRC_DIRS
     shell
     time
     ui
-    weather
 )
 
 idf_component_register(
@@ -38,7 +37,6 @@ idf_component_register(
         esp_event
         esp_netif
         esp_wifi
-        esp_http_client
         esp_timer
         freertos
         lwip

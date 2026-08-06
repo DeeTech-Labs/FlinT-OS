@@ -27,9 +27,6 @@ static void uiDirtyBridge(FlintEvent ev, void* /*user*/) {
     case FLINT_EVT_TIME_VALID:
       uiMarkDirty(UI_DIRTY_TIME_VALID | UI_DIRTY_FORCE);
       break;
-    case FLINT_EVT_WEATHER:
-      uiMarkDirty(UI_DIRTY_WEATHER);
-      break;
     case FLINT_EVT_WIFI:
       uiMarkDirty(UI_DIRTY_WIFI);
       break;

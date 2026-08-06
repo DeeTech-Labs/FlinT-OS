@@ -4,7 +4,6 @@
 #include "config/debug.h"
 #include "display/display.h"
 #include "time/clock_time.h"
-#include "weather/weather.h"
 #include "net/wifi_net.h"
 #include "day_mode/day_mode.h"
 #include "settings/settings.h"
@@ -21,9 +20,7 @@ FaceContext uiBuildContext() {
   const int hour = ctx.hasTime ? ctx.localTime.tm_hour : 12;
   ctx.dayMode = dayModeFromHour(hour);
   ctx.dayProfile = dayModeProfile(ctx.dayMode);
-  ctx.weather = &weatherSnapshot();
-  ctx.palette = dayModeBuildPalette(ctx.dayMode, ctx.weather->ok ? ctx.weather->code : 0,
-                                    ctx.weather->ok);
+  ctx.palette = dayModeBuildPalette(ctx.dayMode);
   ctx.wifiConnected = wifiNetIsConnected();
   ctx.wifiBars = wifiNetBars();
 

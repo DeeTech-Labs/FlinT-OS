@@ -25,15 +25,14 @@
 
 **FlinT OS** is the firmware for **FlinT** devices, developed by **DeeTech Labs**.
 Core services stay stable; **faces are plugins** — add a theme without rewriting
-networking, time, or weather.
+networking or time.
 
 | Built-in today | Coming next |
 |----------------|-------------|
 | Digital face + day modes + glances | More community faces |
 | Soft-clock + SNTP + timezone DB | SoftAP provisioning |
-| Open-Meteo current + daily/hourly | Hardware buttons (serial keys for now) |
-| Wi‑Fi, NVS settings, face picker | OTA flow |
-| Event bus | |
+| Wi‑Fi, NVS settings, face picker | Hardware buttons (serial keys for now) |
+| Event bus | OTA flow |
 | Boot splash | |
 
 Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Face SDK: `components/flint/sdk/flint_face_sdk.h`
@@ -75,14 +74,14 @@ In the IDF monitor, type keys (no Enter needed except where noted):
 | `q` / `Esc` | Back to face |
 | `h` | Help in log |
 
-Active face and prefs are stored in NVS (face, seconds, hour format, language, timezone, weather lat/lon).
+Active face and prefs are stored in NVS (face, seconds, hour format, language, timezone).
 
 Settings: `p`/`n` navigate, `+/-` change value, `Enter` only opens face picker from the Face row. Shell transitions are instant (no fade wash).
 
 Dependencies:
 - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — slim local component (`components/LovyanGFX`); `src/` sparse-cloned to `third_party/LovyanGFX/` (no upstream examples)
 
-Flash is kept lean: no LVGL, no C++ exceptions, STA-only WPA2 Wi‑Fi (no SoftAP/WPA3), trimmed LWIP/mbedTLS, HTTP weather (no HTTPS/CA bundle). See `config/sdkconfig.defaults`.
+Flash is kept lean: no LVGL, no C++ exceptions, STA-only WPA2 Wi‑Fi (no SoftAP/WPA3), trimmed LWIP/mbedTLS (no HTTP client). See `config/sdkconfig.defaults`.
 
 ---
 
@@ -98,7 +97,7 @@ flint_os/
 │   │   ├── board/        # ★ hardware profiles (JSON → board_config.inc)
 │   │   ├── app/ shell/ settings/ sdk/
 │   │   ├── faces/        # Face API + themes
-│   │   └── display/ net/ time/ weather/ …
+│   │   └── display/ net/ time/ …
 │   └── LovyanGFX/        # slim CMake (bus sources from board)
 ├── tools/                # codegen — see tools/README.md (or: ./flint_tools)
 ├── assets/               # icons/ splash/ chrome/ glances/ + fs_root pack
@@ -109,7 +108,7 @@ flint_os/
 └── brand/                # marketing logo (README), not device assets
 ```
 
-Icons/weather glyphs load from the `storage` LittleFS partition when flashed; see [`assets/README.md`](assets/README.md).
+Icons load from the `storage` LittleFS partition when flashed; see [`assets/README.md`](assets/README.md).
 
 ---
 

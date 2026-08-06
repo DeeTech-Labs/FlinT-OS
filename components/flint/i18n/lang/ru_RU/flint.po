@@ -32,12 +32,6 @@ msgstr "Разделитель"
 msgid "lang"
 msgstr "Язык"
 
-msgid "lat"
-msgstr "Широта"
-
-msgid "lon"
-msgstr "Долгота"
-
 msgid "off"
 msgstr "Выкл"
 
@@ -94,33 +88,6 @@ msgstr "Пт"
 
 msgid "Sat"
 msgstr "Сб"
-
-msgid "Clear"
-msgstr "Ясно"
-
-msgid "Cloudy"
-msgstr "Облачно"
-
-msgid "Fog"
-msgstr "Туман"
-
-msgid "Drizzle"
-msgstr "Морось"
-
-msgid "Rain"
-msgstr "Дождь"
-
-msgid "Snow"
-msgstr "Снег"
-
-msgid "Showers"
-msgstr "Ливень"
-
-msgid "Thunder"
-msgstr "Гроза"
-
-msgid "Weather"
-msgstr "Погода"
 
 msgid "AM"
 msgstr "AM"

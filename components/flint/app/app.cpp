@@ -12,7 +12,6 @@
 #include "ui/ui.h"
 #include "ui/ui_dirty.h"
 #include "util/flint_sys.h"
-#include "weather/weather.h"
 
 #include <stdio.h>
 
@@ -45,9 +44,8 @@ void appSetup() {
   shellTick();
 
   wifiNetBegin();
-  weatherStartService();
 
-  LOGI("app", "setup done (async wifi/ntp/weather); serial: h=help");
+  LOGI("app", "setup done (async wifi/ntp); serial: h=help");
 }
 
 static void maintainServices() {
@@ -137,14 +135,10 @@ static void debugHeartbeat(const struct tm* tiOpt) {
     modeName = dayModeNameRu(dayModeFromHour(ti->tm_hour));
   }
 
-  const WeatherState& w = weatherSnapshot();
-  LOGI("hb", "wifi=%d time=%s%s mode=%s wx=%s temp=%d.%d heap=%u dirty=0x%x",
+  LOGI("hb", "wifi=%d time=%s%s mode=%s heap=%u dirty=0x%x",
        (int)wifiNetIsConnected(), tbuf,
        clockTimeIsValid() && !clockTimeIsNtpSynced() ? "~" : "",
        modeName,
-       w.ok ? weatherCodeRu(w.code) : (w.loading ? "loading" : "none"),
-       w.ok ? weatherTempCWhole(w.tempCx10) : 0,
-       w.ok ? ((w.tempCx10 >= 0 ? w.tempCx10 : -w.tempCx10) % 10) : 0,
        (unsigned)flintFreeHeap(),
        (unsigned)uiPeekDirty());
 #else

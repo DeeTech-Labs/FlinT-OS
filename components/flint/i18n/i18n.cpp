@@ -1,7 +1,6 @@
 #include "i18n/i18n.h"
 
 #include "day_mode/day_mode.h"
-#include "sdk/resources.h"
 
 static uint8_t gLang = FLINT_I18N_RU;
 
@@ -45,29 +44,5 @@ const char* flintTrDayMode(uint8_t dayMode) {
     case DAY_MODE_EVENING: return flintTr(FlintStr::Evening);
     case DAY_MODE_NIGHT:
     default: return flintTr(FlintStr::Night);
-  }
-}
-
-const char* flintTrWeatherCode(int code) {
-  switch (flintWeatherClass(code)) {
-    case FlintWxClass::Clear:
-      return flintTr(FlintStr::Clear);
-    case FlintWxClass::Cloudy:
-      return flintTr(FlintStr::Cloudy);
-    case FlintWxClass::Fog:
-      return flintTr(FlintStr::Fog);
-    case FlintWxClass::Drizzle:
-      return flintTr(FlintStr::Drizzle);
-    case FlintWxClass::Rain:
-      return flintTr(FlintStr::Rain);
-    case FlintWxClass::Showers:
-      return flintTr(FlintStr::Showers);
-    case FlintWxClass::Snow:
-      return flintTr(FlintStr::Snow);
-    case FlintWxClass::Storm:
-      return flintTr(FlintStr::Thunder);
-    case FlintWxClass::Unknown:
-    default:
-      return flintTr(FlintStr::Weather);
   }
 }

@@ -281,9 +281,10 @@ static void drawSettingsPartial() {
 
   chromeCounter(ctx, gSettingsRow + 1, SET_ROW_COUNT, 255);
   paintSettingsScroll(ctx);
-  rects[n++] = DisplayRect{static_cast<int16_t>(ctx.screenW - 56), 6, 56, 22};
+  rects[n++] = DisplayRect{static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - 48),
+                           static_cast<int16_t>(UiTok::contentTop() - 2), 52, 22};
   rects[n++] = DisplayRect{
-      static_cast<int16_t>(ctx.screenW - UiTok::kShellScrollGap - UiTok::kShellScrollW - 1),
+      static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - UiTok::kShellScrollW - 1),
       static_cast<int16_t>(UiTok::kShellRowsTop),
       static_cast<int16_t>(UiTok::kShellScrollW + 2),
       static_cast<int16_t>(UiTok::kShellVisibleRows * UiTok::kShellRowH)};

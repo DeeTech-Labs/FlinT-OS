@@ -73,22 +73,23 @@ public:
     const int asc = displayFontAscent(displayGfx());
 
     if (timeDirty || ampmDirty || colonDirty) {
-      rects[n++] = DisplayRect{0, static_cast<int16_t>(UiTok::kTimeY - asc),
+      rects[n++] = DisplayRect{0, static_cast<int16_t>(UiTok::timeY(ctx.screenH) - asc),
                                static_cast<int16_t>(ctx.screenW),
                                static_cast<int16_t>(timeGlyphH_ + 2)};
     }
     if (weatherDirty) {
-      rects[n++] = DisplayRect{0, 0, static_cast<int16_t>(UiTok::kWxW + UiTok::kWxX),
-                               static_cast<int16_t>(UiTok::kStatusH)};
+      rects[n++] = DisplayRect{0, 0,
+                               static_cast<int16_t>(UiTok::wxX(ctx.screenW) + UiTok::wxW(ctx.screenW)),
+                               static_cast<int16_t>(UiTok::statusH(ctx.screenH))};
     }
     if (dateDirty) {
-      rects[n++] = DisplayRect{0, static_cast<int16_t>(UiTok::kDateY - 16),
+      rects[n++] = DisplayRect{0, static_cast<int16_t>(UiTok::dateY(ctx.screenH) - 16),
                                static_cast<int16_t>(ctx.screenW),
-                               static_cast<int16_t>(UiTok::kDateBandH)};
+                               static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))};
     }
     if (wifiDirty) {
       rects[n++] = DisplayRect{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::kWifiTop),
+                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
                                static_cast<int16_t>(UiTok::kWifiSize),
                                static_cast<int16_t>(UiTok::kWifiSize)};
     }
@@ -190,25 +191,34 @@ private:
 
   void drawStatusHairline(const FaceContext& ctx) {
     auto& gfx = displayGfx();
-    gfx.drawFastHLine(UiTok::kPadX, UiTok::kStatusHairlineY,
-                      ctx.screenW - UiTok::kPadX * 2, pal_.divider);
+    gfx.drawFastHLine(UiTok::contentLeft(), UiTok::statusHairlineY(ctx.screenH),
+                      UiTok::contentWidth(ctx.screenW), pal_.divider);
   }
 
   void drawWifiDot(const FaceContext& ctx) {
     flintGlanceDraw(ctx, GLANCE_WIFI,
                     GlanceRect{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::kWifiTop),
+                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
                                static_cast<int16_t>(UiTok::kWifiSize),
                                static_cast<int16_t>(UiTok::kWifiSize)});
     lastWifi_ = ctx.wifiConnected;
   }
 
   bool drawWeatherBadge(const FaceContext& ctx, bool force) {
+    const int wx = UiTok::wxX(ctx.screenW);
+    const int wy = UiTok::wxY(ctx.screenH);
+    const int ww = UiTok::wxW(ctx.screenW);
+    const int wh = UiTok::wxH(ctx.screenH);
+    const int rx = UiTok::rangeX(ctx.screenW);
+    const int ry = UiTok::rangeY(ctx.screenH);
+    const int rw = UiTok::rangeW(ctx.screenW);
+    const int rh = UiTok::rangeH(ctx.screenH);
+
     if (!profile_.showWeather) {
       if (force) {
         auto& gfx = displayGfx();
-        gfx.fillRect(UiTok::kWxX, UiTok::kWxY, UiTok::kWxW, UiTok::kWxH, pageBg());
-        gfx.fillRect(UiTok::kRangeX, UiTok::kRangeY, UiTok::kRangeW, UiTok::kRangeH, pageBg());
+        gfx.fillRect(wx, wy, ww, wh, pageBg());
+        gfx.fillRect(rx, ry, rw, rh, pageBg());
       }
       return force;
     }
@@ -230,19 +240,15 @@ private:
     }
 
     flintGlanceDraw(ctx, GLANCE_WEATHER,
-                    GlanceRect{static_cast<int16_t>(UiTok::kWxX),
-                               static_cast<int16_t>(UiTok::kWxY),
-                               static_cast<int16_t>(UiTok::kWxW),
-                               static_cast<int16_t>(UiTok::kWxH)});
+                    GlanceRect{static_cast<int16_t>(wx), static_cast<int16_t>(wy),
+                               static_cast<int16_t>(ww), static_cast<int16_t>(wh)});
     if (w.dailyOk) {
       flintGlanceDraw(ctx, GLANCE_DAILY_RANGE,
-                      GlanceRect{static_cast<int16_t>(UiTok::kRangeX),
-                                 static_cast<int16_t>(UiTok::kRangeY),
-                                 static_cast<int16_t>(UiTok::kRangeW),
-                                 static_cast<int16_t>(UiTok::kRangeH)});
+                      GlanceRect{static_cast<int16_t>(rx), static_cast<int16_t>(ry),
+                                 static_cast<int16_t>(rw), static_cast<int16_t>(rh)});
     } else if (force) {
       auto& gfx = displayGfx();
-      gfx.fillRect(UiTok::kRangeX, UiTok::kRangeY, UiTok::kRangeW, UiTok::kRangeH, pageBg());
+      gfx.fillRect(rx, ry, rw, rh, pageBg());
     }
     lastWeatherCode_ = w.ok ? w.code : -1;
     lastWxOk_ = w.ok;
@@ -254,9 +260,12 @@ private:
 
   void drawModeLabel(const FaceContext& ctx, bool force) {
     auto& gfx = displayGfx();
+    const int maxW = UiTok::modeLabelMaxW(ctx.screenW);
+    const int clearX = (ctx.screenW - maxW) / 2;
+    const int labelY = UiTok::modeLabelY(ctx.screenH);
     if (!profile_.showModeLabel) {
       if (lastModeLabel_[0] != '\0') {
-        gfx.fillRect(ctx.screenW / 2 - 48, 4, 96, 24, pageBg());
+        gfx.fillRect(clearX, 4, maxW, 24, pageBg());
         lastModeLabel_[0] = '\0';
       }
       return;
@@ -266,12 +275,13 @@ private:
 
     displaySetFont(gfx, bodyFont());
     int w = displayTextWidth(gfx, label);
+    if (w > maxW) w = maxW;
     int x = (ctx.screenW - w) / 2;
     int asc = displayFontAscent(gfx);
     int desc = displayFontDescent(gfx);
-    gfx.fillRect(ctx.screenW / 2 - 48, UiTok::kModeLabelY - asc, 96, asc - desc + 2, pageBg());
+    gfx.fillRect(clearX, labelY - asc, maxW, asc - desc + 2, pageBg());
     gfx.setTextColor(pal_.textSecondary, pageBg());
-    gfx.drawString(label, x, UiTok::kModeLabelY);
+    gfx.drawString(label, x, labelY);
     strncpy(lastModeLabel_, label, sizeof(lastModeLabel_) - 1);
     lastModeLabel_[sizeof(lastModeLabel_) - 1] = '\0';
   }
@@ -300,10 +310,19 @@ private:
 
     const int digits = withSeconds ? 6 : 4;
     const int colons = withSeconds ? 2 : 1;
-    const int total = digitW_ * digits + colonW_ * colons;
     const int ampmReserve = hour12_ ? 42 : 0;
+    const int avail = UiTok::contentWidth(ctx.screenW) - ampmReserve;
+    int total = digitW_ * digits + colonW_ * colons;
+    // Squeeze cell widths if the hero clock would overflow the safe area.
+    if (total > avail && digits > 0) {
+      const int over = total - avail;
+      const int shrink = (over + digits - 1) / digits;
+      digitW_ -= shrink;
+      if (digitW_ < 8) digitW_ = 8;
+      total = digitW_ * digits + colonW_ * colons;
+    }
     int x = (ctx.screenW - total - ampmReserve) / 2;
-    if (x < 0) x = 0;
+    if (x < UiTok::contentLeft()) x = UiTok::contentLeft();
     for (int i = 0; i < timeLen_; i++) {
       timeCellX_[i] = x;
       const bool colonSlot = withSeconds ? (i == 2 || i == 5) : (i == 2);
@@ -315,12 +334,13 @@ private:
 
   bool drawAmpm(const FaceContext& ctx, bool force) {
     auto& gfx = displayGfx();
+    const int ty = UiTok::timeY(ctx.screenH);
     if (!hour12_ || !ctx.hasTime) {
       if (lastAmpm_[0] != '\0') {
         displaySetFont(gfx, bodyFont());
         const int asc = displayFontAscent(gfx);
         const int desc = displayFontDescent(gfx);
-        gfx.fillRect(timeEndX_, UiTok::kTimeY - asc, 48, asc - desc + 2, pageBg());
+        gfx.fillRect(timeEndX_, ty - asc, 48, asc - desc + 2, pageBg());
         lastAmpm_[0] = '\0';
         return true;
       }
@@ -336,25 +356,27 @@ private:
     const int asc = displayFontAscent(gfx);
     const int desc = displayFontDescent(gfx);
     const int x = timeEndX_ + UiTok::kGapSm;
-    gfx.fillRect(x, UiTok::kTimeY - asc, 40, asc - desc + 2, pageBg());
+    gfx.fillRect(x, ty - asc, 40, asc - desc + 2, pageBg());
     gfx.setTextColor(pal_.textSecondary, pageBg());
-    gfx.drawString(label, x, UiTok::kTimeY - 4);
+    gfx.drawString(label, x, ty - 4);
     strncpy(lastAmpm_, label, sizeof(lastAmpm_) - 1);
     lastAmpm_[sizeof(lastAmpm_) - 1] = '\0';
     return true;
   }
 
-  void drawTimeGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg, uint16_t bg) {
+  void drawTimeGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg, uint16_t bg,
+                     int screenH) {
     displaySetFont(gfx, timeFont());
     const bool isColon = (ch == ':');
     const int cellW = isColon ? colonW_ : digitW_;
     const int x = timeCellX_[index];
+    const int ty = UiTok::timeY(screenH);
     const int asc = displayFontAscent(gfx);
-    gfx.fillRect(x, UiTok::kTimeY - asc, cellW, timeGlyphH_, bg);
+    gfx.fillRect(x, ty - asc, cellW, timeGlyphH_, bg);
     char tmp[2] = {ch, 0};
     int gw = displayTextWidth(gfx, tmp);
     gfx.setTextColor(fg, bg);
-    gfx.drawString(tmp, x + (cellW - gw) / 2, UiTok::kTimeY);
+    gfx.drawString(tmp, x + (cellW - gw) / 2, ty);
   }
 
   bool pulseColons(const FaceContext& ctx) {
@@ -372,7 +394,7 @@ private:
     const uint16_t fg = colonColor(fade);
     for (int i = 0; lastTime_[i] != '\0'; i++) {
       if (lastTime_[i] == ':') {
-        drawTimeGlyph(gfx, i, ':', fg, pageBg());
+        drawTimeGlyph(gfx, i, ':', fg, pageBg(), ctx.screenH);
       }
     }
     return true;
@@ -382,10 +404,11 @@ private:
     if (!force && strcmp(timeStr, lastTime_) == 0) return;
     auto& gfx = displayGfx();
     ensureTimeLayout(ctx, showSeconds_);
+    const int ty = UiTok::timeY(ctx.screenH);
     if (force || (lastTime_[0] != '\0' && strlen(lastTime_) != strlen(timeStr))) {
       displaySetFont(gfx, timeFont());
       int asc = displayFontAscent(gfx);
-      gfx.fillRect(0, UiTok::kTimeY - asc, ctx.screenW, timeGlyphH_ + 2, pageBg());
+      gfx.fillRect(0, ty - asc, ctx.screenW, timeGlyphH_ + 2, pageBg());
       lastTime_[0] = '\0';
     }
     lastColonFade_ = colonFadeNow();
@@ -393,7 +416,7 @@ private:
     for (int i = 0; timeStr[i] != '\0'; i++) {
       if (force || lastTime_[i] == '\0' || timeStr[i] != lastTime_[i]) {
         const uint16_t fg = (timeStr[i] == ':') ? cFg : pal_.accent;
-        drawTimeGlyph(gfx, i, timeStr[i], fg, pageBg());
+        drawTimeGlyph(gfx, i, timeStr[i], fg, pageBg(), ctx.screenH);
         lastTime_[i] = timeStr[i];
       }
     }
@@ -404,9 +427,9 @@ private:
     if (!force && strcmp(dateStr, lastDate_) == 0) return;
     (void)dateStr;
     flintGlanceDraw(ctx, GLANCE_DATE,
-                    GlanceRect{0, static_cast<int16_t>(UiTok::kDateY - 16),
+                    GlanceRect{0, static_cast<int16_t>(UiTok::dateY(ctx.screenH) - 16),
                                static_cast<int16_t>(ctx.screenW),
-                               static_cast<int16_t>(UiTok::kDateBandH)});
+                               static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))});
     char buf[40];
     if (ctx.hasTime) {
       char num[16];

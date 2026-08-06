@@ -8,13 +8,13 @@ static LGFX_Sprite gCanvas(&tft);
 static bool gHasCanvas = false;
 
 // Full RGB565 backbuffer in BSS — heap on ESP32-C3 often has no contiguous
-// 153600-byte block after Wi-Fi/IDF init (largest ~120–130KB). Partitions.csv
-// does not affect RAM.
-static constexpr int kFbMaxW = 320;
+// large block after Wi-Fi/IDF init. Partitions.csv does not affect RAM.
+// Landscape max for 240×280 panel: 280×240.
+static constexpr int kFbMaxW = 280;
 static constexpr int kFbMaxH = 240;
 alignas(16) static uint16_t s_framebuf[kFbMaxW * kFbMaxH];
 
-int SCR_W = 320;
+int SCR_W = 280;
 int SCR_H = 240;
 
 static bool clampRect(int& x, int& y, int& w, int& h) {

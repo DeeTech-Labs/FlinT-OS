@@ -1,6 +1,6 @@
 #pragma once
 
-// FlinT OS — LovyanGFX board config for ESP32-C3 + ST7789 (GMT028-05 class)
+// FlinT OS — LovyanGFX board config for ESP32-C3 + ST7789 (240×280)
 // Pins from config/config.h
 
 #define LGFX_USE_V1
@@ -73,16 +73,16 @@ class LGFX : public lgfx::LGFX_Device {
       cfg.pin_cs = TFT_CS;
       cfg.pin_rst = TFT_RST;
       cfg.pin_busy = -1;
+      // Glass 240×280; Panel_ST7789 already defaults GRAM to 240×320 (ST7789V3).
       cfg.panel_width = 240;
-      cfg.panel_height = 320;
+      cfg.panel_height = 280;
       cfg.offset_x = 0;
-      cfg.offset_y = 0;
+      cfg.offset_y = 20;  // center 280 in 320; try 0/12 if your module differs
       cfg.offset_rotation = 0;
       cfg.dummy_read_pixel = 8;
       cfg.dummy_read_bits = 1;
       cfg.readable = false;
-      // Many GMT028-class IPS panels need invert; flip if colors look wrong.
-      cfg.invert = true;
+      cfg.invert = false;
       cfg.rgb_order = false;
       cfg.dlen_16bit = false;
       cfg.bus_shared = false;

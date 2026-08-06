@@ -4,7 +4,7 @@
 #include "config/secrets.h"
 
 // FlinT OS — shared configuration (safe to commit)
-// Pins: ESP32-C3 + GMT028-05 (ST7789)
+// Pins: ESP32-C3 + ST7789 240×280
 // Secrets (Wi‑Fi): components/flint/config/secrets.h  ← local only
 
 inline constexpr const char* NTP_SERVER = "pool.ntp.org";
@@ -21,7 +21,7 @@ static const int TFT_RST = 8;
 static const int TFT_MOSI = 7;
 static const int TFT_SCLK = 6;
 
-// Landscape 320x240. 1 = normal, 3 = 180° flip.
+// Landscape 280x240 (panel 240×280 portrait). 1 = normal, 3 = 180° flip.
 static const uint8_t TFT_ROTATION = 3;
 
 // Serial debug: 0=off, 1=info, 2=verbose

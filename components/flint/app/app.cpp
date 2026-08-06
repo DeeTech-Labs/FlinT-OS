@@ -1,4 +1,5 @@
 #include "app.h"
+#include "assets/asset_store.h"
 #include "config/config.h"
 #include "config/debug.h"
 #include "day_mode/day_mode.h"
@@ -23,8 +24,16 @@ void appSetup() {
   displayBegin();
   LOGI("disp", "screen %dx%d canvas=%d", SCR_W, SCR_H, (int)displayHasCanvas());
 
+  // Mount LittleFS asset pack before splash/faces.
+  if (assetStoreBegin()) {
+    LOGI("assets", "ready pack_ver=%u entries=%u", (unsigned)assetStorePackVersion(),
+         (unsigned)assetStoreEntryCount());
+  } else {
+    LOGE("assets", "unavailable — icons/splash mark will be blank until storage is flashed");
+  }
+
   flintEventInit();
-  splashShow();  // ~3 s brand anim; blocks before face
+  splashShow();
 
   // Show last-known time immediately (NVS); NTP will correct after Wi‑Fi.
   clockTimeSoftBegin();
@@ -67,22 +76,26 @@ static void maintainServices() {
   }
 }
 
-static void scanTimeEvents() {
+static void scanTimeEvents(const struct tm* tiOpt) {
   static bool haveLast = false;
   static int lastSec = -1;
   static int lastMin = -1;
   static DayMode lastMode = DAY_MODE_DAY;
 
-  struct tm ti{};
-  if (!clockTimeGetLocal(&ti)) {
-    haveLast = false;
-    return;
+  struct tm tiLocal{};
+  const struct tm* ti = tiOpt;
+  if (!ti) {
+    if (!clockTimeGetLocal(&tiLocal)) {
+      haveLast = false;
+      return;
+    }
+    ti = &tiLocal;
   }
 
-  const DayMode mode = dayModeFromHour(ti.tm_hour);
+  const DayMode mode = dayModeFromHour(ti->tm_hour);
   if (!haveLast) {
-    lastSec = ti.tm_sec;
-    lastMin = ti.tm_min;
+    lastSec = ti->tm_sec;
+    lastMin = ti->tm_min;
     lastMode = mode;
     haveLast = true;
     return;
@@ -92,34 +105,39 @@ static void scanTimeEvents() {
     flintEventEmit(FLINT_EVT_DAY_MODE);
     lastMode = mode;
   }
-  if (ti.tm_min != lastMin) {
+  if (ti->tm_min != lastMin) {
     flintEventEmit(FLINT_EVT_MINUTE);
-    lastMin = ti.tm_min;
+    lastMin = ti->tm_min;
     clockTimePersist();
   }
-  if (ti.tm_sec != lastSec) {
+  if (ti->tm_sec != lastSec) {
     flintEventEmit(FLINT_EVT_SECOND);
-    lastSec = ti.tm_sec;
+    lastSec = ti->tm_sec;
   }
 }
 
-static void debugHeartbeat() {
+static void debugHeartbeat(const struct tm* tiOpt) {
 #if DEBUG_LEVEL >= 1
   static uint32_t lastBeat = 0;
   if (flintMillis() - lastBeat < DEBUG_HEARTBEAT_MS) return;
   lastBeat = flintMillis();
 
-  struct tm ti;
+  struct tm tiLocal{};
+  const struct tm* ti = tiOpt;
+  if (!ti) {
+    if (clockTimeGetLocal(&tiLocal)) {
+      ti = &tiLocal;
+    }
+  }
+
   char tbuf[20] = "--:--:--";
-  if (clockTimeGetLocal(&ti)) {
-    snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d", ti.tm_hour, ti.tm_min, ti.tm_sec);
+  const char* modeName = "-";
+  if (ti) {
+    snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d", ti->tm_hour, ti->tm_min, ti->tm_sec);
+    modeName = dayModeNameRu(dayModeFromHour(ti->tm_hour));
   }
 
   const WeatherState& w = weatherSnapshot();
-  const char* modeName = "-";
-  if (clockTimeGetLocal(&ti)) {
-    modeName = dayModeNameRu(dayModeFromHour(ti.tm_hour));
-  }
   LOGI("hb", "wifi=%d time=%s%s mode=%s wx=%s temp=%d.%d heap=%u dirty=0x%x",
        (int)wifiNetIsConnected(), tbuf,
        clockTimeIsValid() && !clockTimeIsNtpSynced() ? "~" : "",
@@ -129,15 +147,20 @@ static void debugHeartbeat() {
        w.ok ? ((w.tempCx10 >= 0 ? w.tempCx10 : -w.tempCx10) % 10) : 0,
        (unsigned)flintFreeHeap(),
        (unsigned)uiPeekDirty());
+#else
+  (void)tiOpt;
 #endif
 }
 
 void appLoop() {
   shellPollSerial();
   maintainServices();
-  scanTimeEvents();
+
+  struct tm ti{};
+  const bool hasTime = clockTimeGetLocal(&ti);
+  scanTimeEvents(hasTime ? &ti : nullptr);
   shellTick();
-  debugHeartbeat();
+  debugHeartbeat(hasTime ? &ti : nullptr);
 
   if (uiHasDirty()) {
     flintDelay(20);

@@ -1,5 +1,7 @@
 #include "time/date_fmt.h"
 
+#include "i18n/i18n.h"
+
 #include <stdio.h>
 
 char flintDateSepChar(uint8_t sep) {
@@ -56,6 +58,20 @@ void flintFormatDate(char* out, size_t outN, const struct tm& ti, uint8_t dateFo
       formatParts(out, outN, day, mon, year, false, false, true, sep);
       break;
   }
+}
+
+void flintFormatDateLine(char* out, size_t outN, bool hasTime, const struct tm& ti,
+                         uint8_t dateFormat, uint8_t dateSep) {
+  if (!out || outN == 0) {
+    return;
+  }
+  if (!hasTime) {
+    snprintf(out, outN, "%s", flintTr(FlintStr::WaitingForTime));
+    return;
+  }
+  char num[16];
+  flintFormatDate(num, sizeof(num), ti, dateFormat, dateSep);
+  snprintf(out, outN, "%s  %s", flintTrWeekday(ti.tm_wday), num);
 }
 
 void flintDateFormatSample(char* out, size_t outN, uint8_t dateFormat, uint8_t dateSep) {

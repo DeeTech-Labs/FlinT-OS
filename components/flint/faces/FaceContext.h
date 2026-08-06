@@ -19,6 +19,7 @@ struct FaceContext {
   // Do not retain across ticks — pointer targets weather service storage.
   const WeatherState* weather;
   bool wifiConnected;
+  uint8_t wifiBars;  // 0 = off, 1–3 = RSSI strength while connected
 
   // Resolved prefs (shell/settings) — faces must not read NVS themselves.
   bool showSeconds;
@@ -28,4 +29,7 @@ struct FaceContext {
 
   int screenW;
   int screenH;
+
+  // Dirty bitfield for this paint (from uiTakeDirty). 0 = unspecified.
+  uint32_t dirty;
 };

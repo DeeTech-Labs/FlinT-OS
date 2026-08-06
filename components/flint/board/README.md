@@ -1,6 +1,7 @@
 # FlinT board profiles — setup guide
 
-Build-time hardware selection for FlinT OS (same idea as `i18n/lang/`).
+Build-time hardware selection for **FlinT OS** (firmware for FlinT devices).
+Base / default device: **FlinT Spark** (`flint_spark`). Same idea as `i18n/lang/`.
 
 **All hardware authoring stays in this directory.** Do not edit
 `display/LgfxBoard.h` or `components/LovyanGFX/CMakeLists.txt` to add a board or

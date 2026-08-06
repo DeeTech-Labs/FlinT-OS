@@ -4,6 +4,7 @@
 #include "event/event.h"
 #include "util/flint_sys.h"
 
+#include <limits.h>
 #include <string.h>
 
 #include "esp_event.h"
@@ -67,6 +68,35 @@ bool wifiNetIsConnected() {
   return (xEventGroupGetBits(s_wifi_events) & WIFI_OK_BIT) != 0;
 }
 
+int8_t wifiNetRssi() {
+  if (!wifiNetIsConnected()) {
+    return INT8_MIN;
+  }
+  wifi_ap_record_t ap{};
+  if (esp_wifi_sta_get_ap_info(&ap) != ESP_OK) {
+    return INT8_MIN;
+  }
+  return ap.rssi;
+}
+
+uint8_t wifiNetBars() {
+  if (!wifiNetIsConnected()) {
+    return 0;
+  }
+  const int8_t rssi = wifiNetRssi();
+  if (rssi == INT8_MIN) {
+    return 1;  // associated but RSSI unread — show weakest connected glyph
+  }
+  // Typical indoor thresholds for a 3-bar status glyph.
+  if (rssi >= -55) {
+    return 3;
+  }
+  if (rssi >= -67) {
+    return 2;
+  }
+  return 1;
+}
+
 void wifiNetBegin() {
   if (s_started) {
     return;
@@ -128,9 +158,12 @@ bool wifiNetWaitConnected(uint32_t timeoutMs) {
 
 void wifiNetMaintain() {
   static bool wasConnected = false;
+  static uint8_t lastBars = 0xFF;
+  static uint32_t lastRssiSampleMs = 0;
   bool now = wifiNetIsConnected();
+  const bool rose = now && !wasConnected;
 
-  if (now && !wasConnected) {
+  if (rose) {
     // Rising edge: ensure modem sleep even if GOT_IP handler raced.
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
     wifi_ap_record_t ap{};
@@ -148,6 +181,22 @@ void wifiNetMaintain() {
     LOGE("wifi", "down");
   }
   wasConnected = now;
+
+  // Poll RSSI on link-up and every few seconds; emit when bar count changes.
+  uint8_t bars = 0;
+  if (now) {
+    const uint32_t t = flintMillis();
+    if (rose || lastBars == 0xFF || (t - lastRssiSampleMs) >= 5000UL) {
+      lastRssiSampleMs = t ? t : 1;
+      bars = wifiNetBars();
+    } else {
+      bars = lastBars;
+    }
+  }
+  if (bars != lastBars) {
+    lastBars = bars;
+    flintEventEmit(FLINT_EVT_WIFI);
+  }
 
   if (now) {
     s_connecting = false;

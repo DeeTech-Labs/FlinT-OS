@@ -33,7 +33,6 @@ void displayClearClipRect();
 uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
 uint16_t colorLerp(uint16_t a, uint16_t b, uint8_t t /*0..255*/);
 
-void displayFillGradientV(uint16_t top, uint16_t bottom);
 void displayShowStatus(const char* msg);
 void displayClearStatus();
 

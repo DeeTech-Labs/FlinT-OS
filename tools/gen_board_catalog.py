@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Generate FlinT board_config.inc / board_impl.inc / board_build.cmake.
+"""Generate FlinT OS board_config.inc / board_impl.inc / board_build.cmake.
 
 Authoring: components/flint/board/{board_index,boards,periph,impl}.
+Default / base device: FlinT Spark (flint_spark).
 Board selection: --board / FLINT_BOARD / board_index.default.
 
 CMake (root CMakeLists.txt) calls this with no flags or only --board — that path

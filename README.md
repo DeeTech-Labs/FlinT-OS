@@ -23,7 +23,9 @@
 
 ## What it is
 
-**FlinT OS** is the software stack for the FlinT ecosystem. Core services stay stable; **faces are plugins** — add a theme without rewriting networking, time, or weather.
+**FlinT OS** is the firmware for **FlinT** devices, developed by **DeeTech Labs**.
+Core services stay stable; **faces are plugins** — add a theme without rewriting
+networking, time, or weather.
 
 | Built-in today | Coming next |
 |----------------|-------------|
@@ -92,17 +94,22 @@ flint_os/
 ├── config/               # sdkconfig.defaults + partitions.csv
 ├── components/
 │   ├── flint/            # ★ all product code
+│   │   ├── config/       # flint_version.h (FlinT OS API/firmware), secrets.h (local)
 │   │   ├── board/        # ★ hardware profiles (JSON → board_config.inc)
 │   │   ├── app/ shell/ settings/ sdk/
 │   │   ├── faces/        # Face API + themes
 │   │   └── display/ net/ time/ weather/ …
 │   └── LovyanGFX/        # slim CMake (bus sources from board)
 ├── tools/                # codegen — see tools/README.md (or: ./flint_tools)
+├── assets/               # icons/ splash/ chrome/ glances/ + fs_root pack
+│   └── README.md
 ├── flint_tools           # bash picker for tools/*.py
 ├── third_party/LovyanGFX/# upstream sources (gitignored, cloned on build)
 ├── community/            # face templates
-└── brand/
+└── brand/                # marketing logo (README), not device assets
 ```
+
+Icons/weather glyphs load from the `storage` LittleFS partition when flashed; see [`assets/README.md`](assets/README.md).
 
 ---
 
@@ -115,9 +122,10 @@ flint_os/
 
 ---
 
-## Hardware (reference)
+## Hardware (base device)
 
-Default device: **FlinT Spark** (`flint_spark` in `components/flint/board/`).
+**FlinT Spark** (`flint_spark` in `components/flint/board/`) — default / reference
+board for FlinT OS.
 
 | Signal | ESP32-C3 |
 |--------|----------|
@@ -144,7 +152,7 @@ Licensed under the [Apache License, Version 2.0](LICENSE).
 
 You may use, modify, and distribute this software. Redistributions must keep the
 copyright notice, license text, and attribution from [`NOTICE`](NOTICE)
-(original work by DeeTech Labs / FlinT OS).
+(original work by DeeTech Labs for the FlinT product / FlinT OS firmware).
 
 ---
 

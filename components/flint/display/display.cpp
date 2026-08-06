@@ -174,15 +174,6 @@ uint16_t colorLerp(uint16_t c0, uint16_t c1, uint8_t t) {
   return rgb565(r, g, b);
 }
 
-void displayFillGradientV(uint16_t top, uint16_t bottom) {
-  auto& gfx = displayGfx();
-  for (int y = 0; y < SCR_H; y++) {
-    uint8_t t = (uint8_t)((y * 255) / (SCR_H - 1));
-    gfx.drawFastHLine(0, y, SCR_W, colorLerp(top, bottom, t));
-  }
-  displayPresent();
-}
-
 void displayShowStatus(const char* msg) {
   auto& gfx = displayGfx();
   const uint16_t bg = rgb565(8, 10, 18);

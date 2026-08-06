@@ -30,7 +30,7 @@ public:
   }
 
   void onTick(const FaceContext& ctx) override {
-    // Motion-only: pulse colons without reformatting time/weather/palette work.
+    // Motion-only: pulse colons without reformatting time/palette work.
     if (ctx.dirty != 0 && (ctx.dirty & ~UI_DIRTY_MOTION) == 0) {
       if (mode_ != ctx.dayMode || force_ || !timeLayoutReady_) {
         paintFull(ctx);
@@ -68,14 +68,11 @@ public:
     const int asc = timeAsc_;
     const DisplayRect timeBand = tightTimeBand(ctx, asc);
     const DisplayRect ampmBand = tightAmpmBand(ctx, asc);
-    const DisplayRect weatherBand = tightWeatherBand(ctx);
     const DisplayRect wifiBand{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
                                static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
                                static_cast<int16_t>(UiTok::kWifiSize),
                                static_cast<int16_t>(UiTok::kWifiSize)};
 
-    displaySetClipRect(weatherBand.x, weatherBand.y, weatherBand.w, weatherBand.h);
-    bool weatherDirty = drawWeatherBadge(ctx, false);
     bool timeDirty = false;
     bool dateDirty = false;
     bool wifiDirty = false;
@@ -110,7 +107,7 @@ public:
     }
     displayClearClipRect();
 
-    if (!(weatherDirty || timeDirty || dateDirty || wifiDirty || ampmDirty || colonDirty)) {
+    if (!(timeDirty || dateDirty || wifiDirty || ampmDirty || colonDirty)) {
       return;
     }
 
@@ -118,10 +115,10 @@ public:
       return;
     }
 
-    DisplayRect rects[6];
+    DisplayRect rects[5];
     int n = 0;
     if (colonDirty && !timeDirty && !ampmDirty) {
-      n = appendColonRects(ctx, asc, rects, 6);
+      n = appendColonRects(ctx, asc, rects, 5);
     } else if (timeDirty) {
       DisplayRect band = timeBand;
       if (hour12_ || ampmDirty) {
@@ -131,9 +128,6 @@ public:
       rects[n++] = band;
     } else if (ampmDirty) {
       rects[n++] = ampmBand;
-    }
-    if (weatherDirty) {
-      rects[n++] = weatherBand;
     }
     if (dateDirty) {
       rects[n++] = dateBand;
@@ -162,12 +156,8 @@ private:
   char lastTime_[16] = "";
   char lastDate_[32] = "";
   char lastAmpm_[4] = "";
-  char lastTemp_[12] = "";
   char lastModeLabel_[16] = "";
-  int lastWeatherCode_ = -999;
   uint8_t lastWifiBars_ = 0xFF;
-  bool lastWxOk_ = false;
-  bool lastWxLoading_ = false;
   uint8_t lastColonFade_ = 255;
   int lastDatePresentW_ = 0;
 
@@ -191,8 +181,7 @@ private:
     timeLayoutReady_ = false;
     lastColonFade_ = 255;
     lastDatePresentW_ = 0;
-    lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
-    lastWeatherCode_ = -999;
+    lastTime_[0] = lastDate_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
   }
 
   DisplayRect tightTimeBand(const FaceContext& ctx, int asc) const {
@@ -209,17 +198,6 @@ private:
     return DisplayRect{static_cast<int16_t>(x),
                        static_cast<int16_t>(UiTok::timeY(ctx.screenH) - asc), 48,
                        static_cast<int16_t>(timeGlyphH_ > 0 ? timeGlyphH_ + 2 : 24)};
-  }
-
-  DisplayRect tightWeatherBand(const FaceContext& ctx) const {
-    const int x = UiTok::wxX(ctx.screenW);
-    const int y = UiTok::wxY(ctx.screenH);
-    const int w = UiTok::wxW(ctx.screenW) > UiTok::rangeW(ctx.screenW)
-                      ? UiTok::wxW(ctx.screenW)
-                      : UiTok::rangeW(ctx.screenW);
-    const int h = (UiTok::rangeY(ctx.screenH) + UiTok::rangeH(ctx.screenH)) - y;
-    return DisplayRect{static_cast<int16_t>(x), static_cast<int16_t>(y),
-                       static_cast<int16_t>(w), static_cast<int16_t>(h > 0 ? h : UiTok::statusH(ctx.screenH))};
   }
 
   DisplayRect tightDateBand(const FaceContext& ctx, const char* dateStr) {
@@ -317,58 +295,6 @@ private:
                                static_cast<int16_t>(UiTok::kWifiSize),
                                static_cast<int16_t>(UiTok::kWifiSize)});
     lastWifiBars_ = ctx.wifiBars;
-  }
-
-  bool drawWeatherBadge(const FaceContext& ctx, bool force) {
-    const int wx = UiTok::wxX(ctx.screenW);
-    const int wy = UiTok::wxY(ctx.screenH);
-    const int ww = UiTok::wxW(ctx.screenW);
-    const int wh = UiTok::wxH(ctx.screenH);
-    const int rx = UiTok::rangeX(ctx.screenW);
-    const int ry = UiTok::rangeY(ctx.screenH);
-    const int rw = UiTok::rangeW(ctx.screenW);
-    const int rh = UiTok::rangeH(ctx.screenH);
-
-    if (!profile_.showWeather) {
-      if (force) {
-        auto& gfx = displayGfx();
-        gfx.fillRect(wx, wy, ww, wh, pageBg());
-        gfx.fillRect(rx, ry, rw, rh, pageBg());
-      }
-      return force;
-    }
-
-    if (!ctx.weather) {
-      return force;
-    }
-    const WeatherState& w = *ctx.weather;
-    char temp[12];
-    weatherFormatTempC(temp, sizeof(temp), w);
-
-    const bool dirty = force || (w.ok != lastWxOk_) || (w.loading != lastWxLoading_)
-                       || (w.code != lastWeatherCode_) || (strcmp(temp, lastTemp_) != 0);
-    if (!dirty) {
-      return false;
-    }
-
-    flintGlanceDraw(ctx, GLANCE_WEATHER,
-                    GlanceRect{static_cast<int16_t>(wx), static_cast<int16_t>(wy),
-                               static_cast<int16_t>(ww), static_cast<int16_t>(wh)},
-                    temp);
-    if (w.dailyOk) {
-      flintGlanceDraw(ctx, GLANCE_DAILY_RANGE,
-                      GlanceRect{static_cast<int16_t>(rx), static_cast<int16_t>(ry),
-                                 static_cast<int16_t>(rw), static_cast<int16_t>(rh)});
-    } else if (force) {
-      auto& gfx = displayGfx();
-      gfx.fillRect(rx, ry, rw, rh, pageBg());
-    }
-    lastWeatherCode_ = w.ok ? w.code : -1;
-    lastWxOk_ = w.ok;
-    lastWxLoading_ = w.loading;
-    strncpy(lastTemp_, temp, sizeof(lastTemp_) - 1);
-    lastTemp_[sizeof(lastTemp_) - 1] = '\0';
-    return true;
   }
 
   void drawModeLabel(const FaceContext& ctx, bool force) {
@@ -583,16 +509,12 @@ private:
     gfx.fillScreen(pageBg());
     dayModeDrawWash(ctx.screenW, ctx.screenH, pageBg(), pal_.bgBottom, profile_.washHeight);
 
-    lastTime_[0] = lastDate_[0] = lastTemp_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
-    lastWeatherCode_ = -999;
-    lastWxOk_ = !(ctx.weather && ctx.weather->ok);
-    lastWxLoading_ = !(ctx.weather && ctx.weather->loading);
+    lastTime_[0] = lastDate_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
     lastColonFade_ = 255;
     lastDatePresentW_ = 0;
 
     drawWifiDot(ctx);
     drawModeLabel(ctx, true);
-    drawWeatherBadge(ctx, true);
     drawStatusHairline(ctx);
 
     char timeStr[16];

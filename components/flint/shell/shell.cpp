@@ -15,7 +15,6 @@
 #include "ui/ui.h"
 #include "ui/ui_dirty.h"
 #include "util/flint_sys.h"
-#include "weather/weather.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -38,8 +37,6 @@ enum SettingsRow : uint8_t {
   SET_ROW_DATE_SEP,
   SET_ROW_LANG,
   SET_ROW_TZ,
-  SET_ROW_LAT,
-  SET_ROW_LON,
   SET_ROW_COUNT,
 };
 
@@ -188,14 +185,6 @@ static void formatSettingsLine(char* out, size_t outN, int row) {
       snprintf(out, outN, "%s    %.14s", flintTr(FlintStr::Timezone), e->label);
       break;
     }
-    case SET_ROW_LAT:
-      snprintf(out, outN, "%s   %+.2f", flintTr(FlintStr::Lat),
-               static_cast<double>(s.wxLat));
-      break;
-    case SET_ROW_LON:
-      snprintf(out, outN, "%s   %+.2f", flintTr(FlintStr::Lon),
-               static_cast<double>(s.wxLon));
-      break;
     default:
       out[0] = '\0';
       break;
@@ -428,33 +417,13 @@ static void cycleTz(int dir) {
   const TzEntry* e = tzDbAt(idx);
   if (e) {
     settingsSetTzId(e->id);
-    weatherRequestRefresh();
     markSettingsLayoutChanged();
     flintEventEmit(FLINT_EVT_FORCE_REDRAW);
-    flintEventEmit(FLINT_EVT_WEATHER);
   }
-}
-
-static void nudgeCoord(bool lat, float delta) {
-  const FlintSettings& s = settingsGet();
-  if (lat) {
-    settingsSetWeatherCoords(s.wxLat + delta, s.wxLon);
-  } else {
-    settingsSetWeatherCoords(s.wxLat, s.wxLon + delta);
-  }
-  weatherRequestRefresh();
-  flintEventEmit(FLINT_EVT_SETTINGS);
-  flintEventEmit(FLINT_EVT_WEATHER);
 }
 
 static void adjustSelected(int dir) {
   switch (gSettingsRow) {
-    case SET_ROW_LAT:
-      nudgeCoord(true, dir > 0 ? 0.01f : -0.01f);
-      break;
-    case SET_ROW_LON:
-      nudgeCoord(false, dir > 0 ? 0.01f : -0.01f);
-      break;
     case SET_ROW_SECONDS:
       cycleShowSeconds();
       break;

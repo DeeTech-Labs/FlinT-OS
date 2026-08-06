@@ -3,7 +3,7 @@
 // FlinT OS Face SDK — the only public surface community faces should include.
 //
 // Allowed: this header (+ C/C++ std headers).
-// Forbidden: net/, weather/*.cpp APIs, app/, settings/, config/secrets.h, shell/.
+// Forbidden: net/*.cpp APIs, app/, settings/, config/secrets.h, shell/.
 //
 // Faces read FaceContext (filled by shell) and draw via display helpers / resources.
 

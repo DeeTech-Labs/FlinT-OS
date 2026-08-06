@@ -52,7 +52,8 @@ static void splashPaint(uint8_t t /*0..255*/, bool fullPresent) {
     const uint8_t tt = static_cast<uint8_t>(((t - 80) * 255) / 175);
     const uint16_t a = colorLerp(bg, accentFull, tt);
     const uint16_t m = colorLerp(bg, mutedFull, tt);
-    displayDrawUtf8Centered("FlinT", UiTok::splashTitleY(SCR_H), a, flintFont(FlintFontId::Body));
+    displayDrawUtf8Centered("FlinT OS", UiTok::splashTitleY(SCR_H), a,
+                            flintFont(FlintFontId::Body));
     displayDrawUtf8Centered("DeeTech Labs", UiTok::splashSubY(SCR_H), m,
                             flintFont(FlintFontId::Body));
   }

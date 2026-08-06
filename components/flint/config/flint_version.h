@@ -13,12 +13,12 @@
 #define FLINT_OS_VERSION_STRING "0.1.0"
 
 // Face SDK / FaceContext ABI — bump when community faces must recompile.
-#define FLINT_OS_API_VERSION 1
+#define FLINT_OS_API_VERSION 2
 
 // LittleFS core.flintpack header (tools/gen_asset_pack.py reads these).
 #define FLINT_PACK_FORMAT_VER 1  // on-disk FLPK layout
 #define FLINT_PACK_API_MIN 1     // minimum FLINT_OS_API_VERSION to load pack
-#define FLINT_PACK_VER 1         // content revision (icons set)
+#define FLINT_PACK_VER 2         // content revision (icons set)
 
 // Built-in digital face (FaceInfo.version / FaceInfo.minApi).
 #define FLINT_FACE_DIGITAL_VERSION 1

@@ -17,7 +17,7 @@ or copy for flash or i18n.
 
 | Folder | Use |
 |--------|-----|
-| `icons/` | Weather, status (wifi), shared UI glyphs |
+| `icons/` | Status (wifi), shared UI glyphs |
 | `splash/` | Boot mark (`BrandMark`); optional full splash frame later |
 | `chrome/` | Designer bitmap decor only — not hairlines / bars |
 | `glances/` | Face glance art beyond shared icons (reserved) |
@@ -30,7 +30,6 @@ or copy for flash or i18n.
 (do not duplicate IDs in Python).
 
 ```text
-icons/WeatherClear_24.png
 icons/Wifi3_16.png
 splash/BrandMark_52.png
 ```

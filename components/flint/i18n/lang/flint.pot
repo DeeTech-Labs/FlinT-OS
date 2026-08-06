@@ -34,12 +34,6 @@ msgstr ""
 msgid "lang"
 msgstr ""
 
-msgid "lat"
-msgstr ""
-
-msgid "lon"
-msgstr ""
-
 msgid "off"
 msgstr ""
 
@@ -95,33 +89,6 @@ msgid "Fri"
 msgstr ""
 
 msgid "Sat"
-msgstr ""
-
-msgid "Clear"
-msgstr ""
-
-msgid "Cloudy"
-msgstr ""
-
-msgid "Fog"
-msgstr ""
-
-msgid "Drizzle"
-msgstr ""
-
-msgid "Rain"
-msgstr ""
-
-msgid "Snow"
-msgstr ""
-
-msgid "Showers"
-msgstr ""
-
-msgid "Thunder"
-msgstr ""
-
-msgid "Weather"
 msgstr ""
 
 msgid "AM"

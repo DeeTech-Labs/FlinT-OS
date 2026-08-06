@@ -22,6 +22,5 @@ const char* flintTr(FlintStr id);
 // Convenience for weekday 0=Sun .. 6=Sat
 const char* flintTrWeekday(int wday);
 
-// Day-mode / weather labels
+// Day-mode labels
 const char* flintTrDayMode(uint8_t dayMode /* DayMode */);
-const char* flintTrWeatherCode(int code);

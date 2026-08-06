@@ -18,7 +18,7 @@ constexpr size_t kMaxIconPx = 64;
 // Worst-case single FI when streaming: header + 256-entry palette + R565 payload.
 constexpr size_t kMaxFiBytes =
     sizeof(FiHeader) + 256u * sizeof(uint16_t) + kMaxIconPx * kMaxIconPx * 2u;
-// Resident pack grows with icons; cap leaves headroom for FB + HTTP on ESP32-C3.
+// Resident pack grows with icons; cap leaves headroom for FB on ESP32-C3.
 constexpr size_t kMaxResidentPackBytes = 96u * 1024u;
 constexpr size_t kMaxPackEntries = 192;
 

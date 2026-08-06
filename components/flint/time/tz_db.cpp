@@ -73,27 +73,6 @@ int tzDbIndexOf(const char* id) {
   return -1;
 }
 
-void tzDbUrlEncodeId(const char* id, char* out, size_t outN) {
-  if (!out || outN == 0) {
-    return;
-  }
-  out[0] = '\0';
-  if (!id) {
-    return;
-  }
-  size_t o = 0;
-  for (const char* p = id; *p && o + 4 < outN; p++) {
-    if (*p == '/') {
-      out[o++] = '%';
-      out[o++] = '2';
-      out[o++] = 'F';
-    } else {
-      out[o++] = *p;
-    }
-  }
-  out[o] = '\0';
-}
-
 void clockTimeApplyTz(const char* id) {
   const TzEntry* e = tzDbFind(id);
   setenv("TZ", e->posix, 1);

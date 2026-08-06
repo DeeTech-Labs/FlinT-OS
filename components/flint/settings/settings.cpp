@@ -20,8 +20,6 @@ static void settingsApplyDefaults() {
   gSettings.hourFormat = SETTINGS_HOUR_24;
   gSettings.dateFormat = SETTINGS_DATE_DMY4;
   gSettings.dateSep = SETTINGS_DATE_SEP_DOT;
-  gSettings.wxLat = WEATHER_LAT;
-  gSettings.wxLon = WEATHER_LON;
   strncpy(gSettings.tzId, DEFAULT_TZ_ID, sizeof(gSettings.tzId) - 1);
   gSettings.tzId[sizeof(gSettings.tzId) - 1] = '\0';
 }
@@ -68,14 +66,6 @@ void settingsLoad() {
     gSettings.dateSep = u8;
   }
 
-  int32_t i32 = 0;
-  if (nvs_get_i32(h, "wx_lat", &i32) == ESP_OK) {
-    gSettings.wxLat = i32 / 10000.0f;
-  }
-  if (nvs_get_i32(h, "wx_lon", &i32) == ESP_OK) {
-    gSettings.wxLon = i32 / 10000.0f;
-  }
-
   len = sizeof(gSettings.tzId);
   if (nvs_get_str(h, "tz_id", gSettings.tzId, &len) != ESP_OK) {
     strncpy(gSettings.tzId, DEFAULT_TZ_ID, sizeof(gSettings.tzId) - 1);
@@ -104,8 +94,6 @@ void settingsSave() {
   nvs_set_u8(h, "hour_fmt", gSettings.hourFormat);
   nvs_set_u8(h, "date_fmt", gSettings.dateFormat);
   nvs_set_u8(h, "date_sep", gSettings.dateSep);
-  nvs_set_i32(h, "wx_lat", (int32_t)(gSettings.wxLat * 10000.0f));
-  nvs_set_i32(h, "wx_lon", (int32_t)(gSettings.wxLon * 10000.0f));
   nvs_set_str(h, "tz_id", gSettings.tzId);
   nvs_commit(h);
   nvs_close(h);
@@ -154,12 +142,6 @@ void settingsSetDateFormat(uint8_t fmt) {
 void settingsSetDateSep(uint8_t sep) {
   gSettings.dateSep =
       (sep < SETTINGS_DATE_SEP_COUNT) ? sep : static_cast<uint8_t>(SETTINGS_DATE_SEP_DOT);
-  settingsSave();
-}
-
-void settingsSetWeatherCoords(float lat, float lon) {
-  gSettings.wxLat = lat;
-  gSettings.wxLon = lon;
   settingsSave();
 }
 

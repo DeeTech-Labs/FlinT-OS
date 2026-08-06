@@ -3,7 +3,7 @@
 //   Face* createYourFace();
 //   FaceRegistry::add(createYourFace);
 //
-// Include ONLY the Face SDK (+ std headers). Do not include net/, weather APIs,
+// Include ONLY the Face SDK (+ std headers). Do not include net/ APIs,
 // settings/, app/, or config/secrets.h. Read FaceContext; draw via display/resources.
 // Localized UI strings: flintTr(FlintStr::…), flintTrWeekday(), flintTrDayMode().
 //
@@ -36,18 +36,18 @@ public:
                     UiTok::kPadX, UiTok::kTimeY, ctx.palette.accent, ctx.palette.bgTop,
                     flintFont(FlintFontId::Body));
 
-    flintGlanceDraw(ctx, GLANCE_WEATHER,
-                    GlanceRect{static_cast<int16_t>(UiTok::kWxX),
-                               static_cast<int16_t>(UiTok::kWxY),
-                               static_cast<int16_t>(UiTok::kWxW),
-                               static_cast<int16_t>(UiTok::kWxH)});
+    flintGlanceDraw(ctx, GLANCE_WIFI,
+                    GlanceRect{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
+                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
+                               static_cast<int16_t>(UiTok::kWifiSize),
+                               static_cast<int16_t>(UiTok::kWifiSize)});
 
     displayPresent();
   }
 
   void onTick(const FaceContext& ctx) override {
     (void)ctx;
-    // Shell calls onTick only on dirty events (second/minute/weather/wifi/…).
+    // Shell calls onTick only on dirty events (second/minute/wifi/…).
   }
 };
 

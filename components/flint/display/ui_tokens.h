@@ -47,25 +47,15 @@ constexpr int kRadiusSm = 6;
 constexpr int kRadiusMd = 10;
 
 // —— Face zones (design-space 280×240) ——
-// Weather + daily range stack without overlap (icon/temp row, then min/max).
+// Top status: mode label (center) + Wi‑Fi (right).
 constexpr int kStatusH = 48;
 constexpr int kStatusHairlineY = 47;
-
-constexpr int kWxX = kSafeInset;
-constexpr int kWxY = 10;
-constexpr int kWxW = 96;
-constexpr int kWxH = 22;
-
-constexpr int kRangeX = kSafeInset;
-constexpr int kRangeY = 30;
-constexpr int kRangeW = 96;
-constexpr int kRangeH = 16;
 
 constexpr int kWifiSize = 16;
 constexpr int kWifiRightPad = kSafeInset;
 constexpr int kWifiTop = 12;
 
-constexpr int kModeLabelY = 22;  // baseline in top status row (above daily range)
+constexpr int kModeLabelY = 22;  // baseline in top status row
 
 constexpr int kTimeY = 124;      // hero time baseline
 constexpr int kDateY = 160;      // date baseline under time
@@ -118,22 +108,13 @@ inline int dateBandH(int screenH) { return mapH(kDateBandH, screenH); }
 inline int modeLabelY(int screenH) { return mapY(kModeLabelY, screenH); }
 inline int wifiTop(int screenH) { return mapY(kWifiTop, screenH); }
 
-inline int wxX(int screenW) { return mapX(kWxX, screenW); }
-inline int wxY(int screenH) { return mapY(kWxY, screenH); }
-inline int wxW(int screenW) { return mapW(kWxW, screenW); }
-inline int wxH(int screenH) { return mapH(kWxH, screenH); }
-inline int rangeX(int screenW) { return mapX(kRangeX, screenW); }
-inline int rangeY(int screenH) { return mapY(kRangeY, screenH); }
-inline int rangeW(int screenW) { return mapW(kRangeW, screenW); }
-inline int rangeH(int screenH) { return mapH(kRangeH, screenH); }
-
 inline int splashMarkCy(int screenH) { return mapY(kSplashMarkCy, screenH); }
 inline int splashTitleY(int screenH) { return mapY(kSplashTitleY, screenH); }
 inline int splashSubY(int screenH) { return mapY(kSplashSubY, screenH); }
 
-// Center band between weather block and wifi icon (for mode label).
+// Center band left of wifi icon (for mode label).
 inline int modeLabelMaxW(int screenW) {
-  const int left = wxX(screenW) + wxW(screenW) + kGapMd;
+  const int left = contentLeft() + kGapMd;
   const int right = wifiX(screenW) - kGapMd;
   const int w = right - left;
   return w > 40 ? w : 40;

@@ -1,5 +1,5 @@
 # FlinT OS defaults — ESP32-C3 + 4MB flash (compact + responsive)
-# Target: WPA2-PSK STA + NTP + occasional plain HTTP (no SoftAP / WPA3).
+# Target: WPA2-PSK STA + NTP (no SoftAP / WPA3 / HTTP client).
 CONFIG_IDF_TARGET="esp32c3"
 
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
@@ -12,7 +12,7 @@ CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_UART_DEFAULT=n
 
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
-# Keep 1000 Hz: weather/UI use pdMS_TO_TICKS(1..2); at 100 Hz those become 10 ms.
+# Keep 1000 Hz: UI uses pdMS_TO_TICKS(1..2); at 100 Hz those become 10 ms.
 CONFIG_FREERTOS_HZ=1000
 
 # Size-first compiler (faces stay snappy; Wi-Fi stack dominates flash)
@@ -38,11 +38,11 @@ CONFIG_ESP_WIFI_ENABLE_WPA3_SAE=n
 CONFIG_ESP_WIFI_ENABLE_WPA3_OWE_STA=n
 CONFIG_ESP_WIFI_GMAC_SUPPORT=n
 
-# IPv4-only — weather + NTP do not need IPv6
+# IPv4-only — NTP does not need IPv6
 CONFIG_LWIP_IPV6=n
 # No SoftAP → no DHCP server; STA uses DHCP client only
 CONFIG_LWIP_DHCPS=n
-# Sized for NTP (UDP) + one occasional HTTP client (was 16 TCP / 10 sockets / 5.7 KB windows)
+# Sized for NTP (UDP) (was 16 TCP / 10 sockets / 5.7 KB windows)
 CONFIG_LWIP_MAX_ACTIVE_TCP=4
 CONFIG_LWIP_MAX_LISTENING_TCP=2
 CONFIG_LWIP_MAX_UDP_PCBS=6
@@ -53,11 +53,8 @@ CONFIG_LWIP_TCP_WND_DEFAULT=2880
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=16
 CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES=n
 
-# Weather uses plain HTTP — no HTTPS client / CA bundle / websocket framing.
-# Note: esp_http_client → tcp_transport → esp-tls still selects MBEDTLS_TLS_ENABLED,
-# so the TLS *protocol* cannot be fully removed; trim server/features/curves instead.
-# Wi-Fi CCMP still uses mbedTLS cipher primitives via ESP_WIFI_MBEDTLS_CRYPTO.
-CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=n
+# No app HTTP client — trim TLS extras. Wi-Fi CCMP still uses mbedTLS cipher
+# primitives via ESP_WIFI_MBEDTLS_CRYPTO (TLS protocol may still link via esp-tls).
 CONFIG_WS_TRANSPORT=n
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n
 CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
@@ -67,7 +64,6 @@ CONFIG_MBEDTLS_SSL_ALPN=n
 CONFIG_MBEDTLS_SSL_RENEGOTIATION=n
 CONFIG_MBEDTLS_CLIENT_SSL_SESSION_TICKETS=n
 CONFIG_MBEDTLS_SERVER_SSL_SESSION_TICKETS=n
-# Smaller TLS record buffers (unused for plain HTTP, but linked via esp-tls)
 CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=4096
 CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=2048
 # Keep SECP256R1 (selected by Wi-Fi crypto); drop unused curves

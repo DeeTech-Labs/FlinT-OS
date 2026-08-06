@@ -29,8 +29,6 @@ struct FlintSettings {
   uint8_t hourFormat;   // SettingsHourFormat
   uint8_t dateFormat;   // SettingsDateFormat
   uint8_t dateSep;      // SettingsDateSep
-  float wxLat;
-  float wxLon;
   char tzId[32];
 };
 
@@ -44,7 +42,6 @@ void settingsSetLang(uint8_t lang);
 void settingsSetHourFormat(uint8_t fmt);
 void settingsSetDateFormat(uint8_t fmt);
 void settingsSetDateSep(uint8_t sep);
-void settingsSetWeatherCoords(float lat, float lon);
 void settingsSetTzId(const char* id);
 
 // Resolved showSeconds for current day profile (auto → profile flag).

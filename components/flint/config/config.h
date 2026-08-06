@@ -11,10 +11,6 @@
 // Secrets (Wi‑Fi): components/flint/config/secrets.h  ← local only
 
 inline constexpr const char* NTP_SERVER = "pool.ntp.org";
-
-// Open-Meteo — Орёл, Россия (timezone comes from settings / tz_db)
-static constexpr float WEATHER_LAT = 52.9651f;
-static constexpr float WEATHER_LON = 36.0694f;
 inline constexpr const char* DEFAULT_TZ_ID = "Europe/Moscow";
 
 // Display pins / rotation (from selected FLINT_BOARD)
@@ -34,7 +30,6 @@ static const uint32_t DEBUG_HEARTBEAT_MS = 10000UL;
 
 // Service intervals
 static const uint32_t NTP_RESYNC_MS = 24UL * 60UL * 60UL * 1000UL;
-static const uint32_t WEATHER_REFRESH_MS = 15UL * 60UL * 1000UL;
 static const uint32_t WIFI_RETRY_MS = 15000UL;
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000UL;
 

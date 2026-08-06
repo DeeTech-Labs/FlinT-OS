@@ -2,7 +2,6 @@
 #include "config/config.h"
 #include "display/display.h"
 #include "i18n/i18n.h"
-#include "sdk/resources.h"
 
 DayMode dayModeFromHour(int hour) {
   // [nightStart..24) U [0..morningStart) = ночь
@@ -20,11 +19,11 @@ DayMode dayModeFromHour(int hour) {
 
 const DayModeProfile& dayModeProfile(DayMode mode) {
   static const DayModeProfile kProfiles[] = {
-      // seconds, weather, label, wash
-      {true, true, true, 64},   // morning
-      {true, true, true, 52},   // day
-      {true, true, true, 72},   // evening
-      {false, true, true, 36},  // night
+      // seconds, label, wash
+      {true, true, 64},   // morning
+      {true, true, 52},   // day
+      {true, true, 72},   // evening
+      {false, true, 36},  // night
   };
   switch (mode) {
     case DAY_MODE_MORNING: return kProfiles[0];
@@ -52,7 +51,7 @@ static void fillChromeRoles(UiPalette& p) {
   p.panelBorder = colorLerp(p.panel, p.textSecondary, 60);
 }
 
-UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk) {
+UiPalette dayModeBuildPalette(DayMode mode) {
   UiPalette p{};
   p.wifiOn = rgb565(90, 220, 150);
   p.wifiOff = rgb565(255, 95, 95);
@@ -103,18 +102,6 @@ UiPalette dayModeBuildPalette(DayMode mode, int weatherCode, bool weatherOk) {
   }
 
   fillChromeRoles(p);
-
-  // Ночью погода почти не красит акцент (бережём «тихий» режим)
-  if (weatherOk && mode != DAY_MODE_NIGHT) {
-    p.accent = colorLerp(p.accent, flintWeatherAccent(weatherCode, p.accent), 140);
-    p.glow = p.accent;
-    p.divider = colorLerp(p.bgTop, p.accent, 70);
-  } else if (weatherOk && mode == DAY_MODE_NIGHT) {
-    p.accent = colorLerp(p.accent, flintWeatherAccent(weatherCode, p.accent), 40);
-    p.glow = p.accent;
-    p.divider = colorLerp(p.bgTop, p.accent, 50);
-  }
-
   return p;
 }
 

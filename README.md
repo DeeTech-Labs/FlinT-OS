@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/status-alpha-yellow?style=flat-square" alt="Status"/>
   <img src="https://img.shields.io/badge/platform-ESP32--C3-blue?style=flat-square" alt="ESP32-C3"/>
   <img src="https://img.shields.io/badge/framework-ESP--IDF-red?style=flat-square" alt="ESP-IDF"/>
-  <img src="https://img.shields.io/badge/display-ST7789%20240×320-orange?style=flat-square" alt="ST7789"/>
+  <img src="https://img.shields.io/badge/display-ST7789%20240×280-orange?style=flat-square" alt="ST7789"/>
   <img src="https://img.shields.io/badge/faces-pluggable-brightgreen?style=flat-square" alt="Faces"/>
   <img src="https://img.shields.io/badge/org-DeeTech%20Labs-111111?style=flat-square" alt="DeeTech Labs"/>
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="Apache 2.0"/>
@@ -117,7 +117,7 @@ flint_os/
 | VCC / LED | 3.3V |
 | GND | GND |
 
-Display: GMT028-05 class panel, **ST7789** 240×320 SPI.
+Display: GMT028-class panel, **ST7789** 240×280 SPI (landscape UI 280×240).
 
 ---
 

@@ -18,7 +18,7 @@ static void splashPaint(uint8_t t /*0..255*/) {
       + static_cast<int>(((UiTok::kSplashMarkMax - UiTok::kSplashMarkMin) * t) / 255);
   const int hole = grow - 16;
   const int cx = SCR_W / 2;
-  const int cy = UiTok::kSplashMarkCy;
+  const int cy = UiTok::splashMarkCy(SCR_H);
 
   gfx.fillScreen(bg);
   gfx.fillRoundRect(cx - grow / 2, cy - grow / 2, grow, grow, UiTok::kRadiusMd, accent);
@@ -29,8 +29,9 @@ static void splashPaint(uint8_t t /*0..255*/) {
     const uint8_t tt = static_cast<uint8_t>(((t - 80) * 255) / 175);
     const uint16_t a = colorLerp(bg, accentFull, tt);
     const uint16_t m = colorLerp(bg, mutedFull, tt);
-    displayDrawUtf8Centered("FlinT", UiTok::kSplashTitleY, a, flintFont(FlintFontId::Body));
-    displayDrawUtf8Centered("DeeTech Labs", UiTok::kSplashSubY, m, flintFont(FlintFontId::Body));
+    displayDrawUtf8Centered("FlinT", UiTok::splashTitleY(SCR_H), a, flintFont(FlintFontId::Body));
+    displayDrawUtf8Centered("DeeTech Labs", UiTok::splashSubY(SCR_H), m,
+                            flintFont(FlintFontId::Body));
   }
 
   displayPresent();

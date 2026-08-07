@@ -1,0 +1,71 @@
+name: Face proposal
+description: Propose or track a new pluggable face for FlinT OS
+title: "[face] "
+labels: ["enhancement", "area:faces"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Faces are plugins. Prefer new files under `components/flint/faces/` and the Face SDK only
+        (`sdk/flint_face_sdk.h`). See https://github.com/DeeTech-Labs/FlinT-OS/blob/main/docs/FACES.md
+        and `community/face_template.cpp.example`.
+
+  - type: input
+    id: face_id
+    attributes:
+      label: Face id
+      description: Stable lowercase id (used in FaceInfo / picker).
+      placeholder: myface
+    validations:
+      required: true
+
+  - type: input
+    id: face_name
+    attributes:
+      label: Display name
+      placeholder: My Face
+    validations:
+      required: true
+
+  - type: input
+    id: author
+    attributes:
+      label: Author
+      description: Shown in FaceInfo (developer / person or DeeTech Labs).
+      placeholder: Your name
+    validations:
+      required: true
+
+  - type: textarea
+    id: concept
+    attributes:
+      label: Concept
+      description: Layout, day modes, glances, palette usage — what should it look/feel like?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: sdk_rules
+    attributes:
+      label: Face SDK constraints (confirm)
+      options:
+        - label: Includes only Face SDK (+ allowed display/glance helpers); no net/settings/secrets
+          required: true
+        - label: `onTick` stays non-blocking
+          required: true
+        - label: Will register via `faces_builtin.cpp` (or agreed community path)
+          required: true
+        - label: `minApi` ≤ current `FLINT_OS_API_VERSION`
+          required: true
+
+  - type: textarea
+    id: assets
+    attributes:
+      label: Assets / i18n
+      description: New icons, strings (`flintTr`), or storage pack needs?
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Mockups, related issues, WIP branch, etc.

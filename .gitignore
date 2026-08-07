@@ -1,9 +1,5 @@
 # Local secrets (Wi‑Fi, etc.)
 components/flint/config/secrets.h
-src/config/secrets.h
-
-# Internal / draft docs (not published yet)
-docs/
 
 # ESP-IDF
 build/

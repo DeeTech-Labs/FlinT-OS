@@ -1,0 +1,86 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly in FlinT OS
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Fill in as much as you can — serial logs help a lot.
+        Questions belong in [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions).
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device / board
+      description: Base reference is FlinT Spark (`flint_spark`).
+      options:
+        - FlinT Spark (flint_spark)
+        - Other / custom board profile
+        - Simulator / host only (N/A)
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: board_id
+    attributes:
+      label: Board profile id (if custom)
+      description: Value of `FLINT_BOARD` / JSON id under `components/flint/board/`.
+      placeholder: flint_spark
+
+  - type: input
+    id: flint_os_version
+    attributes:
+      label: FlinT OS version / commit
+      description: Tag, `flint_version.h`, or short git SHA.
+      placeholder: e.g. 0.1.0 or abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: idf_version
+    attributes:
+      label: ESP-IDF version
+      placeholder: e.g. v5.3.2 or v6.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps from boot or a known UI state (serial keys help).
+      placeholder: |
+        1. Flash build …
+        2. Press `s` for Settings
+        3. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / serial output
+      description: Paste relevant monitor output. Redact Wi‑Fi passwords and secrets.
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Screenshots, related PRs, partitions changes, language/locale, etc.

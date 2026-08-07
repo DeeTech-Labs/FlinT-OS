@@ -1,0 +1,3 @@
+# CODEOWNERS — FlinT OS (DeeTech Labs)
+# Enforced only if branch protection requires review from code owners.
+* @deexsed

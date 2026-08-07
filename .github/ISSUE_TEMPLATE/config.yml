@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & ideas
+    url: https://github.com/DeeTech-Labs/FlinT-OS/discussions
+    about: Use Discussions for Q&A, ideas, and general chat — not bug reports.
+  - name: Documentation
+    url: https://github.com/DeeTech-Labs/FlinT-OS/blob/main/README.md#docs
+    about: Docs index in the main README (architecture, faces, ESP-IDF).
+  - name: Support
+    url: https://github.com/DeeTech-Labs/FlinT-OS/blob/main/SUPPORT.md
+    about: Where to get help and what belongs in Issues vs Discussions.

@@ -2,7 +2,7 @@ FlinT OS
 Copyright 2026 DeeTech Labs
 
 This product includes software developed by DeeTech Labs
-(https://github.com/deetech-labs).
+(https://github.com/DeeTech-Labs).
 
-Font bitmaps under src/display/fonts/ are subsets of u8g2
+Font bitmaps under components/flint/display/fonts/ are subsets of u8g2
 (https://github.com/olikraus/u8g2), used under the u8g2 BSD license.

@@ -26,12 +26,6 @@ body:
     validations:
       required: true
 
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives considered
-      description: Other approaches you thought about (optional).
-
   - type: dropdown
     id: area
     attributes:

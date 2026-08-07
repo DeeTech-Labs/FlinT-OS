@@ -6,10 +6,6 @@ const char* dayModeName(DayMode mode) {
   return flintTrDayMode(static_cast<uint8_t>(mode));
 }
 
-const char* dayModeNameRu(DayMode mode) {
-  return dayModeName(mode);
-}
-
 static void fillChromeRoles(UiPalette& p) {
   p.divider = colorLerp(p.bgTop, p.accent, 70);
   p.selectionBg = colorLerp(p.bgTop, p.panel, 200);

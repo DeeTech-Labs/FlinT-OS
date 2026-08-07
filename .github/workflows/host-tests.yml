@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: host-tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,8 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Host C++ (date_fmt, day mode)
+      - name: Host C++ (date_fmt, day mode, dirty, settings)
+        env:
+          CXX: g++
         run: make -C tests/host run
 
       - name: Tools gen_* smoke
         run: python3 -m unittest discover -s tools/tests -v
+
+      - name: Codegen artifacts in sync
+        run: |
+          set -euo pipefail
+          python3 tools/gen_i18n_catalog.py
+          git diff --exit-code -- components/flint/i18n/i18n_catalog.inc
+          python3 tools/gen_asset_pack.py
+          git diff --exit-code -- assets/fs_root/core.flintpack
+          # Board outputs are gitignored; regen must succeed for the default board.
+          python3 tools/gen_board_catalog.py --quiet

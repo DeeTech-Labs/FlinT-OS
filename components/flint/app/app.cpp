@@ -138,7 +138,7 @@ static void debugHeartbeat(const struct tm* tiOpt) {
   const char* modeName = "-";
   if (ti) {
     snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d", ti->tm_hour, ti->tm_min, ti->tm_sec);
-    modeName = dayModeNameRu(dayModeFromHour(ti->tm_hour));
+    modeName = dayModeName(dayModeFromHour(ti->tm_hour));
   }
 
   LOGI("hb", "wifi=%d time=%s%s mode=%s heap=%u dirty=0x%x",

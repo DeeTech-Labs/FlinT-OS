@@ -3,6 +3,7 @@
 #include "config/debug.h"
 #include "i18n/i18n.h"
 #include "settings/cfg_fs.h"
+#include "settings/settings_clamp.h"
 #include "time/tz_db.h"
 
 #include <stdio.h>
@@ -28,6 +29,11 @@ static void settingsApplyDefaults() {
 }
 
 static void settingsApplyAfterLoad() {
+  gSettings.showSeconds = settingsClampShowSeconds(gSettings.showSeconds);
+  gSettings.lang = settingsClampLang(gSettings.lang);
+  gSettings.hourFormat = settingsClampHourFormat(gSettings.hourFormat);
+  gSettings.dateFormat = settingsClampDateFormat(gSettings.dateFormat);
+  gSettings.dateSep = settingsClampDateSep(gSettings.dateSep);
   flintI18nSetLang(gSettings.lang);
   clockTimeApplyTz(gSettings.tzId);
 }
@@ -253,30 +259,28 @@ bool settingsSetActiveFace(const char* id) {
 }
 
 void settingsSetShowSeconds(uint8_t mode) {
-  gSettings.showSeconds = mode;
+  gSettings.showSeconds = settingsClampShowSeconds(mode);
   settingsSave();
 }
 
 void settingsSetLang(uint8_t lang) {
-  gSettings.lang = (lang == SETTINGS_LANG_EN) ? SETTINGS_LANG_EN : SETTINGS_LANG_RU;
+  gSettings.lang = settingsClampLang(lang);
   flintI18nSetLang(gSettings.lang);
   settingsSave();
 }
 
 void settingsSetHourFormat(uint8_t fmt) {
-  gSettings.hourFormat = (fmt == SETTINGS_HOUR_12) ? SETTINGS_HOUR_12 : SETTINGS_HOUR_24;
+  gSettings.hourFormat = settingsClampHourFormat(fmt);
   settingsSave();
 }
 
 void settingsSetDateFormat(uint8_t fmt) {
-  gSettings.dateFormat =
-      (fmt < SETTINGS_DATE_FORMAT_COUNT) ? fmt : static_cast<uint8_t>(SETTINGS_DATE_DMY4);
+  gSettings.dateFormat = settingsClampDateFormat(fmt);
   settingsSave();
 }
 
 void settingsSetDateSep(uint8_t sep) {
-  gSettings.dateSep =
-      (sep < SETTINGS_DATE_SEP_COUNT) ? sep : static_cast<uint8_t>(SETTINGS_DATE_SEP_DOT);
+  gSettings.dateSep = settingsClampDateSep(sep);
   settingsSave();
 }
 

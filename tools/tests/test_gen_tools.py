@@ -39,17 +39,23 @@ class GenBoardTests(unittest.TestCase):
             self.assertEqual(data["id"], bid)
             self.assertEqual(path.parent, boards_dir)
 
-    def test_flint_spark_validates(self):
+    def test_all_boards_validate(self):
         index = self.gen.load_index()
-        board_id = "flint_spark"
-        entry = self.gen.find_board_entry(index, board_id)
-        board = self.gen.load_json(self.gen.board_json_path(entry, board_id))
-        display_id = board["display"]
-        display_path = (
-            ROOT / "components" / "flint" / "board" / "periph" / "display" / f"{display_id}.json"
-        )
-        display = self.gen.load_json(display_path)
-        self.gen.validate(board, copy.deepcopy(display), board_id)
+        for entry in index.get("boards") or []:
+            board_id = entry["id"]
+            board = self.gen.load_json(self.gen.board_json_path(entry, board_id))
+            display_id = board["display"]
+            display_path = (
+                ROOT
+                / "components"
+                / "flint"
+                / "board"
+                / "periph"
+                / "display"
+                / f"{display_id}.json"
+            )
+            display = self.gen.load_json(display_path)
+            self.gen.validate(board, copy.deepcopy(display), board_id)
 
     def test_board_validate_rejects_id_mismatch(self):
         index = self.gen.load_index()

@@ -1,19 +1,25 @@
 # FlinT OS architecture
 
 Firmware platform for **FlinT** devices (base: **FlinT Spark**), by **DeeTech Labs**.
-This note covers the Face paint contract and dirty/event wiring. Module ownership: see [`MODULES.md`](MODULES.md) when present; Face SDK: `components/flint/sdk/flint_face_sdk.h`.
+Face paint contract and dirty/event wiring. Module map: [`MODULES.md`](MODULES.md). Face SDK: `components/flint/sdk/flint_face_sdk.h`.
 
 ## Layers
 
 ```text
 hardware / board JSON
-  → services (time, net, settings, day_mode)
+  → services (time, net, settings/cfg, day_mode)
     → FaceContext (uiBuildContext)
       → Face::onTick / onForceRedraw
         → display (partial or full present)
 ```
 
-Faces read `FaceContext` and draw. They must not call Wi‑Fi, HTTP, NVS, or settings APIs.
+Faces read `FaceContext` and draw. They must not call Wi‑Fi, HTTP, NVS, or settings/cfg APIs.
+
+## Day mode and waiting
+
+Time-of-day modes (`MORNING` / `DAY` / `EVENING` / `NIGHT`) come only from a **valid** local hour via `dayModeFromHour` (`day_mode_hour.*`).
+
+When `clockTimeGetLocal` fails (`!hasTime`), `uiBuildContext` sets **`DAY_MODE_WAITING`** — not a synthetic noon hour. Waiting uses a neutral profile (`showSeconds` / `showModeLabel` off for AUTO; date line already carries “Waiting for time”). `dayModeFromHour` never returns `WAITING`.
 
 ## Events → dirty → paint
 
@@ -32,9 +38,19 @@ Faces read `FaceContext` and draw. They must not call Wi‑Fi, HTTP, NVS, or set
 
 ### Prefs vs FORCE
 
-- **Prefs are soft.** After a settings/NVS change, emit **`FLINT_EVT_SETTINGS` only**. Do **not** also emit `FLINT_EVT_FORCE_REDRAW`.
+- **Prefs are soft.** After a prefs change on **`/cfg/ui.cfg`**, emit **`FLINT_EVT_SETTINGS` only**. Do **not** also emit `FLINT_EVT_FORCE_REDRAW`.
 - `uiFaceTick` routes `UI_DIRTY_SETTINGS` to **`onTick`**, not `onForceRedraw`.
 - Faces must treat `UI_DIRTY_SETTINGS` (and/or changed fields in `FaceContext`) as layout-sensitive: rebuild time layout, date line, mode label, i18n strings as needed — often a full paint **from `onTick`**.
 - Use **`FLINT_EVT_FORCE_REDRAW`** for shell transitions (enter face), explicit user force, and other “wipe the canvas” cases — not as a stand-in for prefs.
 
 Clock edits from the settings overlay emit `MINUTE` / `TIME_VALID` as appropriate; returning to the face still uses shell `FORCE` on enter.
+
+## Persistence
+
+| Store | Role |
+|-------|------|
+| `storage` LittleFS | Asset pack (`core.flintpack`) |
+| `cfg` LittleFS | UI prefs (`ui.cfg`) + soft clock (`time.cfg`) |
+| ESP-IDF NVS | System / Wi‑Fi — **not** FlinT UI prefs |
+
+One-shot migrators still copy old `"flint"` NVS UI / epoch keys into `cfg` when the file is missing (`settings.cpp`, `clock_time.cpp`). **Sunset plan:** keep until field devices are known migrated; then delete migrate paths and NVS UI key reads in the same change (no long-lived dual-write).

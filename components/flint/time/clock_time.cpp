@@ -1,11 +1,14 @@
 #include "clock_time.h"
 #include "config/config.h"
 #include "config/debug.h"
+#include "settings/cfg_fs.h"
 #include "settings/settings.h"
 #include "time/tz_db.h"
 #include "util/flint_sys.h"
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -16,6 +19,7 @@
 static bool timeValid = false;
 static bool timeNtpSynced = false;
 static bool ntpStarted = false;
+static bool ntpApplyPending = false;
 static time_t baseEpoch = 0;
 static uint32_t baseMillis = 0;
 static uint32_t lastNtpSyncMs = 0;
@@ -44,19 +48,78 @@ static void clockSaveEpoch(time_t epoch) {
   if (epoch < kMinEpoch) {
     return;
   }
-  nvs_handle_t h;
-  if (nvs_open("flint", NVS_READWRITE, &h) != ESP_OK) {
+  if (!cfgFsReady()) {
     return;
   }
-  // Store as two u32 for portability (time_t may be 64-bit).
-  nvs_set_u32(h, "epoch_lo", static_cast<uint32_t>(epoch & 0xffffffffu));
-  nvs_set_u32(h, "epoch_hi", static_cast<uint32_t>((static_cast<uint64_t>(epoch) >> 32) & 0xffffffffu));
-  nvs_commit(h);
-  nvs_close(h);
+
+  char buf[96];
+  const int n = snprintf(buf, sizeof(buf),
+                         "# flint time.cfg v1\n"
+                         "version=1\n"
+                         "epoch=%llu\n",
+                         static_cast<unsigned long long>(epoch));
+  if (n < 0 || static_cast<size_t>(n) >= sizeof(buf)) {
+    return;
+  }
+  if (!cfgFsWriteAtomic(kCfgTimePath, buf, static_cast<size_t>(n))) {
+    LOGE("ntp", "time.cfg write failed");
+    return;
+  }
   lastPersistMs = flintMillis();
 }
 
-static bool clockLoadEpoch(time_t* out) {
+static bool clockParseEpochFile(const char* text, time_t* out) {
+  char buf[128];
+  strncpy(buf, text, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+
+  char* save = nullptr;
+  for (char* line = strtok_r(buf, "\n", &save); line; line = strtok_r(nullptr, "\n", &save)) {
+    char* hash = strchr(line, '#');
+    if (hash) {
+      *hash = '\0';
+    }
+    char* start = line;
+    while (*start == ' ' || *start == '\t') {
+      ++start;
+    }
+    if (*start == '\0') {
+      continue;
+    }
+    char* eq = strchr(start, '=');
+    if (!eq) {
+      continue;
+    }
+    *eq = '\0';
+    char* key = start;
+    char* val = eq + 1;
+    while (*val == ' ' || *val == '\t') {
+      ++val;
+    }
+    char* keyEnd = key + strlen(key);
+    while (keyEnd > key && (keyEnd[-1] == ' ' || keyEnd[-1] == '\t')) {
+      *--keyEnd = '\0';
+    }
+    if (strcmp(key, "epoch") != 0) {
+      continue;
+    }
+    char* endptr = nullptr;
+    const unsigned long long u = strtoull(val, &endptr, 10);
+    if (endptr == val) {
+      return false;
+    }
+    const time_t epoch = static_cast<time_t>(u);
+    if (epoch < kMinEpoch) {
+      return false;
+    }
+    *out = epoch;
+    return true;
+  }
+  return false;
+}
+
+// One-shot migrate: old NVS epoch_lo/hi → time.cfg when file is missing.
+static bool clockMigrateEpochFromNvs(time_t* out) {
   nvs_handle_t h;
   if (nvs_open("flint", NVS_READONLY, &h) != ESP_OK) {
     return false;
@@ -77,6 +140,38 @@ static bool clockLoadEpoch(time_t* out) {
   }
   *out = epoch;
   return true;
+}
+
+static bool clockLoadEpoch(time_t* out) {
+  if (cfgFsReady()) {
+    char buf[128];
+    if (cfgFsReadFile(kCfgTimePath, buf, sizeof(buf)) >= 0) {
+      if (clockParseEpochFile(buf, out)) {
+        return true;
+      }
+    }
+  }
+
+  if (clockMigrateEpochFromNvs(out)) {
+    LOGI("ntp", "migrated soft time from NVS");
+    clockSaveEpoch(*out);
+    return true;
+  }
+  return false;
+}
+
+static void clockSeedEditableLocal(struct tm* out) {
+  if (clockTimeGetLocal(out)) {
+    return;
+  }
+  memset(out, 0, sizeof(*out));
+  out->tm_year = 2026 - 1900;
+  out->tm_mon = 0;
+  out->tm_mday = 1;
+  out->tm_hour = 12;
+  out->tm_min = 0;
+  out->tm_sec = 0;
+  out->tm_isdst = -1;
 }
 
 bool clockTimeIsValid() {
@@ -104,18 +199,52 @@ bool clockTimeGetLocal(struct tm* out) {
   return true;
 }
 
+bool clockTimeSetLocal(const struct tm* local) {
+  if (!local) {
+    return false;
+  }
+  struct tm editable = *local;
+  editable.tm_isdst = -1;
+  const time_t epoch = mktime(&editable);
+  if (epoch == static_cast<time_t>(-1) || epoch < kMinEpoch) {
+    return false;
+  }
+  clockSetBase(epoch, false);
+  // Hold manual value until the next explicit NTP begin/apply cycle.
+  ntpApplyPending = false;
+  clockSaveEpoch(epoch);
+  LOGI("ntp", "manual soft time %04d-%02d-%02d %02d:%02d:%02d",
+       editable.tm_year + 1900, editable.tm_mon + 1, editable.tm_mday,
+       editable.tm_hour, editable.tm_min, editable.tm_sec);
+  return true;
+}
+
+bool clockTimeAdjustMinutes(int deltaMin) {
+  struct tm ti{};
+  clockSeedEditableLocal(&ti);
+  ti.tm_min += deltaMin;
+  return clockTimeSetLocal(&ti);
+}
+
+bool clockTimeAdjustDays(int deltaDays) {
+  struct tm ti{};
+  clockSeedEditableLocal(&ti);
+  ti.tm_mday += deltaDays;
+  return clockTimeSetLocal(&ti);
+}
+
 void clockTimeSoftBegin() {
   clockTimeApplyTz(settingsGet().tzId);
 
   time_t epoch = 0;
   if (!clockLoadEpoch(&epoch)) {
-    LOGI("ntp", "no soft time in NVS");
+    LOGI("ntp", "no soft time in cfg");
     return;
   }
   clockSetBase(epoch, false);
   struct tm ti{};
   localtime_r(&epoch, &ti);
-  LOGI("ntp", "soft time from NVS %04d-%02d-%02d %02d:%02d:%02d (until NTP)",
+  LOGI("ntp", "soft time from cfg %04d-%02d-%02d %02d:%02d:%02d (until NTP)",
        ti.tm_year + 1900, ti.tm_mon + 1, ti.tm_mday, ti.tm_hour, ti.tm_min, ti.tm_sec);
 }
 
@@ -124,7 +253,7 @@ void clockTimePersist() {
     return;
   }
   const uint32_t now = flintMillis();
-  // Throttle NVS writes: every 60s when running, always ok after NTP first sync via poll.
+  // Throttle cfg writes: every 60s when running; NTP first sync writes immediately.
   if (lastPersistMs != 0 && (now - lastPersistMs) < 60000UL) {
     return;
   }
@@ -135,6 +264,7 @@ void clockTimeBeginNtp() {
   clockTimeApplyTz(settingsGet().tzId);
   LOGI("ntp", "begin server=%s tz=%s", NTP_SERVER, settingsGet().tzId);
 
+  ntpApplyPending = true;
   if (!ntpStarted) {
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
     esp_sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
@@ -157,6 +287,10 @@ bool clockTimePollNtp() {
     return timeValid;
   }
 
+  if (!ntpApplyPending) {
+    return timeValid;
+  }
+
   time_t now = 0;
   time(&now);
   if (now < kMinEpoch) {
@@ -169,6 +303,7 @@ bool clockTimePollNtp() {
   const bool firstNtp = !timeNtpSynced;
   clockSetBase(now, true);
   clockSaveEpoch(now);
+  ntpApplyPending = false;
 
   if (firstNtp) {
     LOGI("ntp", "synced %04d-%02d-%02d %02d:%02d:%02d",

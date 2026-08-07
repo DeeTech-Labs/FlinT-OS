@@ -151,4 +151,6 @@ python3 tools/gen_asset_pack.py
 ```
 
 Then full `idf.py flash` (not `app-flash` only) to rewrite `storage`.
+The separate `cfg` LittleFS partition (UI prefs + soft clock) is not part of the
+asset image and is left alone when only `storage` is rewritten.
 

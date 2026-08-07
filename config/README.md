@@ -3,7 +3,7 @@
 # | File | Role |
 # |------|------|
 # | `sdkconfig.defaults` | ESP-IDF Kconfig defaults (wired from root CMakeLists.txt) |
-# | `partitions.csv` | Custom partition table (4MB dual OTA + storage) |
+# | `partitions.csv` | Custom partition table (4MB dual OTA + storage + cfg) |
 #
 # Product pins/panels: `components/flint/board/`.
 # App intervals/secrets: `components/flint/config/`.

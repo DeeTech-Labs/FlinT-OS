@@ -6,6 +6,7 @@
 #include "display/display.h"
 #include "event/event.h"
 #include "net/wifi_net.h"
+#include "settings/cfg_fs.h"
 #include "shell/shell.h"
 #include "time/clock_time.h"
 #include "ui/splash.h"
@@ -23,6 +24,11 @@ void appSetup() {
   displayBegin();
   LOGI("disp", "screen %dx%d canvas=%d", SCR_W, SCR_H, (int)displayHasCanvas());
 
+  // Mount cfg LittleFS before settings/soft-clock load.
+  if (!cfgFsBegin()) {
+    LOGE("cfg", "unavailable — prefs/soft clock will use defaults until cfg mounts");
+  }
+
   // Mount LittleFS asset pack before splash/faces.
   if (assetStoreBegin()) {
     LOGI("assets", "ready pack_ver=%u entries=%u", (unsigned)assetStorePackVersion(),
@@ -34,7 +40,7 @@ void appSetup() {
   flintEventInit();
   splashShow();
 
-  // Show last-known time immediately (NVS); NTP will correct after Wi‑Fi.
+  // Show last-known time immediately (cfg); NTP will correct after Wi‑Fi.
   clockTimeSoftBegin();
   if (clockTimeIsValid()) {
     flintEventEmit(FLINT_EVT_TIME_VALID);

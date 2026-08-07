@@ -31,7 +31,7 @@ networking or time.
 |----------------|-------------|
 | Digital face + day modes + glances | More community faces |
 | Soft-clock + SNTP + timezone DB | SoftAP provisioning |
-| Wi‑Fi, NVS settings, face picker | Hardware buttons (serial keys for now) |
+| Wi‑Fi, settings (`cfg`), face picker | Hardware buttons (serial keys for now) |
 | Event bus | OTA flow |
 | Boot splash | |
 
@@ -74,7 +74,7 @@ In the IDF monitor, type keys (no Enter needed except where noted):
 | `q` / `Esc` | Back to face |
 | `h` | Help in log |
 
-Active face and prefs are stored in NVS (face, seconds, hour format, language, timezone).
+Active face and prefs are stored on the `cfg` LittleFS partition (face, seconds, hour format, language, timezone, soft clock). Clock time/date can be adjusted in Settings (`+/-` = ±1 minute / ±1 day) and persist until the next NTP apply.
 
 Settings: `p`/`n` navigate, `+/-` change value, `Enter` only opens face picker from the Face row. Shell transitions are instant (no fade wash).
 
@@ -108,7 +108,7 @@ flint_os/
 └── brand/                # marketing logo (README), not device assets
 ```
 
-Icons load from the `storage` LittleFS partition when flashed; see [`assets/README.md`](assets/README.md).
+Icons load from the `storage` LittleFS partition when flashed; see [`assets/README.md`](assets/README.md). UI prefs and soft clock live on the separate `cfg` LittleFS partition (runtime R/W; survives asset reflash).
 
 ---
 
@@ -117,7 +117,7 @@ Icons load from the `storage` LittleFS partition when flashed; see [`assets/READ
 1. Copy `community/face_template.cpp.example` → `components/flint/faces/face_yourname.cpp`
 2. `#include "sdk/flint_face_sdk.h"` only — implement `Face`, export `Face* createYourFace()`
 3. Register in `components/flint/faces/faces_builtin.cpp`
-4. Build & flash; pick via serial face picker (or default `ACTIVE_FACE_ID` on empty NVS)
+4. Build & flash; pick via serial face picker (or default `ACTIVE_FACE_ID` on empty `cfg`)
 
 ---
 

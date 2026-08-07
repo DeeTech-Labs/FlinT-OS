@@ -8,6 +8,8 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-07
+
 ### Added
 
 - Dirty-aware community face template (`community/face_template.cpp.example`) and FACES.md paint contract notes
@@ -38,6 +40,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 - Digital face layout helpers + UI geometry tokens for time / AM·PM / date bands
 - Retarget ST7789 panel to 240×280 with safe-area insets for rounded glass
 - Tighten display path and shrink runtime footprint
+- Keep Face API / pack / digital face version fields at 1 for pre-release
 
 ### Fixed
 
@@ -59,5 +62,6 @@ Initial tagged release of **FlinT OS** for **FlinT Spark** (by **DeeTech Labs**)
 - UI design tokens, overlay chrome, and motion helpers
 - i18n catalog (en_US / ru_RU) and Face SDK surface for community faces
 
-[Unreleased]: https://github.com/DeeTech-Labs/FlinT-OS/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/DeeTech-Labs/FlinT-OS/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/DeeTech-Labs/FlinT-OS/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DeeTech-Labs/FlinT-OS/releases/tag/v0.1.0

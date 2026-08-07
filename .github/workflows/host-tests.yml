@@ -17,7 +17,7 @@ jobs:
     name: host + tools
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Host C++ (date_fmt, day mode, dirty, settings)
         env:

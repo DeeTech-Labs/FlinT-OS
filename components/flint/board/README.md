@@ -171,8 +171,9 @@ See `impl/README.md`.
 | `pinout.display` | yes (SPI) | GPIO; unused = `-1` |
 | `backlight.gpio` | no | `-1` = none |
 | `canvas.strategy` | yes | `bss` \| `psram` \| `none` |
-| `canvas.max_w` / `max_h` | yes | FB size **after** rotation |
-| `layout` | no | UI geometry label |
+| `canvas.max_w` / `max_h` | yes | FB size **after** rotation (= UI design space) |
+| `safe_inset` | no | Content inset for rounded glass (default `16` → `FLINT_SAFE_INSET`) |
+| `layout` | no | Optional human label (not used for geometry) |
 | `touch` | no | Future periph id |
 
 **SPI pins required:** `cs`, `dc`, `rst`, `mosi`, `sclk`. Optional: `miso`, `busy`.
@@ -203,6 +204,8 @@ See `impl/README.md`.
 
 - `FLINT_PANEL_KIND_<PANEL> 1` (e.g. `FLINT_PANEL_KIND_ST7789`) — selects class inside `lgfx_spi_stock.h`
 - pins, rotation, canvas size, SPI flags, `FLINT_PANEL_DEFER_DISPON`
+- `FLINT_DESIGN_W` / `FLINT_DESIGN_H` from `canvas.max_w` / `max_h` (UiTok design space)
+- `FLINT_SAFE_INSET` from board `safe_inset` (default 16)
 - `board_impl.inc` → `#include "board/impl/<impl>.h"`
 - `board_build.cmake` → LovyanGFX sources / requires
 
@@ -244,6 +247,5 @@ python3 tools/gen_board_catalog.py --board <board_id>
 
 ## Out of scope here (for now)
 
-- Face layout pixels (`display/ui_tokens.h`) — `layout` is a label only
 - Touch / buttons — reserved board fields; add later under `periph/`
 - Wi‑Fi secrets — `config/secrets.h`

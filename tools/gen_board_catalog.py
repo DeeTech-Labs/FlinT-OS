@@ -287,6 +287,10 @@ def write_inc(board: dict, display: dict) -> None:
         "",
         f"inline constexpr int FLINT_FB_MAX_W = {int(canvas['max_w'])};",
         f"inline constexpr int FLINT_FB_MAX_H = {int(canvas['max_h'])};",
+        # UI design space = post-rotation canvas; safe inset from board (default 16).
+        f"inline constexpr int FLINT_DESIGN_W = {int(canvas['max_w'])};",
+        f"inline constexpr int FLINT_DESIGN_H = {int(canvas['max_h'])};",
+        f"inline constexpr int FLINT_SAFE_INSET = {int(board.get('safe_inset', 16))};",
         "",
     ]
     OUT_INC.write_text("\n".join(lines) + "\n", encoding="utf-8")

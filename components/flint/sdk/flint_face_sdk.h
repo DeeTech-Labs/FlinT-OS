@@ -16,3 +16,4 @@
 #include "sdk/resources.h"
 #include "i18n/i18n.h"
 #include "time/date_fmt.h"
+#include "ui/ui_dirty.h"  // UI_DIRTY_* for onTick (SETTINGS is soft)

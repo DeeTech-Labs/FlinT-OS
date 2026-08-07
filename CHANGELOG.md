@@ -10,6 +10,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 ### Added
 
+- Dirty-aware community face template (`community/face_template.cpp.example`) and FACES.md paint contract notes
 - Host tests for `date_fmt`, day-mode hour/profile, and `tools/gen_*` schema smoke (`tests/host/`, `tools/tests/`)
 - GitHub Action `host-tests` on PR / `main` (host C++ + unittest)
 - `DAY_MODE_WAITING` path when `!hasTime` (neutral profile; no synthetic noon → day)
@@ -23,6 +24,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 ### Changed
 
+- UiTok design space / safe inset come from board `canvas.max_*` and `safe_inset` via `board_config.inc`
 - Prefs dirty contract: `FLINT_EVT_SETTINGS` is soft → `onTick` (no paired `FORCE_REDRAW`)
 - Digital face layout helpers + UI geometry tokens for time / AM·PM / date bands
 - Retarget ST7789 panel to 240×280 with safe-area insets for rounded glass

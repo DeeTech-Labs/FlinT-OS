@@ -2,18 +2,21 @@
 
 #include <stdint.h>
 
+#include "board/board_config.inc"
+
 // Geometry & motion tokens — single source for layout (not colors).
 // Colors live in UiPalette / day_mode.
 //
-// Design space is landscape 280×240 (panel 240×280 @ rotation). Call sites should
-// prefer the helpers below with runtime screenW/screenH instead of raw constants
-// when placing content that must track resolution.
+// Design space comes from the selected board canvas (FLINT_DESIGN_* after
+// rotation). Call sites should prefer the helpers below with runtime
+// screenW/screenH instead of raw constants when placing content that must
+// track resolution.
 
 namespace UiTok {
 
-// —— Design reference (landscape) ——
-constexpr int kDesignW = 280;
-constexpr int kDesignH = 240;
+// —— Design reference (from board canvas) ——
+constexpr int kDesignW = FLINT_DESIGN_W;
+constexpr int kDesignH = FLINT_DESIGN_H;
 
 inline int mapX(int designX, int screenW) {
   return (designX * screenW) / kDesignW;
@@ -34,7 +37,7 @@ inline int mapH(int designH, int screenH) {
 // —— Safe area (rounded glass) ——
 // Keep interactive/text content inside the flat region; backgrounds may still
 // fill to the panel edge under the bezel.
-constexpr int kSafeInset = 16;
+constexpr int kSafeInset = FLINT_SAFE_INSET;
 
 // —— Spacing ——
 constexpr int kPadX = kSafeInset;
@@ -46,7 +49,7 @@ constexpr int kGapMd = 8;
 constexpr int kRadiusSm = 6;
 constexpr int kRadiusMd = 10;
 
-// —— Face zones (design-space 280×240) ——
+// —— Face zones (design-space coordinates) ——
 // Top status: mode label (center) + Wi‑Fi (right).
 constexpr int kStatusH = 48;
 constexpr int kStatusHairlineY = 47;

@@ -1,0 +1,23 @@
+name: Host tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: host-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host:
+    name: host + tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host C++ (date_fmt, day mode)
+        run: make -C tests/host run
+
+      - name: Tools gen_* smoke
+        run: python3 -m unittest discover -s tools/tests -v

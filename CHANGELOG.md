@@ -11,6 +11,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 ### Added
 
 - Host tests for `date_fmt`, day-mode hour/profile, and `tools/gen_*` schema smoke (`tests/host/`, `tools/tests/`)
+- GitHub Action `host-tests` on PR / `main` (host C++ + unittest)
 - `DAY_MODE_WAITING` path when `!hasTime` (neutral profile; no synthetic noon → day)
 - Shell overlay modules `shell_picker` / `shell_settings` (split from monolithic shell)
 - CONTRIBUTING codegen section and Keep a Changelog `CHANGELOG.md`

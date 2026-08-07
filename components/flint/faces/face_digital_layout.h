@@ -28,14 +28,13 @@ struct DigitalTimeLayout {
   DisplayRect timeBand(int screenH) const;
   DisplayRect ampmBand(int screenH) const;
   int appendColonRects(int screenH, const char* timeStr, DisplayRect* out, int cap) const;
+  // Glyph cells where prev[i] != next[i]. Length mismatch / empty prev → one timeBand.
+  int appendChangedGlyphRects(int screenH, const char* prev, const char* next,
+                              DisplayRect* out, int cap) const;
 
   void drawGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg, uint16_t bg,
-                 int screenH, const lgfx::IFont* timeFont) const;
+                 int screenH) const;
 };
 
 DisplayRect digitalDateBand(const FaceContext& ctx, const char* dateStr, int* ioPresentW,
                             const lgfx::IFont* bodyFont);
-
-uint8_t digitalColonFadeNow();
-uint16_t digitalColonColor(const UiPalette& pal, uint8_t fade);
-bool digitalColonFadeChanged(uint8_t fade, uint8_t lastFade);

@@ -21,6 +21,10 @@ constexpr size_t kMaxFiBytes =
 // Resident pack grows with icons; cap leaves headroom for FB on ESP32-C3.
 constexpr size_t kMaxResidentPackBytes = 96u * 1024u;
 constexpr size_t kMaxPackEntries = 192;
+// Decoded RGB565+key for hot status icons (wifi 0–3 @ 16px). Splash brand is
+// larger and rare — not cached here.
+constexpr size_t kHotIconSlots = 4;
+constexpr size_t kHotIconMaxPx = 16;
 
 bool gReady = false;
 bool gResident = false;
@@ -34,6 +38,20 @@ FlintPackEntry* gEntriesOwned = nullptr;  // stream-mode TOC
 uint8_t* gFiScratch = nullptr;            // stream-mode one-FI buffer
 
 alignas(4) uint16_t gBlitRgb[kMaxIconPx * kMaxIconPx];
+
+struct HotIconSlot {
+  uint16_t iconId = 0xFFFF;
+  uint8_t sizePx = 0;
+  uint16_t fg = 0;
+  uint16_t w = 0;
+  uint16_t h = 0;
+  uint16_t key = 0;
+  bool hasKey = false;
+  bool valid = false;
+  alignas(4) uint16_t rgb[kHotIconMaxPx * kHotIconMaxPx];
+};
+HotIconSlot gHotIcons[kHotIconSlots];
+uint8_t gHotIconNext = 0;
 
 void freePackMemory() {
   free(gPackBytes);
@@ -49,6 +67,48 @@ void freePackMemory() {
     fclose(gPackFile);
     gPackFile = nullptr;
   }
+  for (size_t i = 0; i < kHotIconSlots; i++) {
+    gHotIcons[i].valid = false;
+    gHotIcons[i].iconId = 0xFFFF;
+  }
+  gHotIconNext = 0;
+}
+
+HotIconSlot* hotIconFind(uint16_t iconId, uint8_t sizePx, uint16_t fg) {
+  for (size_t i = 0; i < kHotIconSlots; i++) {
+    HotIconSlot& s = gHotIcons[i];
+    if (s.valid && s.iconId == iconId && s.sizePx == sizePx && s.fg == fg) {
+      return &s;
+    }
+  }
+  return nullptr;
+}
+
+HotIconSlot* hotIconAlloc(uint16_t iconId, uint8_t sizePx, uint16_t fg, uint16_t w,
+                          uint16_t h) {
+  if (w == 0 || h == 0 || w > kHotIconMaxPx || h > kHotIconMaxPx) {
+    return nullptr;
+  }
+  HotIconSlot& s = gHotIcons[gHotIconNext % kHotIconSlots];
+  gHotIconNext = static_cast<uint8_t>((gHotIconNext + 1u) % kHotIconSlots);
+  s.iconId = iconId;
+  s.sizePx = sizePx;
+  s.fg = fg;
+  s.w = w;
+  s.h = h;
+  s.valid = false;
+  return &s;
+}
+
+void hotIconStore(HotIconSlot* slot, const uint16_t* rgb, uint16_t key, bool hasKey) {
+  if (!slot) {
+    return;
+  }
+  const size_t n = static_cast<size_t>(slot->w) * static_cast<size_t>(slot->h);
+  memcpy(slot->rgb, rgb, n * sizeof(uint16_t));
+  slot->key = key;
+  slot->hasKey = hasKey;
+  slot->valid = true;
 }
 
 const FlintPackEntry* findEntry(uint16_t iconId, uint8_t sizePx) {
@@ -142,15 +202,15 @@ bool loadPack() {
   gEntryCount = hdr.entry_count;
   gPackVer = hdr.pack_ver;
 
-  const size_t heap = flintFreeHeap();
-  const size_t budget =
-      heap / 4u < kMaxResidentPackBytes ? heap / 4u : kMaxResidentPackBytes;
-  const bool wantResident = fileSize <= budget;
-
-  if (wantResident) {
+  // Prefer resident whenever pack fits the hard cap — do not gate on heap/4.
+  // Stream only if oversized or malloc fails (log clearly either way).
+  const bool withinCap = fileSize <= kMaxResidentPackBytes;
+  if (withinCap) {
     gPackBytes = static_cast<uint8_t*>(malloc(fileSize));
     if (!gPackBytes) {
-      LOGE("assets", "malloc pack %u failed — streaming", (unsigned)fileSize);
+      LOGE("assets", "malloc pack %u failed (cap=%u heap=%u) — streaming",
+           (unsigned)fileSize, (unsigned)kMaxResidentPackBytes,
+           (unsigned)flintFreeHeap());
     } else {
       if (fseek(f, 0, SEEK_SET) != 0 || !readExact(f, gPackBytes, fileSize)) {
         LOGE("assets", "read pack body failed");
@@ -173,9 +233,12 @@ bool loadPack() {
            (unsigned)gPackSize);
       return true;
     }
+  } else {
+    LOGI("assets", "pack %u > resident cap %u — streaming", (unsigned)fileSize,
+         (unsigned)kMaxResidentPackBytes);
   }
 
-  // Stream mode: TOC in RAM, FI loaded on demand (pack larger than budget).
+  // Stream mode: TOC in RAM, FI loaded on demand.
   gEntriesOwned = static_cast<FlintPackEntry*>(malloc(tocBytes));
   gFiScratch = static_cast<uint8_t*>(malloc(kMaxFiBytes));
   if (!gEntriesOwned || !gFiScratch) {
@@ -200,9 +263,9 @@ bool loadPack() {
     freePackMemory();
     return false;
   }
-  LOGI("assets", "pack stream ver=%u api_min=%u entries=%u bytes=%u budget=%u",
+  LOGI("assets", "pack stream ver=%u api_min=%u entries=%u bytes=%u heap=%u",
        (unsigned)gPackVer, (unsigned)hdr.api_min, (unsigned)gEntryCount, (unsigned)gPackSize,
-       (unsigned)budget);
+       (unsigned)flintFreeHeap());
   return true;
 }
 
@@ -294,11 +357,14 @@ uint16_t fiPalTransKey(const uint16_t* pal, uint16_t paletteLen, uint16_t tip) {
 }
 
 void blitL1(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint8_t* pix, int cx,
-            int cy, uint16_t fg, uint16_t /*bg*/) {
+            int cy, uint16_t fg, uint16_t /*bg*/, uint16_t* outKey) {
   int x0 = 0;
   int y0 = 0;
   fiBlitOrigin(hdr, cx, cy, &x0, &y0);
   const uint16_t key = fiTransKey(fg);
+  if (outKey) {
+    *outKey = key;
+  }
   const size_t stride = fiL1Stride(hdr.w);
   for (uint16_t y = 0; y < hdr.h; y++) {
     const uint8_t* row = pix + static_cast<size_t>(y) * stride;
@@ -319,14 +385,21 @@ void blitR565(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint8_t* pix, int 
   gfx.pushImage(x0, y0, hdr.w, hdr.h, reinterpret_cast<const uint16_t*>(pix));
 }
 
-void blitP4(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint16_t* pal,
-            const uint8_t* pix, int cx, int cy, uint16_t /*bg*/) {
+bool blitP4(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint16_t* pal,
+            const uint8_t* pix, int cx, int cy, uint16_t /*bg*/, uint16_t* outKey,
+            bool* outHasKey) {
   int x0 = 0;
   int y0 = 0;
   fiBlitOrigin(hdr, cx, cy, &x0, &y0);
   const bool trans = (hdr.flags & kFiFlagHasTrans) != 0;
   const uint16_t tip = (pal && hdr.palette_len > 1) ? pal[1] : 0;
   const uint16_t key = fiPalTransKey(pal, hdr.palette_len, tip);
+  if (outKey) {
+    *outKey = key;
+  }
+  if (outHasKey) {
+    *outHasKey = trans;
+  }
   const size_t stride = (static_cast<size_t>(hdr.w) + 1u) / 2u;
   for (uint16_t y = 0; y < hdr.h; y++) {
     const uint8_t* row = pix + static_cast<size_t>(y) * stride;
@@ -342,16 +415,24 @@ void blitP4(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint16_t* pal,
   } else {
     gfx.pushImage(x0, y0, hdr.w, hdr.h, gBlitRgb);
   }
+  return true;
 }
 
-void blitP8(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint16_t* pal,
-            const uint8_t* pix, int cx, int cy, uint16_t /*bg*/) {
+bool blitP8(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint16_t* pal,
+            const uint8_t* pix, int cx, int cy, uint16_t /*bg*/, uint16_t* outKey,
+            bool* outHasKey) {
   int x0 = 0;
   int y0 = 0;
   fiBlitOrigin(hdr, cx, cy, &x0, &y0);
   const bool trans = (hdr.flags & kFiFlagHasTrans) != 0;
   const uint16_t tip = (pal && hdr.palette_len > 1) ? pal[1] : 0;
   const uint16_t key = fiPalTransKey(pal, hdr.palette_len, tip);
+  if (outKey) {
+    *outKey = key;
+  }
+  if (outHasKey) {
+    *outHasKey = trans;
+  }
   for (uint16_t y = 0; y < hdr.h; y++) {
     const uint8_t* row = pix + static_cast<size_t>(y) * hdr.w;
     uint16_t* dst = gBlitRgb + static_cast<size_t>(y) * hdr.w;
@@ -364,6 +445,7 @@ void blitP8(lgfx::LGFXBase& gfx, const FiHeader& hdr, const uint16_t* pal,
   } else {
     gfx.pushImage(x0, y0, hdr.w, hdr.h, gBlitRgb);
   }
+  return true;
 }
 
 }  // namespace
@@ -421,7 +503,20 @@ bool assetBlitIcon(lgfx::LGFXBase& gfx, FlintIconId id, uint8_t sizePx, int cx,
   if (!gReady || !gEntries) {
     return false;
   }
-  const FlintPackEntry* e = findEntry(static_cast<uint16_t>(id), sizePx);
+
+  const uint16_t iconId = static_cast<uint16_t>(id);
+  if (HotIconSlot* hit = hotIconFind(iconId, sizePx, fg)) {
+    const int x0 = cx - static_cast<int>(hit->w) / 2;
+    const int y0 = cy - static_cast<int>(hit->h) / 2;
+    if (hit->hasKey) {
+      gfx.pushImage(x0, y0, hit->w, hit->h, hit->rgb, hit->key);
+    } else {
+      gfx.pushImage(x0, y0, hit->w, hit->h, hit->rgb);
+    }
+    return true;
+  }
+
+  const FlintPackEntry* e = findEntry(iconId, sizePx);
   if (!e) {
     return false;
   }
@@ -434,10 +529,16 @@ bool assetBlitIcon(lgfx::LGFXBase& gfx, FlintIconId id, uint8_t sizePx, int cx,
     return false;
   }
 
+  uint16_t key = 0;
+  bool hasKey = false;
+  bool decoded = false;
+
   switch (static_cast<FiFormat>(hdr.format)) {
     case FiFormat::L1:
-      blitL1(gfx, hdr, pix, cx, cy, fg, bg);
-      return true;
+      blitL1(gfx, hdr, pix, cx, cy, fg, bg, &key);
+      hasKey = true;
+      decoded = true;
+      break;
     case FiFormat::R565:
       blitR565(gfx, hdr, pix, cx, cy);
       return true;
@@ -445,15 +546,24 @@ bool assetBlitIcon(lgfx::LGFXBase& gfx, FlintIconId id, uint8_t sizePx, int cx,
       if (!pal) {
         return false;
       }
-      blitP4(gfx, hdr, pal, pix, cx, cy, bg);
-      return true;
+      blitP4(gfx, hdr, pal, pix, cx, cy, bg, &key, &hasKey);
+      decoded = true;
+      break;
     case FiFormat::P8:
       if (!pal) {
         return false;
       }
-      blitP8(gfx, hdr, pal, pix, cx, cy, bg);
-      return true;
+      blitP8(gfx, hdr, pal, pix, cx, cy, bg, &key, &hasKey);
+      decoded = true;
+      break;
     default:
       return false;
   }
+
+  if (decoded) {
+    if (HotIconSlot* slot = hotIconAlloc(iconId, sizePx, fg, hdr.w, hdr.h)) {
+      hotIconStore(slot, gBlitRgb, key, hasKey);
+    }
+  }
+  return true;
 }

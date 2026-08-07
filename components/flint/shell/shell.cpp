@@ -6,6 +6,7 @@
 #include "display/ui_tokens.h"
 #include "event/event.h"
 #include "faces/FaceRegistry.h"
+#include "faces/colon_pulse.h"
 #include "settings/settings.h"
 #include "shell/shell_picker.h"
 #include "shell/shell_settings.h"
@@ -108,13 +109,18 @@ void shellTick() {
 
   switch (gState) {
     case SHELL_FACE: {
-      // Colon pulse only while seconds are visible — skip always-on motion dirty
-      // when the face is minute-driven.
+      // Colon pulse: mark MOTION only when the fade quantum actually changes
+      // (avoids empty uiTakeDirty/onTick when digitalColonFadeChanged is false).
       static uint32_t lastMotionMs = 0;
+      static uint8_t lastMotionFade = 255;
       const uint32_t now = flintMillis();
       if (uiWantsSeconds() && (now - lastMotionMs >= UiTok::kColonPulseTickMs)) {
-        uiMarkDirty(UI_DIRTY_MOTION);
         lastMotionMs = now;
+        const uint8_t fade = digitalColonFadeNow();
+        if (digitalColonFadeChanged(fade, lastMotionFade)) {
+          lastMotionFade = fade;
+          uiMarkDirty(UI_DIRTY_MOTION);
+        }
       }
       uiFaceTick();
       break;

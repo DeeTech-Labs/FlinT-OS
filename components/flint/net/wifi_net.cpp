@@ -21,11 +21,64 @@ static bool s_connecting = false;
 static uint32_t s_connectStartedMs = 0;
 static uint32_t s_lastReconnectMs = 0;
 
+// RSSI → bars sample cache. FaceContext reads wifiNetBars() every non-motion
+// dirty; maintain() refreshes the ioctl at most every kRssiPollMs.
+static constexpr uint32_t kRssiPollMs = 5000UL;
+static uint8_t s_cachedBars = 0;
+static int8_t s_cachedRssi = INT8_MIN;
+static uint32_t s_lastRssiSampleMs = 0;
+
 static const int WIFI_OK_BIT = BIT0;
 
 static void wifiMarkConnecting() {
   s_connecting = true;
   s_connectStartedMs = flintMillis() ? flintMillis() : 1;
+}
+
+static uint8_t barsFromRssi(int8_t rssi) {
+  if (rssi == INT8_MIN) {
+    return 1;  // associated but RSSI unread — show weakest connected glyph
+  }
+  // Typical indoor thresholds for a 3-bar status glyph.
+  if (rssi >= -55) {
+    return 3;
+  }
+  if (rssi >= -67) {
+    return 2;
+  }
+  return 1;
+}
+
+static int8_t readStaRssi() {
+  wifi_ap_record_t ap{};
+  if (esp_wifi_sta_get_ap_info(&ap) != ESP_OK) {
+    return INT8_MIN;
+  }
+  return ap.rssi;
+}
+
+// Sample STA RSSI into the UI cache. Returns true when bar count changed.
+static bool wifiRefreshBarsCache(bool force) {
+  if (!wifiNetIsConnected()) {
+    const bool changed = (s_cachedBars != 0) || (s_cachedRssi != INT8_MIN);
+    s_cachedBars = 0;
+    s_cachedRssi = INT8_MIN;
+    return changed;
+  }
+
+  const uint32_t t = flintMillis();
+  if (!force && s_lastRssiSampleMs != 0 && (t - s_lastRssiSampleMs) < kRssiPollMs) {
+    return false;
+  }
+
+  s_lastRssiSampleMs = t ? t : 1;
+  s_cachedRssi = readStaRssi();
+  const uint8_t bars = barsFromRssi(s_cachedRssi);
+  if (bars == s_cachedBars) {
+    return false;
+  }
+  s_cachedBars = bars;
+  return true;
 }
 
 static void wifiEventHandler(void* arg, esp_event_base_t base, int32_t id, void* data) {
@@ -36,6 +89,9 @@ static void wifiEventHandler(void* arg, esp_event_base_t base, int32_t id, void*
   } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
     xEventGroupClearBits(s_wifi_events, WIFI_OK_BIT);
     s_connecting = false;
+    s_cachedBars = 0;
+    s_cachedRssi = INT8_MIN;
+    s_lastRssiSampleMs = 0;
     flintEventEmit(FLINT_EVT_WIFI);
 
     // Immediate retry on drop — do NOT also reconnect from maintain() while in-flight.
@@ -55,6 +111,7 @@ static void wifiEventHandler(void* arg, esp_event_base_t base, int32_t id, void*
     // Modem sleep after link is up — keeps association on a wall clock.
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
     xEventGroupSetBits(s_wifi_events, WIFI_OK_BIT);
+    (void)wifiRefreshBarsCache(true);
     flintEventEmit(FLINT_EVT_WIFI);
     ip_event_got_ip_t* event = static_cast<ip_event_got_ip_t*>(data);
     LOGI("wifi", "up ip=" IPSTR " ps=min_modem", IP2STR(&event->ip_info.ip));
@@ -72,29 +129,16 @@ int8_t wifiNetRssi() {
   if (!wifiNetIsConnected()) {
     return INT8_MIN;
   }
-  wifi_ap_record_t ap{};
-  if (esp_wifi_sta_get_ap_info(&ap) != ESP_OK) {
-    return INT8_MIN;
+  // Prefer maintain()/GOT_IP cache — FaceContext must not ioctl every second.
+  if (s_lastRssiSampleMs != 0) {
+    return s_cachedRssi;
   }
-  return ap.rssi;
+  return readStaRssi();
 }
 
 uint8_t wifiNetBars() {
-  if (!wifiNetIsConnected()) {
-    return 0;
-  }
-  const int8_t rssi = wifiNetRssi();
-  if (rssi == INT8_MIN) {
-    return 1;  // associated but RSSI unread — show weakest connected glyph
-  }
-  // Typical indoor thresholds for a 3-bar status glyph.
-  if (rssi >= -55) {
-    return 3;
-  }
-  if (rssi >= -67) {
-    return 2;
-  }
-  return 1;
+  // Cached only — refreshed from wifiNetMaintain / link events.
+  return s_cachedBars;
 }
 
 void wifiNetBegin() {
@@ -145,56 +189,35 @@ bool wifiNetWaitConnected(uint32_t timeoutMs) {
     return false;
   }
 
-  wifi_ap_record_t ap{};
-  int8_t rssi = 0;
-  if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
-    rssi = ap.rssi;
-  }
+  (void)wifiRefreshBarsCache(true);
   esp_netif_ip_info_t ip{};
   esp_netif_get_ip_info(s_sta, &ip);
-  LOGI("wifi", "connected ip=" IPSTR " rssi=%d", IP2STR(&ip.ip), (int)rssi);
+  LOGI("wifi", "connected ip=" IPSTR " rssi=%d", IP2STR(&ip.ip), (int)s_cachedRssi);
   return true;
 }
 
 void wifiNetMaintain() {
   static bool wasConnected = false;
-  static uint8_t lastBars = 0xFF;
-  static uint32_t lastRssiSampleMs = 0;
   bool now = wifiNetIsConnected();
   const bool rose = now && !wasConnected;
 
   if (rose) {
     // Rising edge: ensure modem sleep even if GOT_IP handler raced.
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-    wifi_ap_record_t ap{};
-    int8_t rssi = 0;
-    if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
-      rssi = ap.rssi;
-    }
+    (void)wifiRefreshBarsCache(true);
     esp_netif_ip_info_t ip{};
     if (s_sta) {
       esp_netif_get_ip_info(s_sta, &ip);
     }
-    LOGI("wifi", "up ip=" IPSTR " rssi=%d ps=min_modem", IP2STR(&ip.ip), (int)rssi);
+    LOGI("wifi", "up ip=" IPSTR " rssi=%d ps=min_modem", IP2STR(&ip.ip), (int)s_cachedRssi);
   }
   if (!now && wasConnected) {
     LOGE("wifi", "down");
   }
   wasConnected = now;
 
-  // Poll RSSI on link-up and every few seconds; emit when bar count changes.
-  uint8_t bars = 0;
-  if (now) {
-    const uint32_t t = flintMillis();
-    if (rose || lastBars == 0xFF || (t - lastRssiSampleMs) >= 5000UL) {
-      lastRssiSampleMs = t ? t : 1;
-      bars = wifiNetBars();
-    } else {
-      bars = lastBars;
-    }
-  }
-  if (bars != lastBars) {
-    lastBars = bars;
+  // Poll RSSI on a slow TTL; emit when bar count changes.
+  if (wifiRefreshBarsCache(false)) {
     flintEventEmit(FLINT_EVT_WIFI);
   }
 

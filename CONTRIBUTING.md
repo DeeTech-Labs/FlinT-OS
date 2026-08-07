@@ -31,8 +31,7 @@ Never commit `secrets.h` or credentials.
 
 - Do not push commits directly to `main`.
 - Branch from up-to-date `main` (`feature/…`, `fix/…`, `chore/…`, `docs/…`).
-- Open a Pull Request; fill the PR template.
-- Prefer small, reviewable PRs.
+- Open a Pull Request; prefer small, reviewable diffs.
 
 ## Commit messages
 

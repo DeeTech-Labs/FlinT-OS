@@ -3,6 +3,10 @@
 #include "config/debug.h"
 #include "util/flint_sys.h"
 
+#if DEBUG_LEVEL >= 2
+#include "esp_timer.h"
+#endif
+
 LGFX tft;
 static LGFX_Sprite gCanvas(&tft);
 static bool gHasCanvas = false;
@@ -37,13 +41,56 @@ static bool clampRect(int& x, int& y, int& w, int& h) {
   return w > 0 && h > 0;
 }
 
-// Dirty band → panel via LovyanGFX DMA. Clip + full-FB pushImageDMA keeps
-// src stride = SCR_W so Panel_LCD queues strided rows in one window (instead of
-// setAddrWindow per scanline).
+#if DEBUG_LEVEL >= 2
+static void logPresentMs(int w, int h, int64_t us) {
+  static uint32_t s_n = 0;
+  static uint32_t s_usSum = 0;
+  static uint32_t s_wSum = 0;
+  static uint32_t s_hSum = 0;
+  static uint32_t s_pxSum = 0;
+  s_n++;
+  s_usSum += static_cast<uint32_t>(us > 0 ? us : 0);
+  s_wSum += static_cast<uint32_t>(w);
+  s_hSum += static_cast<uint32_t>(h);
+  s_pxSum += static_cast<uint32_t>(w) * static_cast<uint32_t>(h);
+  if (s_n >= 32u) {
+    // px must match dirty-rect w×h (colon band), not SCR_W×h.
+    LOGD("disp", "present avg %luus %lux%lu px=%lu n=%u spi=%luB",
+         (unsigned long)(s_usSum / s_n), (unsigned long)(s_wSum / s_n),
+         (unsigned long)(s_hSum / s_n), (unsigned long)(s_pxSum / s_n), (unsigned)s_n,
+         (unsigned long)((s_pxSum / s_n) * 2u));
+    s_n = 0;
+    s_usSum = 0;
+    s_wSum = 0;
+    s_hSum = 0;
+    s_pxSum = 0;
+  }
+}
+#endif
+
+// Stream one dirty band. Caller must hold tft.startWrite() (nested OK).
+static void pushRectDmaInner(const uint16_t* buf, int x, int y, int w, int h) {
+  tft.setWindow(x, y, x + w - 1, y + h - 1);
+  const uint16_t* row =
+      buf + static_cast<size_t>(y) * static_cast<size_t>(SCR_W) + static_cast<size_t>(x);
+  for (int i = 0; i < h; i++) {
+    tft.writePixelsDMA(row, w);
+    row += SCR_W;
+  }
+}
+
+// Dirty band → panel: GRAM window = rect; stream only w RGB565 samples per row
+// with FB stride SCR_W. Width cut is explicit — not LovyanGFX clip-dependent.
 static void pushRectDma(const uint16_t* buf, int x, int y, int w, int h) {
-  tft.setClipRect(x, y, w, h);
-  tft.pushImageDMA(0, 0, SCR_W, SCR_H, buf);
-  tft.clearClipRect();
+#if DEBUG_LEVEL >= 2
+  const int64_t t0 = esp_timer_get_time();
+#endif
+  tft.startWrite();
+  pushRectDmaInner(buf, x, y, w, h);
+  tft.endWrite();
+#if DEBUG_LEVEL >= 2
+  logPresentMs(w, h, esp_timer_get_time() - t0);
+#endif
 }
 
 void displayBegin() {
@@ -133,8 +180,7 @@ void displayPresentRects(const DisplayRect* rects, int count) {
     return;
   }
 
-  // Nested startWrite inside pushImageDMA is fine; outer txn keeps CS asserted
-  // across multiple dirty bands.
+  // One panel transaction for the whole dirty set (inner push has no txn).
   tft.startWrite();
   for (int i = 0; i < count; i++) {
     int x = rects[i].x;
@@ -144,7 +190,13 @@ void displayPresentRects(const DisplayRect* rects, int count) {
     if (!clampRect(x, y, w, h)) {
       continue;
     }
-    pushRectDma(buf, x, y, w, h);
+#if DEBUG_LEVEL >= 2
+    const int64_t t0 = esp_timer_get_time();
+#endif
+    pushRectDmaInner(buf, x, y, w, h);
+#if DEBUG_LEVEL >= 2
+    logPresentMs(w, h, esp_timer_get_time() - t0);
+#endif
   }
   tft.endWrite();
 }

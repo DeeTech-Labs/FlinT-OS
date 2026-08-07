@@ -41,7 +41,8 @@ Runtime blit skips empty pixels (no solid size×size plate behind the glyph).
 
 ## Runtime blit
 
-Pack loads **resident in RAM** when it fits a heap budget (grows with icons;
-falls back to stream-from-LittleFS if larger). Icons decode to an RGB565 scratch
-then one `pushImage`. Keep dirty/clip paths; do not expand full present to
-compensate for slow draws.
+Pack loads **resident in RAM** when size ≤ `kMaxResidentPackBytes` (96 KiB);
+streams from LittleFS only if oversized or malloc fails (logged). Hot status
+icons (≤16 px) keep a small RGB565+key decode cache across blits. Icons decode
+to an RGB565 scratch then one `pushImage`. Keep dirty/clip paths; do not expand
+full present to compensate for slow draws.

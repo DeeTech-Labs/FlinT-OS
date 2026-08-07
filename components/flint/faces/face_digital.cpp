@@ -1,4 +1,5 @@
 #include "sdk/flint_face_sdk.h"
+#include "faces/colon_pulse.h"
 #include "faces/face_digital_layout.h"
 #include "faces/glance.h"
 #include "config/debug.h"
@@ -76,6 +77,8 @@ public:
     bool wifiDirty = false;
     bool ampmDirty = false;
     bool colonDirty = false;
+    char prevTime[16];
+    memcpy(prevTime, lastTime_, sizeof(prevTime));
 
     DisplayRect dateBand{};
     displaySetClipRect(timeBand.x, timeBand.y,
@@ -113,24 +116,21 @@ public:
       return;
     }
 
-    DisplayRect rects[5];
+    // Up to 8 time glyphs + AM/PM + date + wifi.
+    DisplayRect rects[11];
     int n = 0;
-    if (colonDirty && !timeDirty && !ampmDirty) {
-      n = timeLayout_.appendColonRects(ctx.screenH, lastTime_, rects, 5);
+    if (colonDirty && !timeDirty) {
+      n = timeLayout_.appendColonRects(ctx.screenH, lastTime_, rects, 8);
     } else if (timeDirty) {
-      DisplayRect band = timeBand;
-      if (hour12_ || ampmDirty) {
-        const int right = ampmBand.x + ampmBand.w;
-        band.w = static_cast<int16_t>(right - band.x);
-      }
-      rects[n++] = band;
-    } else if (ampmDirty) {
+      n = timeLayout_.appendChangedGlyphRects(ctx.screenH, prevTime, lastTime_, rects, 8);
+    }
+    if (ampmDirty && n < 11) {
       rects[n++] = ampmBand;
     }
-    if (dateDirty) {
+    if (dateDirty && n < 11) {
       rects[n++] = dateBand;
     }
-    if (wifiDirty) {
+    if (wifiDirty && n < 11) {
       rects[n++] = wifiBand;
     }
 
@@ -290,10 +290,11 @@ private:
     }
     lastColonFade_ = fade;
     auto& gfx = displayGfx();
+    displaySetFont(gfx, timeFont());
     const uint16_t fg = digitalColonColor(pal_, fade);
     for (int i = 0; lastTime_[i] != '\0'; i++) {
       if (lastTime_[i] == ':') {
-        timeLayout_.drawGlyph(gfx, i, ':', fg, pageBg(), ctx.screenH, timeFont());
+        timeLayout_.drawGlyph(gfx, i, ':', fg, pageBg(), ctx.screenH);
       }
     }
     return true;
@@ -305,9 +306,9 @@ private:
     }
     auto& gfx = displayGfx();
     timeLayout_.ensure(ctx, showSeconds_, hour12_, timeFont());
+    displaySetFont(gfx, timeFont());
     const int ty = UiTok::timeY(ctx.screenH);
     if (force || (lastTime_[0] != '\0' && strlen(lastTime_) != strlen(timeStr))) {
-      displaySetFont(gfx, timeFont());
       gfx.fillRect(0, ty - timeLayout_.ascent, ctx.screenW,
                    timeLayout_.glyphH + UiTok::kTimeGlyphPadY, pageBg());
       lastTime_[0] = '\0';
@@ -317,7 +318,7 @@ private:
     for (int i = 0; timeStr[i] != '\0'; i++) {
       if (force || lastTime_[i] == '\0' || timeStr[i] != lastTime_[i]) {
         const uint16_t fg = (timeStr[i] == ':') ? cFg : pal_.accent;
-        timeLayout_.drawGlyph(gfx, i, timeStr[i], fg, pageBg(), ctx.screenH, timeFont());
+        timeLayout_.drawGlyph(gfx, i, timeStr[i], fg, pageBg(), ctx.screenH);
         lastTime_[i] = timeStr[i];
       }
     }

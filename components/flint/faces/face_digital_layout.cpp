@@ -1,7 +1,62 @@
 #include "faces/face_digital_layout.h"
 
 #include "display/ui_tokens.h"
-#include "util/flint_sys.h"
+
+#include <string.h>
+
+namespace {
+
+// Glyph metrics depend only on the time font — amortize textWidth across layout
+// rebuilds (withSeconds / hour12 / screenW still recompute cellX).
+struct TimeFontMetrics {
+  const lgfx::IFont* font = nullptr;
+  int digitW = 0;
+  int colonW = 0;
+  int glyphWDigit[10] = {};
+  int glyphWDash = 0;
+  int ascent = 0;
+  int glyphH = 0;
+  bool valid = false;
+};
+
+TimeFontMetrics gTimeFontMetrics{};
+
+void ensureTimeFontMetrics(const lgfx::IFont* timeFont) {
+  if (gTimeFontMetrics.valid && gTimeFontMetrics.font == timeFont) {
+    return;
+  }
+  auto& gfx = displayGfx();
+  displaySetFont(gfx, timeFont);
+  int digitW = 0;
+  for (char c = '0'; c <= '9'; c++) {
+    char t[2] = {c, 0};
+    const int w = displayTextWidth(gfx, t);
+    gTimeFontMetrics.glyphWDigit[c - '0'] = w;
+    if (w > digitW) {
+      digitW = w;
+    }
+  }
+  {
+    char t[2] = {'-', 0};
+    gTimeFontMetrics.glyphWDash = displayTextWidth(gfx, t);
+    if (gTimeFontMetrics.glyphWDash > digitW) {
+      digitW = gTimeFontMetrics.glyphWDash;
+    }
+  }
+  int colonW = displayTextWidth(gfx, ":");
+  if (colonW < 1) {
+    colonW = digitW / 3;
+  }
+  gTimeFontMetrics.digitW = digitW;
+  gTimeFontMetrics.colonW = colonW;
+  gTimeFontMetrics.ascent = displayFontAscent(gfx);
+  gTimeFontMetrics.glyphH =
+      gTimeFontMetrics.ascent - displayFontDescent(gfx) + UiTok::kTimeGlyphPadY;
+  gTimeFontMetrics.font = timeFont;
+  gTimeFontMetrics.valid = true;
+}
+
+}  // namespace
 
 void DigitalTimeLayout::ensure(const FaceContext& ctx, bool wantSeconds, bool hour12,
                                const lgfx::IFont* timeFont) {
@@ -9,30 +64,14 @@ void DigitalTimeLayout::ensure(const FaceContext& ctx, bool wantSeconds, bool ho
     return;
   }
 
-  auto& gfx = displayGfx();
-  displaySetFont(gfx, timeFont);
-  digitW = 0;
-  for (char c = '0'; c <= '9'; c++) {
-    char t[2] = {c, 0};
-    const int w = displayTextWidth(gfx, t);
-    glyphWDigit[c - '0'] = w;
-    if (w > digitW) {
-      digitW = w;
-    }
-  }
-  {
-    char t[2] = {'-', 0};
-    glyphWDash = displayTextWidth(gfx, t);
-    if (glyphWDash > digitW) {
-      digitW = glyphWDash;
-    }
-  }
-  colonW = displayTextWidth(gfx, ":");
-  if (colonW < 1) {
-    colonW = digitW / 3;
-  }
-  ascent = displayFontAscent(gfx);
-  glyphH = ascent - displayFontDescent(gfx) + UiTok::kTimeGlyphPadY;
+  ensureTimeFontMetrics(timeFont);
+  digitW = gTimeFontMetrics.digitW;
+  colonW = gTimeFontMetrics.colonW;
+  glyphWDash = gTimeFontMetrics.glyphWDash;
+  ascent = gTimeFontMetrics.ascent;
+  glyphH = gTimeFontMetrics.glyphH;
+  memcpy(glyphWDigit, gTimeFontMetrics.glyphWDigit, sizeof(glyphWDigit));
+
   withSeconds = wantSeconds;
   len = wantSeconds ? 8 : 5;
 
@@ -96,9 +135,37 @@ int DigitalTimeLayout::appendColonRects(int screenH, const char* timeStr, Displa
   return n;
 }
 
+int DigitalTimeLayout::appendChangedGlyphRects(int screenH, const char* prev,
+                                               const char* next, DisplayRect* out,
+                                               int cap) const {
+  if (!out || cap <= 0 || !next) {
+    return 0;
+  }
+  const size_t prevLen = prev ? strlen(prev) : 0;
+  const size_t nextLen = strlen(next);
+  if (prevLen == 0 || prevLen != nextLen || !ready) {
+    out[0] = timeBand(screenH);
+    return 1;
+  }
+
+  const int ty = UiTok::timeY(screenH) - ascent;
+  const int h = glyphH > 0 ? glyphH + UiTok::kTimeGlyphPadY : UiTok::kTimeBandFallbackH;
+  int n = 0;
+  for (size_t i = 0; i < nextLen && n < cap; i++) {
+    if (prev[i] == next[i]) {
+      continue;
+    }
+    const bool colonSlot = withSeconds ? (i == 2 || i == 5) : (i == 2);
+    const int cellW = colonSlot ? (colonW > 0 ? colonW : digitW) : digitW;
+    out[n++] = DisplayRect{static_cast<int16_t>(cellX[i]), static_cast<int16_t>(ty),
+                           static_cast<int16_t>(cellW), static_cast<int16_t>(h)};
+  }
+  return n;
+}
+
 void DigitalTimeLayout::drawGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg,
-                                  uint16_t bg, int screenH, const lgfx::IFont* timeFont) const {
-  displaySetFont(gfx, timeFont);
+                                  uint16_t bg, int screenH) const {
+  // Caller must displaySetFont(timeFont) once per paint batch.
   const bool isColon = (ch == ':');
   const int cellW = isColon ? colonW : digitW;
   const int x = cellX[index];
@@ -143,25 +210,4 @@ DisplayRect digitalDateBand(const FaceContext& ctx, const char* dateStr, int* io
   return DisplayRect{static_cast<int16_t>(x),
                      static_cast<int16_t>(UiTok::dateY(ctx.screenH) - UiTok::kDateBandAscentPad),
                      static_cast<int16_t>(presentW), static_cast<int16_t>(bandH)};
-}
-
-uint8_t digitalColonFadeNow() {
-  const uint32_t phase = flintMillis() % UiTok::kColonPulsePeriodMs;
-  const uint32_t half = UiTok::kColonPulsePeriodMs / 2;
-  uint8_t t;
-  if (phase < half) {
-    t = static_cast<uint8_t>((phase * 255UL) / half);
-  } else {
-    t = static_cast<uint8_t>(((UiTok::kColonPulsePeriodMs - phase) * 255UL) / half);
-  }
-  return static_cast<uint8_t>(140 + (t * 115UL) / 255);
-}
-
-uint16_t digitalColonColor(const UiPalette& pal, uint8_t fade) {
-  return colorLerp(pal.textSecondary, pal.accent, fade);
-}
-
-bool digitalColonFadeChanged(uint8_t fade, uint8_t lastFade) {
-  const int d = static_cast<int>(fade) - static_cast<int>(lastFade);
-  return d >= UiTok::kColonFadeQuant || d <= -UiTok::kColonFadeQuant;
 }

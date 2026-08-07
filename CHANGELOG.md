@@ -24,6 +24,15 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 ### Changed
 
+- Partial present: GRAM window + per-row `writePixelsDMA(w)` with FB stride
+  (SPI = w·h·2, not full panel); multi-rect uses one panel txn; DEBUG_LEVEL≥2
+  logs avg present µs / w×h / px
+- Digital face presents only changed time glyphs (not full timeBand); AM/PM is
+  a separate rect; time-font metrics cached across layout rebuilds
+- `wifiNetBars()` returns maintain()/link-event cache (no `get_ap_info` per
+  FaceContext); resident asset pack prefer-cap + 4-slot status icon decode cache
+- Colon MOTION dirty only on fade-quantum change; time glyph path sets font once
+  per batch
 - UiTok design space / safe inset come from board `canvas.max_*` and `safe_inset` via `board_config.inc`
 - Prefs dirty contract: `FLINT_EVT_SETTINGS` is soft → `onTick` (no paired `FORCE_REDRAW`)
 - Digital face layout helpers + UI geometry tokens for time / AM·PM / date bands

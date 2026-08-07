@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "ui/ui_dirty.h"
+#include "ui/ui_dirty_rules.h"
 #include "config/config.h"
 #include "config/debug.h"
 #include "display/display.h"
@@ -99,7 +100,7 @@ void uiFaceTick() {
   }
 
   // Colon pulse only: reuse last context (skip palette / clock / format rebuild).
-  if ((dirty & ~UI_DIRTY_MOTION) == 0 && gHaveLastCtx) {
+  if (uiDirtyIsMotionOnly(dirty) && gHaveLastCtx) {
     gLastCtx.dirty = dirty;
     face->onTick(gLastCtx);
     return;
@@ -107,20 +108,17 @@ void uiFaceTick() {
 
   FaceContext ctx = uiBuildContext();
   ctx.dirty = dirty;
-  if (!ctx.showSeconds) {
-    dirty &= ~UI_DIRTY_SECOND;
-    ctx.dirty = dirty;
-    if (!dirty) {
-      gLastCtx = ctx;
-      gHaveLastCtx = true;
-      return;
-    }
+  dirty = uiDirtyFilterSeconds(dirty, ctx.showSeconds);
+  ctx.dirty = dirty;
+  if (!dirty) {
+    gLastCtx = ctx;
+    gHaveLastCtx = true;
+    return;
   }
 
   // FORCE / DAY_MODE / TIME_VALID → onForceRedraw.
   // SETTINGS stays soft → onTick (faces rebuild layout if prefs changed).
-  const bool force = (dirty & (UI_DIRTY_FORCE | UI_DIRTY_DAY_MODE | UI_DIRTY_TIME_VALID)) != 0
-                     || ctx.dayMode != gLastMode;
+  const bool force = uiDirtyWantsForceRedraw(dirty) || ctx.dayMode != gLastMode;
 
   gLastCtx = ctx;
   gHaveLastCtx = true;

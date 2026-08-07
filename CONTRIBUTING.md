@@ -47,14 +47,15 @@ Interactive picker: `./flint_tools`. Full flags and examples: [`tools/README.md`
 Pure contracts (no ESP-IDF / device). From repo root:
 
 ```bash
-# date_fmt + dayModeFromHour / WAITING profile (asserts + g++)
+# date_fmt / day-mode / dirty rules / settings clamp (explicit fail, -UNDEBUG)
 make -C tests/host run
 
 # tools/gen_* schema / id smoke (stdlib unittest; pytest also works if installed)
 python3 -m unittest discover -s tools/tests -v
 ```
 
-CI runs the same commands on every PR via `.github/workflows/host-tests.yml`.
+CI runs the same commands on every PR via `.github/workflows/host-tests.yml`, plus
+regen of i18n/pack with `git diff --exit-code` and a quiet board catalog codegen.
 
 Do not add on-target Unity or heavy CI matrices unless agreed separately.
 

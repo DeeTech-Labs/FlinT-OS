@@ -3,8 +3,8 @@
 #include <stdint.h>
 
 // Settings overlay — owns row selection, paint, and value adjusters.
-// Keep this file focused: new setting rows/adjusters → helpers beside it
-// (formatters, cycles), not a return to a monolithic shell god-file.
+// Do not grow this file with more rows/cycles inline: extract formatters /
+// cycle helpers (or paint) beside it. New settings → helper first, not god-file.
 
 void shellSettingsEnter();
 void shellSettingsNavPrev();

@@ -17,7 +17,7 @@ struct FaceContext {
   bool wifiConnected;
   uint8_t wifiBars;  // 0 = off, 1–3 = RSSI strength while connected
 
-  // Resolved prefs (shell/settings) — faces must not read NVS themselves.
+  // Resolved prefs (shell/settings → /cfg/ui.cfg) — faces must not read cfg/NVS.
   bool showSeconds;
   bool hour12;  // false = 24h, true = 12h + AM/PM
   uint8_t dateFormat;  // SettingsDateFormat

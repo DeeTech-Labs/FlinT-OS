@@ -1,6 +1,6 @@
 #include "time/date_fmt.h"
+#include "host_check.h"
 
-#include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -8,7 +8,7 @@
 static void expectEq(const char* got, const char* want, const char* what) {
   if (std::strcmp(got, want) != 0) {
     std::fprintf(stderr, "%s: got \"%s\" want \"%s\"\n", what, got, want);
-    assert(false);
+    hostFail("string mismatch");
   }
 }
 
@@ -22,9 +22,9 @@ static struct tm sampleDec31() {
 }
 
 int main() {
-  assert(flintDateSepChar(SETTINGS_DATE_SEP_DOT) == '.');
-  assert(flintDateSepChar(SETTINGS_DATE_SEP_SLASH) == '/');
-  assert(flintDateSepChar(SETTINGS_DATE_SEP_DASH) == '-');
+  hostRequire(flintDateSepChar(SETTINGS_DATE_SEP_DOT) == '.', "sep dot");
+  hostRequire(flintDateSepChar(SETTINGS_DATE_SEP_SLASH) == '/', "sep slash");
+  hostRequire(flintDateSepChar(SETTINGS_DATE_SEP_DASH) == '-', "sep dash");
 
   const struct tm ti = sampleDec31();
   char buf[32];

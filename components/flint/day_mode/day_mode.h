@@ -5,8 +5,7 @@
 
 #include <stdint.h>
 
-const char* dayModeNameRu(DayMode mode);  // legacy alias → flintTrDayMode
-const char* dayModeName(DayMode mode);    // localized
+const char* dayModeName(DayMode mode);  // localized
 
 UiPalette dayModeBuildPalette(DayMode mode);
 

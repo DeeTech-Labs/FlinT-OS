@@ -54,6 +54,8 @@ make -C tests/host run
 python3 -m unittest discover -s tools/tests -v
 ```
 
+CI runs the same commands on every PR via `.github/workflows/host-tests.yml`.
+
 Do not add on-target Unity or heavy CI matrices unless agreed separately.
 
 ## Branching & PRs

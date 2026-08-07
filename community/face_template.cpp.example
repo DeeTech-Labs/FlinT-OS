@@ -1,56 +1,132 @@
 // TEMPLATE — copy to components/flint/faces/face_YOURNAME.cpp (not compiled here).
 // Register in components/flint/faces/faces_builtin.cpp:
 //   Face* createYourFace();
-//   FaceRegistry::add(createYourFace);
+//   const FaceInfo& yourFaceInfo();
+//   FaceRegistry::add(createYourFace, yourFaceInfo());
 //
 // Include ONLY the Face SDK (+ std headers). Do not include net/ APIs,
 // settings/, app/, or config/secrets.h. Read FaceContext; draw via display/resources.
 // Localized UI strings: flintTr(FlintStr::…), flintTrWeekday(), flintTrDayMode().
 //
-// Layout: prefer display/ui_tokens.h (UiTok::*) for zones/spacing.
-// Complications: flintGlanceDraw(ctx, GLANCE_*, GlanceRect{…}) from faces/glance.h
-//   (also pulled via flint_face_sdk if available — otherwise include glance.h).
+// Layout: prefer UiTok mapped helpers (timeY(screenH), …), not raw kTimeY.
+// Complications: flintGlanceDraw(ctx, GLANCE_*, GlanceRect{…}).
+//   GLANCE_DATE is the usual companion; GLANCE_WIFI is optional and may go away.
 // Colors: ctx.palette (bgTop, accent, textPrimary/Secondary, divider, …).
+// Dirty: UI_DIRTY_SETTINGS is soft → rebuild from onTick (see docs/ARCHITECTURE.md).
+// Built-in references: face_digital.cpp.
 
 #include "sdk/flint_face_sdk.h"
-#include "faces/glance.h"
-#include "display/ui_tokens.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static const FaceInfo kMyFaceInfo{"myface", "My Face", "DeeTech Labs", 1, FLINT_OS_API_VERSION};
 
 class MyFace : public Face {
 public:
-  const FaceInfo& info() const override {
-    // minApi must be <= FLINT_OS_API_VERSION (see config/flint_version.h)
-    static const FaceInfo i{"myface", "My Face", "DeeTech Labs", 1, FLINT_OS_API_VERSION};
-    return i;
+  const FaceInfo& info() const override { return kMyFaceInfo; }
+
+  void onActivate(const FaceContext& ctx) override {
+    (void)ctx;
+    lastTime_[0] = lastDate_[0] = '\0';
+    force_ = true;
   }
 
-  void onForceRedraw(const FaceContext& ctx) override {
+  void onForceRedraw(const FaceContext& ctx) override { paintFull(ctx); }
+
+  void onTick(const FaceContext& ctx) override {
+    // Prefs/i18n changed without FORCE — rebuild layout-sensitive regions.
+    if ((ctx.dirty & UI_DIRTY_SETTINGS) != 0 || force_ || ctx.hour12 != hour12_ ||
+        ctx.showSeconds != showSeconds_) {
+      paintFull(ctx);
+      return;
+    }
+
+    char timeStr[16];
+    char dateStr[32];
+    formatTimeDate(ctx, timeStr, sizeof(timeStr), dateStr, sizeof(dateStr));
+
+    if (strcmp(timeStr, lastTime_) == 0 && strcmp(dateStr, lastDate_) == 0) {
+      return;
+    }
+
     auto& gfx = displayGfx();
     gfx.fillScreen(ctx.palette.bgTop);
-
-    // Status strip hairline (same language as built-in digital face).
-    gfx.drawFastHLine(UiTok::kPadX, UiTok::kStatusHairlineY,
-                      ctx.screenW - UiTok::kPadX * 2, ctx.palette.divider);
-
-    displayDrawText(gfx, flintTr(FlintStr::WaitingForTime),
-                    UiTok::kPadX, UiTok::kTimeY, ctx.palette.accent, ctx.palette.bgTop,
-                    flintFont(FlintFontId::Body));
-
-    flintGlanceDraw(ctx, GLANCE_WIFI,
-                    GlanceRect{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
-                               static_cast<int16_t>(UiTok::kWifiSize),
-                               static_cast<int16_t>(UiTok::kWifiSize)});
-
+    drawFrame(ctx, timeStr, dateStr);
     displayPresent();
   }
 
-  void onTick(const FaceContext& ctx) override {
-    (void)ctx;
-    // Shell calls onTick only on dirty events (second/minute/wifi/…).
+private:
+  bool force_ = true;
+  bool showSeconds_ = true;
+  bool hour12_ = false;
+  char lastTime_[16] = "";
+  char lastDate_[32] = "";
+
+  static int hourForDisplay(int h24, bool hour12) {
+    if (!hour12) {
+      return h24;
+    }
+    int h = h24 % 12;
+    return h == 0 ? 12 : h;
+  }
+
+  void formatTimeDate(const FaceContext& ctx, char* timeStr, size_t timeN, char* dateStr,
+                      size_t dateN) {
+    if (ctx.hasTime) {
+      const int h = hourForDisplay(ctx.localTime.tm_hour, ctx.hour12);
+      if (ctx.showSeconds) {
+        snprintf(timeStr, timeN, "%02d:%02d:%02d", h, ctx.localTime.tm_min, ctx.localTime.tm_sec);
+      } else {
+        snprintf(timeStr, timeN, "%02d:%02d", h, ctx.localTime.tm_min);
+      }
+    } else {
+      snprintf(timeStr, timeN, ctx.showSeconds ? "--:--:--" : "--:--");
+    }
+    flintFormatDateLine(dateStr, dateN, ctx.hasTime, ctx.localTime, ctx.dateFormat, ctx.dateSep);
+  }
+
+  void drawFrame(const FaceContext& ctx, const char* timeStr, const char* dateStr) {
+    auto& gfx = displayGfx();
+    gfx.drawFastHLine(UiTok::contentLeft(), UiTok::statusHairlineY(ctx.screenH),
+                      UiTok::contentWidth(ctx.screenW), ctx.palette.divider);
+
+    displayDrawUtf8Centered(timeStr, UiTok::timeY(ctx.screenH), ctx.palette.accent,
+                            flintFont(FlintFontId::TimeLarge));
+
+    const int dateY = UiTok::dateY(ctx.screenH);
+    flintGlanceDraw(ctx, GLANCE_DATE,
+                    GlanceRect{0,
+                               static_cast<int16_t>(dateY - UiTok::kDateBandAscentPad),
+                               static_cast<int16_t>(ctx.screenW),
+                               static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))},
+                    dateStr);
+
+    // Optional: flintGlanceDraw(ctx, GLANCE_WIFI, …) — not required; may go away.
+
+    strncpy(lastTime_, timeStr, sizeof(lastTime_) - 1);
+    lastTime_[sizeof(lastTime_) - 1] = '\0';
+    strncpy(lastDate_, dateStr, sizeof(lastDate_) - 1);
+    lastDate_[sizeof(lastDate_) - 1] = '\0';
+  }
+
+  void paintFull(const FaceContext& ctx) {
+    showSeconds_ = ctx.showSeconds;
+    hour12_ = ctx.hour12;
+    lastTime_[0] = lastDate_[0] = '\0';
+
+    auto& gfx = displayGfx();
+    gfx.fillScreen(ctx.palette.bgTop);
+
+    char timeStr[16];
+    char dateStr[32];
+    formatTimeDate(ctx, timeStr, sizeof(timeStr), dateStr, sizeof(dateStr));
+    drawFrame(ctx, timeStr, dateStr);
+    displayPresent();
+    force_ = false;
   }
 };
 
-Face* createMyFace() {
-  return new MyFace();
-}
+Face* createMyFace() { return new MyFace(); }
+
+const FaceInfo& myFaceInfo() { return kMyFaceInfo; }

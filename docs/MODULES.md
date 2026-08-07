@@ -8,8 +8,8 @@ What exists under `components/flint/` today. Paths are from that component root.
 | `shell/` | State machine (`shell.cpp`) + overlays: `shell_picker.*`, `shell_settings.*` |
 | `settings/` | Load/save prefs and soft clock on `cfg` LittleFS (`ui.cfg` / `time.cfg`) |
 | `config/` | Compile-time defaults, version macros, local `secrets.h` |
-| `board/` | Board JSON profiles → generated `board_config.inc` |
-| `display/` | LovyanGFX HAL, shared fonts, icon draw, UI tokens |
+| `board/` | Board JSON profiles → generated `board_config.inc` (canvas → `FLINT_DESIGN_*` / `FLINT_SAFE_INSET`) |
+| `display/` | LovyanGFX HAL, shared fonts, icon draw, UI tokens (design space from board) |
 | `assets/` | Mount `storage` LittleFS; blit from `core.flintpack` |
 | `sdk/` | Public Face SDK headers (`flint_face_sdk.h`, resources) |
 | `faces/` | `Face` API, registry, glances, built-in faces (+ `face_digital_layout.*`) |

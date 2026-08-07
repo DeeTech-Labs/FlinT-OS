@@ -24,5 +24,6 @@
     "max_w": 280,
     "max_h": 240
   },
+  "safe_inset": 16,
   "layout": "280x240_landscape"
 }

@@ -77,6 +77,28 @@ class GenBoardTests(unittest.TestCase):
         self.assertEqual(self.gen.normalize_panel("GC9A01A"), "GC9A01")
         self.assertEqual(self.gen.normalize_panel("st7789"), "ST7789")
 
+    def test_spark_design_macros_from_canvas(self):
+        index = self.gen.load_index()
+        entry = self.gen.find_board_entry(index, "flint_spark")
+        board = self.gen.load_json(self.gen.board_json_path(entry, "flint_spark"))
+        display = self.gen.load_json(
+            ROOT
+            / "components"
+            / "flint"
+            / "board"
+            / "periph"
+            / "display"
+            / f"{board['display']}.json"
+        )
+        self.gen.validate(board, display, "flint_spark")
+        self.gen.write_inc(board, display)
+        text = self.gen.OUT_INC.read_text(encoding="utf-8")
+        canvas = board["canvas"]
+        self.assertIn(f"FLINT_DESIGN_W = {int(canvas['max_w'])}", text)
+        self.assertIn(f"FLINT_DESIGN_H = {int(canvas['max_h'])}", text)
+        inset = int(board.get("safe_inset", 16))
+        self.assertIn(f"FLINT_SAFE_INSET = {inset}", text)
+
 
 class GenI18nTests(unittest.TestCase):
     @classmethod

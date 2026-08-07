@@ -61,6 +61,21 @@ constexpr int kTimeY = 124;      // hero time baseline
 constexpr int kDateY = 160;      // date baseline under time
 constexpr int kDateBandH = 22;
 
+// Digital face — time / AM·PM / date dirty-band geometry (design space).
+constexpr int kTimeGlyphPadY = 2;
+constexpr int kTimeBandFallbackH = 40;
+constexpr int kMinTimeDigitW = 8;
+constexpr int kAmpmSlotW = 48;         // clear / present band for AM·PM
+constexpr int kAmpmLayoutReserve = 42; // horizontal reserve when packing cells
+constexpr int kAmpmBandFallbackH = 24;
+constexpr int kAmpmBaselineLift = 4;
+constexpr int kDatePresentPadX = 16;
+constexpr int kDateBandAscentPad = 16;
+constexpr int kModeLabelClearY = 4;
+constexpr int kModeLabelClearH = 24;
+// Colon pulse: ignore fade deltas smaller than this (SPI throttle).
+constexpr int kColonFadeQuant = 16;
+
 // —— Shell overlays ——
 constexpr int kShellHeaderH = 36;
 constexpr int kShellFooterH = 30;

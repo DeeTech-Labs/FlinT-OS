@@ -27,10 +27,12 @@ public:
 
   virtual void onDeactivate() {}
 
-  // Full repaint (mode change, first show, explicit force)
+  // Full canvas repaint: day-mode change, first show, TIME_VALID, explicit FORCE.
   virtual void onForceRedraw(const FaceContext& ctx) = 0;
 
-  // Incremental update — redraw only dirty parts (shell calls when events fire)
+  // Incremental update when dirty events fire. UI_DIRTY_SETTINGS is soft: prefs
+  // in FaceContext (and i18n) may have changed — rebuild layout as needed
+  // (often a full paint) without waiting for FORCE.
   virtual void onTick(const FaceContext& ctx) = 0;
 };
 

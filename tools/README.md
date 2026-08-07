@@ -16,6 +16,8 @@ Interactive picker (scans `tools/*.py`, shows each script’s docstring summary)
 | [`gen_i18n_catalog.py`](#gen_i18n_catalogpy) | After editing `components/flint/i18n/lang/` (also auto on **build** if inputs changed) | `i18n_catalog.inc` |
 | [`gen_asset_pack.py`](#gen_asset_packpy) | After editing `assets/<category>/*.png` (also auto on **build** if inputs changed) | `assets/fs_root/core.flintpack` |
 
+Schema / id smoke: `python3 -m unittest discover -s tools/tests -v` (see `CONTRIBUTING.md`).
+
 Requires **Python 3** (stdlib only). `--build` / `--flash` / `--monitor` need ESP-IDF under
 `~/.espressif` (or `IDF_PATH` / `FLINT_IDF_PATH`). The script finds `idf.py`,
 creates the Espressif Python venv if missing (`idf_tools.py install-python-env`),

@@ -42,7 +42,8 @@ const char* flintTrDayMode(uint8_t dayMode) {
     case DAY_MODE_MORNING: return flintTr(FlintStr::Morning);
     case DAY_MODE_DAY: return flintTr(FlintStr::Day);
     case DAY_MODE_EVENING: return flintTr(FlintStr::Evening);
-    case DAY_MODE_NIGHT:
-    default: return flintTr(FlintStr::Night);
+    case DAY_MODE_NIGHT: return flintTr(FlintStr::Night);
+    case DAY_MODE_WAITING:
+    default: return flintTr(FlintStr::WaitingForTime);
   }
 }

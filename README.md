@@ -139,6 +139,7 @@ flint_os/
 | [`assets/README.md`](assets/README.md) | LittleFS icon pack |
 | [`components/flint/board/README.md`](components/flint/board/README.md) | Board profiles |
 | [`tools/README.md`](tools/README.md) | Codegen tools |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history (Keep a Changelog) |
 
 Face SDK: `components/flint/sdk/flint_face_sdk.h`
 

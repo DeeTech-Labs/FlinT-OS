@@ -35,10 +35,3 @@ static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000UL;
 
 // Factory default when NVS has no active_face yet (picker / settings override).
 inline constexpr const char* ACTIVE_FACE_ID = "digital";
-
-// Режимы суток (час локального времени, [start .. next) )
-// ночь: [NIGHT_START .. 24) U [0 .. MORNING_START)
-static const int DAY_MODE_MORNING_START = 5;   // 05:00–10:59 утро
-static const int DAY_MODE_DAY_START = 11;      // 11:00–16:59 день
-static const int DAY_MODE_EVENING_START = 17;  // 17:00–21:59 вечер
-static const int DAY_MODE_NIGHT_START = 22;    // 22:00–04:59 ночь

@@ -1,38 +1,6 @@
 #include "day_mode.h"
-#include "config/config.h"
 #include "display/display.h"
 #include "i18n/i18n.h"
-
-DayMode dayModeFromHour(int hour) {
-  // [nightStart..24) U [0..morningStart) = ночь
-  if (hour >= DAY_MODE_NIGHT_START || hour < DAY_MODE_MORNING_START) {
-    return DAY_MODE_NIGHT;
-  }
-  if (hour < DAY_MODE_DAY_START) {
-    return DAY_MODE_MORNING;
-  }
-  if (hour < DAY_MODE_EVENING_START) {
-    return DAY_MODE_DAY;
-  }
-  return DAY_MODE_EVENING;
-}
-
-const DayModeProfile& dayModeProfile(DayMode mode) {
-  static const DayModeProfile kProfiles[] = {
-      // seconds, label, wash
-      {true, true, 64},   // morning
-      {true, true, 52},   // day
-      {true, true, 72},   // evening
-      {false, true, 36},  // night
-  };
-  switch (mode) {
-    case DAY_MODE_MORNING: return kProfiles[0];
-    case DAY_MODE_DAY: return kProfiles[1];
-    case DAY_MODE_EVENING: return kProfiles[2];
-    case DAY_MODE_NIGHT:
-    default: return kProfiles[3];
-  }
-}
 
 const char* dayModeName(DayMode mode) {
   return flintTrDayMode(static_cast<uint8_t>(mode));
@@ -88,7 +56,6 @@ UiPalette dayModeBuildPalette(DayMode mode) {
       break;
 
     case DAY_MODE_NIGHT:
-    default:
       // спокойная ночь
       p.bgTop = rgb565(3, 5, 10);
       p.bgBottom = rgb565(6, 10, 18);
@@ -98,6 +65,17 @@ UiPalette dayModeBuildPalette(DayMode mode) {
       p.panel = rgb565(10, 14, 24);
       p.wifiOn = rgb565(48, 128, 92);
       p.wifiOff = rgb565(128, 56, 56);
+      break;
+
+    case DAY_MODE_WAITING:
+    default:
+      // neutral slate — no time-of-day claim while waiting for valid clock
+      p.bgTop = rgb565(10, 12, 16);
+      p.bgBottom = rgb565(18, 22, 30);
+      p.accent = rgb565(120, 140, 160);
+      p.textPrimary = rgb565(220, 228, 236);
+      p.textSecondary = rgb565(120, 136, 152);
+      p.panel = rgb565(22, 26, 34);
       break;
   }
 

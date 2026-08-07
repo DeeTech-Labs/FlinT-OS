@@ -10,15 +10,18 @@
 #include "faces/FaceRegistry.h"
 #include "faces/FaceContext.h"
 
-static DayMode gLastMode = DAY_MODE_DAY;
+static DayMode gLastMode = DAY_MODE_WAITING;
 static FaceContext gLastCtx{};
 static bool gHaveLastCtx = false;
 
 FaceContext uiBuildContext() {
   FaceContext ctx{};
   ctx.hasTime = clockTimeGetLocal(&ctx.localTime);
-  const int hour = ctx.hasTime ? ctx.localTime.tm_hour : 12;
-  ctx.dayMode = dayModeFromHour(hour);
+  if (ctx.hasTime) {
+    ctx.dayMode = dayModeFromHour(ctx.localTime.tm_hour);
+  } else {
+    ctx.dayMode = DAY_MODE_WAITING;
+  }
   ctx.dayProfile = dayModeProfile(ctx.dayMode);
   ctx.palette = dayModeBuildPalette(ctx.dayMode);
   ctx.wifiConnected = wifiNetIsConnected();
@@ -40,9 +43,10 @@ bool uiWantsSeconds() {
     return gLastCtx.showSeconds;
   }
   struct tm ti{};
-  const bool has = clockTimeGetLocal(&ti);
-  const int hour = has ? ti.tm_hour : 12;
-  return settingsResolveShowSeconds(dayModeProfile(dayModeFromHour(hour)).showSeconds);
+  if (!clockTimeGetLocal(&ti)) {
+    return settingsResolveShowSeconds(dayModeProfile(DAY_MODE_WAITING).showSeconds);
+  }
+  return settingsResolveShowSeconds(dayModeProfile(dayModeFromHour(ti.tm_hour)).showSeconds);
 }
 
 void uiFaceBegin(const char* preferredFaceId) {
@@ -113,10 +117,10 @@ void uiFaceTick() {
     }
   }
 
+  // FORCE / DAY_MODE / TIME_VALID → onForceRedraw.
+  // SETTINGS stays soft → onTick (faces rebuild layout if prefs changed).
   const bool force = (dirty & (UI_DIRTY_FORCE | UI_DIRTY_DAY_MODE | UI_DIRTY_TIME_VALID)) != 0
                      || ctx.dayMode != gLastMode;
-  // UI_DIRTY_SETTINGS is soft — onTick handles layout-affecting
-  // changes when FORCE was emitted explicitly from shell.
 
   gLastCtx = ctx;
   gHaveLastCtx = true;

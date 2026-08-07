@@ -1,79 +1,40 @@
-# Architecture — FlinT OS
+# FlinT OS architecture
 
-ESP-IDF firmware for **FlinT** devices (base board **FlinT Spark**). Product code lives in `components/flint/`.
+Firmware platform for **FlinT** devices (base: **FlinT Spark**), by **DeeTech Labs**.
+This note covers the Face paint contract and dirty/event wiring. Module ownership: see [`MODULES.md`](MODULES.md) when present; Face SDK: `components/flint/sdk/flint_face_sdk.h`.
 
-Directory roles: [MODULES.md](MODULES.md). Adding a face: [FACES.md](FACES.md). Quick start / serial keys: [README](../README.md).
+## Layers
 
-## Flash & boards
-
-- Board profile: `-DFLINT_BOARD=<id>` (default `flint_spark`) — `components/flint/board/README.md`
-- Partitions (`config/partitions.csv`): dual OTA app slots, `storage` (asset LittleFS), `cfg` (prefs + soft clock), coredump
-- Full `idf.py flash` rewrites `storage`; `cfg` survives asset reflash
-
-## Dependency direction
-
-```
-main → flint → LovyanGFX + ESP-IDF
-
-flint (top → bottom):
-  app → shell → ui | picker | settings UI
-                  ↓
-         settings, day_mode, time, net, display, i18n
-                  ↓
-              board, config, util
-
-Community faces:
-  face_*.cpp → sdk/flint_face_sdk.h (+ glance / ui_tokens as documented)
+```text
+hardware / board JSON
+  → services (time, net, settings, day_mode)
+    → FaceContext (uiBuildContext)
+      → Face::onTick / onForceRedraw
+        → display (partial or full present)
 ```
 
-## Face contract
+Faces read `FaceContext` and draw. They must not call Wi‑Fi, HTTP, NVS, or settings APIs.
 
-**May include:** `sdk/flint_face_sdk.h` and standard C/C++ headers; allowed helpers such as `faces/glance.h`, `display/ui_tokens.h`.
+## Events → dirty → paint
 
-**Must not include / call:** `net/` service APIs, `settings/`, `app/`, `shell/`, `config/secrets.h`.
+`flintEventEmit` → `uiDirtyBridge` (`event/event.cpp`) → `uiMarkDirty` → `uiFaceTick` (`ui/ui.cpp`).
 
-| Hook | When |
-|------|------|
-| `onActivate` | Face becomes active |
-| `onForceRedraw` | Full paint |
-| `onTick` | Incremental paint when dirty ≠ 0 |
-| `onDeactivate` | Before switch |
+| Event / source | Dirty bit(s) | Face entry |
+|----------------|--------------|------------|
+| `FLINT_EVT_SECOND` | `UI_DIRTY_SECOND` | `onTick` |
+| `FLINT_EVT_MINUTE` | `UI_DIRTY_MINUTE` | `onTick` |
+| `FLINT_EVT_WIFI` | `UI_DIRTY_WIFI` | `onTick` |
+| shell motion cadence (`uiMarkDirty`) | `UI_DIRTY_MOTION` | `onTick` (colon pulse, …) |
+| `FLINT_EVT_SETTINGS` | `UI_DIRTY_SETTINGS` | `onTick` (**soft**) |
+| `FLINT_EVT_DAY_MODE` | `UI_DIRTY_DAY_MODE` | `onForceRedraw` |
+| `FLINT_EVT_TIME_VALID` | `UI_DIRTY_TIME_VALID` \| `FORCE` | `onForceRedraw` |
+| `FLINT_EVT_FORCE_REDRAW` | `UI_DIRTY_FORCE` | `onForceRedraw` |
 
-Shell fills `FaceContext` each paint. Prefer context fields over reading services.
+### Prefs vs FORCE
 
-`FaceInfo.minApi` is checked at register / activate. Bump `FLINT_OS_API_VERSION` when the Face ABI breaks.
+- **Prefs are soft.** After a settings/NVS change, emit **`FLINT_EVT_SETTINGS` only**. Do **not** also emit `FLINT_EVT_FORCE_REDRAW`.
+- `uiFaceTick` routes `UI_DIRTY_SETTINGS` to **`onTick`**, not `onForceRedraw`.
+- Faces must treat `UI_DIRTY_SETTINGS` (and/or changed fields in `FaceContext`) as layout-sensitive: rebuild time layout, date line, mode label, i18n strings as needed — often a full paint **from `onTick`**.
+- Use **`FLINT_EVT_FORCE_REDRAW`** for shell transitions (enter face), explicit user force, and other “wipe the canvas” cases — not as a stand-in for prefs.
 
-Fonts/icons: `flintFont` / `flintDrawIcon`. Pack when mounted; otherwise procedural fallback — [`assets/README.md`](../assets/README.md).
-
-## Dirty events
-
-Services mark bits in `ui/ui_dirty.h`; `uiFaceTick` paints only when dirty ≠ 0.
-
-| Flag | Typical source |
-|------|----------------|
-| `SECOND` / `MINUTE` / `DAY_MODE` | app time scan |
-| `WIFI` | Wi‑Fi up/down |
-| `TIME_VALID` / `FORCE` | first NTP, explicit redraw |
-| `SETTINGS` | prefs changed |
-| `MOTION` | short face animations |
-
-If `showSeconds` is false, lone `SECOND` events are ignored.
-
-## Shell
-
-States: `FACE` ⇄ `PICKER` ⇄ `SETTINGS`. Input is USB serial until hardware buttons exist — key table in the [README](../README.md#serial-controls-no-buttons-yet).
-
-Factory default face when `cfg` is empty: `ACTIVE_FACE_ID` in `config/config.h`.
-
-## Size posture
-
-`config/sdkconfig.defaults`: `-Os`, no C++ exceptions/RTTI, Wi‑Fi STA WPA2-PSK only, trimmed LWIP/mbedTLS, no app HTTP client.
-
-## Includes
-
-From inside `flint`, paths are relative to the component root:
-
-```cpp
-#include "config/config.h"
-#include "sdk/flint_face_sdk.h"
-```
+Clock edits from the settings overlay emit `MINUTE` / `TIME_VALID` as appropriate; returning to the face still uses shell `FORCE` on enter.

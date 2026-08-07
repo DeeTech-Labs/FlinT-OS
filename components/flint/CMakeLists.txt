@@ -11,25 +11,43 @@ if(DEFINED IDF_TARGET AND NOT "${FLINT_BOARD_IDF_TARGET}" STREQUAL "${IDF_TARGET
 endif()
 message(STATUS "FlinT OS board ${FLINT_BOARD_ID} (${FLINT_BOARD_DISPLAY_ID}, bus=${FLINT_BOARD_DISPLAY_BUS})")
 
-set(FLINT_SRC_DIRS
-    anim
-    app
-    assets
-    display
-    display/fonts
-    day_mode
-    event
-    faces
-    i18n
-    net
-    settings
-    shell
-    time
-    ui
+# Explicit SRCS (not SRC_DIRS glob): new .c/.cpp must be listed here so CMake
+# reconfigures on the next build instead of silently omitting the object.
+set(FLINT_SRCS
+    anim/anim.cpp
+    app/app.cpp
+    assets/asset_store.cpp
+    day_mode/day_mode.cpp
+    day_mode/day_mode_hour.cpp
+    day_mode/day_mode_profile.cpp
+    display/display.cpp
+    display/resources.cpp
+    display/fonts/u8g2_font_10x20_t_cyrillic.c
+    display/fonts/u8g2_font_logisoso46_tn.c
+    event/event.cpp
+    faces/FaceRegistry.cpp
+    faces/face_digital.cpp
+    faces/face_digital_layout.cpp
+    faces/faces_builtin.cpp
+    faces/glance.cpp
+    i18n/i18n.cpp
+    net/wifi_net.cpp
+    settings/cfg_fs.cpp
+    settings/settings.cpp
+    shell/shell.cpp
+    shell/shell_picker.cpp
+    shell/shell_settings.cpp
+    time/clock_time.cpp
+    time/date_fmt.cpp
+    time/tz_db.cpp
+    ui/chrome.cpp
+    ui/splash.cpp
+    ui/ui.cpp
+    ui/ui_dirty.cpp
 )
 
 idf_component_register(
-    SRC_DIRS ${FLINT_SRC_DIRS}
+    SRCS ${FLINT_SRCS}
     INCLUDE_DIRS
         "."
     REQUIRES

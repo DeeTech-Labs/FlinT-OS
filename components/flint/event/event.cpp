@@ -1,5 +1,6 @@
 #include "event/event.h"
 
+#include "config/debug.h"
 #include "ui/ui_dirty.h"
 
 static constexpr int kMaxSubs = 8;
@@ -49,7 +50,12 @@ void flintEventInit() {
 }
 
 bool flintEventSubscribe(FlintEventHandler h, void* user) {
-  if (!h || gSubCount >= kMaxSubs) {
+  if (!h) {
+    LOGE("event", "subscribe rejected: null handler");
+    return false;
+  }
+  if (gSubCount >= kMaxSubs) {
+    LOGE("event", "subscribe rejected: full (%d/%d)", gSubCount, kMaxSubs);
     return false;
   }
   gSubs[gSubCount].handler = h;

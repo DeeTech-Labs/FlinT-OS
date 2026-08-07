@@ -9,6 +9,9 @@ sdkconfig
 sdkconfig.old
 sdkconfig.ci.*
 
+# Host unit-test binaries
+tests/host/build/
+
 # Upstream LovyanGFX (cloned by components/LovyanGFX/CMakeLists.txt)
 third_party/LovyanGFX/
 

@@ -1,6 +1,6 @@
 #pragma once
 
-// Vendored u8g2 font blobs (src/display/fonts/*.c) wrapped for LovyanGFX.
+// Vendored u8g2 font blobs (components/flint/display/fonts/*.c) wrapped for LovyanGFX.
 
 #include <LovyanGFX.hpp>
 #include <lgfx/v1/lgfx_fonts.hpp>

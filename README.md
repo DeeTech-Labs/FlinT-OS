@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Open firmware platform</strong> for FlinT devices · pluggable faces · by
-  <a href="https://github.com/deetech-labs">DeeTech Labs</a>
+  <a href="https://github.com/DeeTech-Labs">DeeTech Labs</a>
 </p>
 
 <p align="center">
@@ -27,15 +27,23 @@
 Core services stay stable; **faces are plugins** — add a theme without rewriting
 networking or time.
 
-| Built-in today | Coming next |
-|----------------|-------------|
-| Digital face + day modes + glances | More community faces |
-| Soft-clock + SNTP + timezone DB | SoftAP provisioning |
-| Wi‑Fi, settings (`cfg`), face picker | Hardware buttons (serial keys for now) |
-| Event bus | OTA flow |
-| Boot splash | |
+Built-in today: digital face with day modes and glances, soft-clock + SNTP + timezone DB,
+Wi‑Fi STA, settings on `cfg` LittleFS, face picker, event bus, boot splash. Input is USB
+serial until hardware buttons land.
 
-Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Face SDK: `components/flint/sdk/flint_face_sdk.h`
+## Docs
+
+| Doc | Contents |
+|-----|----------|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Dependencies, Face contract, dirty events, shell |
+| [`docs/MODULES.md`](docs/MODULES.md) | What each directory owns |
+| [`docs/FACES.md`](docs/FACES.md) | Add / register a face |
+| [`docs/ESP-IDF.md`](docs/ESP-IDF.md) | Build, flash, monitor cheatsheet |
+| [`assets/README.md`](assets/README.md) | LittleFS icon pack |
+| [`components/flint/board/README.md`](components/flint/board/README.md) | Board profiles |
+| [`tools/README.md`](tools/README.md) | Codegen tools |
+
+Face SDK header: `components/flint/sdk/flint_face_sdk.h`
 
 ---
 
@@ -81,7 +89,7 @@ Settings: `p`/`n` navigate, `+/-` change value, `Enter` only opens face picker f
 Dependencies:
 - [LovyanGFX](https://github.com/lovyan03/LovyanGFX) — slim local component (`components/LovyanGFX`); `src/` sparse-cloned to `third_party/LovyanGFX/` (no upstream examples)
 
-Flash is kept lean: no LVGL, no C++ exceptions, STA-only WPA2 Wi‑Fi (no SoftAP/WPA3), trimmed LWIP/mbedTLS (no HTTP client). See `config/sdkconfig.defaults`.
+Flash is kept lean: `-Os`, no C++ exceptions/RTTI, Wi‑Fi STA WPA2-PSK only (no SoftAP/WPA3), trimmed LWIP/mbedTLS (no app HTTP client). See `config/sdkconfig.defaults`.
 
 ---
 
@@ -114,10 +122,7 @@ Icons load from the `storage` LittleFS partition when flashed; see [`assets/READ
 
 ## Add a face
 
-1. Copy `community/face_template.cpp.example` → `components/flint/faces/face_yourname.cpp`
-2. `#include "sdk/flint_face_sdk.h"` only — implement `Face`, export `Face* createYourFace()`
-3. Register in `components/flint/faces/faces_builtin.cpp`
-4. Build & flash; pick via serial face picker (or default `ACTIVE_FACE_ID` on empty `cfg`)
+See [`docs/FACES.md`](docs/FACES.md). Short version: copy `community/face_template.cpp.example` → `components/flint/faces/`, implement `Face`, register in `faces_builtin.cpp`, flash and pick via serial.
 
 ---
 
@@ -157,10 +162,7 @@ copyright notice, license text, and attribution from [`NOTICE`](NOTICE)
 
 ## Contributing
 
-- Prefer **new files under `components/flint/faces/`** over edits to services
-- Include only `sdk/flint_face_sdk.h` from faces; keep `onTick` non-blocking
-- Hardware variants: see guide in [`components/flint/board/README.md`](components/flint/board/README.md)
-- Never commit `components/flint/config/secrets.h`
+See [CONTRIBUTING.md](CONTRIBUTING.md). Questions → [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions); security → [SECURITY.md](SECURITY.md); support → [SUPPORT.md](SUPPORT.md). Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ---
 

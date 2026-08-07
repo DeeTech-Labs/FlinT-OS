@@ -33,7 +33,9 @@ enum class FlintStr : uint16_t {
   AM = 27,
   PM = 28,
   Timezone = 29,
-  COUNT = 30
+  Time = 30,
+  SetDate = 31,
+  COUNT = 32
 };
 
 static const char* const kFlintStrMsgid[] = {
@@ -67,6 +69,8 @@ static const char* const kFlintStrMsgid[] = {
   "AM",
   "PM",
   "timezone",
+  "time",
+  "set date",
 };
 
 static const char* const kFlintStrEn[] = {
@@ -100,6 +104,8 @@ static const char* const kFlintStrEn[] = {
   "AM",
   "PM",
   "Timezone",
+  "Time",
+  "Set date",
 };
 
 static const char* const kFlintStrRu[] = {
@@ -133,5 +139,7 @@ static const char* const kFlintStrRu[] = {
   "AM",
   "PM",
   "Часовой пояс",
+  "Время",
+  "Уст. дата",
 };
 

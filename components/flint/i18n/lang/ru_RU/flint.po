@@ -97,3 +97,9 @@ msgstr "PM"
 
 msgid "timezone"
 msgstr "Часовой пояс"
+
+msgid "time"
+msgstr "Время"
+
+msgid "set date"
+msgstr "Уст. дата"

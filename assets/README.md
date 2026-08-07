@@ -11,7 +11,9 @@ or copy for flash or i18n.
 1. Edit / add PNG under the right category folder
 2. `idf.py build` (runs `gen_asset_pack.py` only if PNG / `FlintIconId` changed)
    — or manually: `python3 tools/gen_asset_pack.py`
-3. `idf.py flash` (full flash rewrites storage; `app-flash` keeps it)
+3. `idf.py flash` (full flash rewrites `storage`; `app-flash` keeps it).
+   Mutable prefs live on a separate `cfg` LittleFS partition and are not
+   overwritten when the asset image is flashed.
 
 ## Categories
 

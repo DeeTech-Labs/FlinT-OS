@@ -99,3 +99,9 @@ msgstr ""
 
 msgid "timezone"
 msgstr ""
+
+msgid "time"
+msgstr ""
+
+msgid "set date"
+msgstr ""

@@ -4,7 +4,7 @@
 
 #include "time/date_fmt.h"
 
-// Persistent prefs (NVS namespace "flint"). Defaults come from config.h.
+// Persistent prefs on LittleFS /cfg (ui.cfg). Defaults come from config.h.
 
 enum SettingsShowSeconds : uint8_t {
   SETTINGS_SEC_OFF = 0,

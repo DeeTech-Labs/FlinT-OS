@@ -9,6 +9,7 @@
 #include "i18n/i18n.h"
 #include "sdk/resources.h"
 #include "settings/settings.h"
+#include "time/clock_time.h"
 #include "time/tz_db.h"
 #include "time/date_fmt.h"
 #include "ui/chrome.h"
@@ -31,6 +32,8 @@ enum ShellState : uint8_t {
 
 enum SettingsRow : uint8_t {
   SET_ROW_FACE = 0,
+  SET_ROW_CLOCK_TIME,
+  SET_ROW_CLOCK_DATE,
   SET_ROW_SECONDS,
   SET_ROW_HOUR,
   SET_ROW_DATE,
@@ -153,12 +156,51 @@ static void dateSepLabel(char* out, size_t outN, uint8_t sep) {
   snprintf(out, outN, "%c", flintDateSepChar(sep));
 }
 
+static void formatClockTimeValue(char* out, size_t outN) {
+  struct tm ti{};
+  if (!clockTimeGetLocal(&ti)) {
+    snprintf(out, outN, "--:--");
+    return;
+  }
+  if (settingsUse12Hour()) {
+    int h = ti.tm_hour % 12;
+    if (h == 0) {
+      h = 12;
+    }
+    snprintf(out, outN, "%d:%02d %s", h, ti.tm_min,
+             ti.tm_hour >= 12 ? flintTr(FlintStr::PM) : flintTr(FlintStr::AM));
+  } else {
+    snprintf(out, outN, "%02d:%02d", ti.tm_hour, ti.tm_min);
+  }
+}
+
+static void formatClockDateValue(char* out, size_t outN) {
+  struct tm ti{};
+  if (!clockTimeGetLocal(&ti)) {
+    snprintf(out, outN, "--");
+    return;
+  }
+  flintFormatDate(out, outN, ti, settingsDateFormat(), settingsDateSep());
+}
+
 static void formatSettingsLine(char* out, size_t outN, int row) {
   const FlintSettings& s = settingsGet();
   switch (row) {
     case SET_ROW_FACE:
       snprintf(out, outN, "%s   %.16s", flintTr(FlintStr::Face), s.activeFace);
       break;
+    case SET_ROW_CLOCK_TIME: {
+      char val[16];
+      formatClockTimeValue(val, sizeof(val));
+      snprintf(out, outN, "%s   %s", flintTr(FlintStr::Time), val);
+      break;
+    }
+    case SET_ROW_CLOCK_DATE: {
+      char val[16];
+      formatClockDateValue(val, sizeof(val));
+      snprintf(out, outN, "%s  %s", flintTr(FlintStr::SetDate), val);
+      break;
+    }
     case SET_ROW_SECONDS:
       snprintf(out, outN, "%s  %s", flintTr(FlintStr::Seconds), showSecLabel(s.showSeconds));
       break;
@@ -422,8 +464,38 @@ static void cycleTz(int dir) {
   }
 }
 
+static void adjustClockTime(int dir) {
+  const bool wasValid = clockTimeIsValid();
+  if (!clockTimeAdjustMinutes(dir > 0 ? 1 : -1)) {
+    return;
+  }
+  if (!wasValid) {
+    flintEventEmit(FLINT_EVT_TIME_VALID);
+  }
+  flintEventEmit(FLINT_EVT_MINUTE);
+  flintEventEmit(FLINT_EVT_FORCE_REDRAW);
+}
+
+static void adjustClockDate(int dir) {
+  const bool wasValid = clockTimeIsValid();
+  if (!clockTimeAdjustDays(dir > 0 ? 1 : -1)) {
+    return;
+  }
+  if (!wasValid) {
+    flintEventEmit(FLINT_EVT_TIME_VALID);
+  }
+  flintEventEmit(FLINT_EVT_MINUTE);
+  flintEventEmit(FLINT_EVT_FORCE_REDRAW);
+}
+
 static void adjustSelected(int dir) {
   switch (gSettingsRow) {
+    case SET_ROW_CLOCK_TIME:
+      adjustClockTime(dir);
+      break;
+    case SET_ROW_CLOCK_DATE:
+      adjustClockDate(dir);
+      break;
     case SET_ROW_SECONDS:
       cycleShowSeconds();
       break;

@@ -9,6 +9,9 @@ sdkconfig
 sdkconfig.old
 sdkconfig.ci.*
 
+# Site: generated from root CHANGELOG.md (python3 site/sync_changelog.py)
+site/changelog.data.js
+
 # Host unit-test binaries
 tests/host/build/
 

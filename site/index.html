@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlinT OS</title>
+    <meta
+      name="description"
+      content="FlinT OS: open firmware for FlinT devices. Pluggable faces, ESP32-C3 / ESP-IDF. By DeeTech Labs."
+    />
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="icon" href="./assets/FlinT_logo.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true">
+      <canvas class="atmosphere__field" id="signal-field"></canvas>
+      <div class="atmosphere__grid"></div>
+      <div class="atmosphere__spark"></div>
+    </div>
+
+    <div class="scroll-progress" aria-hidden="true"><span></span></div>
+    <div class="cursor-glow" aria-hidden="true"></div>
+
+    <nav class="topnav">
+      <div class="shell topnav__inner">
+        <a class="topnav__brand" href="./index.html">
+          <svg
+            class="topnav__spark"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M12 1.2 13.15 8.4 19.8 6.2 15.1 11.1 22.8 12 15.1 12.9 19.8 17.8 13.15 15.6 12 22.8 10.85 15.6 4.2 17.8 8.9 12.9 1.2 12 8.9 11.1 4.2 6.2 10.85 8.4Z"
+            />
+          </svg>
+          FlinT <span>OS</span>
+        </a>
+        <div class="topnav__links">
+          <a href="./index.html" aria-current="page">Home</a>
+          <a href="./changelog.html">Changelog</a>
+          <a href="https://github.com/DeeTech-Labs/FlinT-OS">GitHub</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="shell hero__inner">
+        <div class="hero__brand">
+          <span class="hero__ring" aria-hidden="true"></span>
+          <span class="hero__ring hero__ring--delay" aria-hidden="true"></span>
+          <picture class="hero__picture">
+            <source srcset="./assets/FlinT_logo.webp" type="image/webp" />
+            <img
+              class="hero__mark"
+              src="./assets/FlinT_logo.png"
+              width="280"
+              height="280"
+              alt="FlinT"
+            />
+          </picture>
+        </div>
+
+        <div class="hero__copy">
+          <p class="hero__eyebrow">DeeTech Labs</p>
+          <h1 class="hero__title">FlinT <span>OS</span></h1>
+          <p class="hero__lede">
+            Open firmware for FlinT devices · pluggable faces · ESP32‑C3 /
+            ESP‑IDF<br />
+            by DeeTech Labs · base board FlinT Spark
+          </p>
+          <div class="hero__cta">
+            <a
+              class="btn btn--primary"
+              href="https://github.com/DeeTech-Labs/FlinT-OS"
+            >
+              <svg class="btn__icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                />
+              </svg>
+              GitHub
+            </a>
+            <a class="btn btn--ghost" href="./changelog.html">
+              <svg class="btn__icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M1.5 2.75A.75.75 0 0 1 2.25 2h11.5a.75.75 0 0 1 0 1.5H2.25a.75.75 0 0 1-.75-.75zm0 5A.75.75 0 0 1 2.25 7h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 1.5 7.75zm0 5a.75.75 0 0 1 .75-.75h11.5a.75.75 0 0 1 0 1.5H2.25a.75.75 0 0 1-.75-.75z"
+                />
+              </svg>
+              Changelog
+            </a>
+            <a
+              class="btn btn--ghost"
+              href="https://github.com/DeeTech-Labs/FlinT-OS/discussions"
+            >
+              <svg class="btn__icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M1.75 1A1.75 1.75 0 0 0 0 2.75v7.5C0 11.216.784 12 1.75 12h2.25v2.15c0 .218.26.33.42.18L7.38 12h6.87A1.75 1.75 0 0 0 16 10.25v-7.5A1.75 1.75 0 0 0 14.25 1H1.75ZM1.5 2.75a.25.25 0 0 1 .25-.25h12.5a.25.25 0 0 1 .25.25v7.5a.25.25 0 0 1-.25.25h-7.05L4.5 13.15V11.25a.75.75 0 0 0-.75-.75H1.75a.25.25 0 0 1-.25-.25v-7.5Z"
+                />
+              </svg>
+              Discussions
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="block" id="what">
+        <div class="shell block__grid">
+          <div class="block__copy" data-reveal>
+            <p class="block__label">What it is</p>
+            <h2 class="block__title">FlinT OS for FlinT devices</h2>
+            <p class="block__body">
+              Core services stay stable — time, Wi‑Fi, settings, shell, assets.
+              Faces are plugins: ship a new look without rewriting networking or
+              the clock.
+            </p>
+            <p class="block__note">
+              Faces read <code>FaceContext</code> and paint. They do not call
+              Wi‑Fi, HTTP, NVS, or settings APIs.
+            </p>
+          </div>
+
+          <figure class="viz" data-animate>
+            <div class="plug" aria-label="Faces plug into FlinT OS core services">
+              <div class="plug__faces">
+                <span class="plug__node" style="--i: 0">Face A</span>
+                <span class="plug__node" style="--i: 1">Face B</span>
+                <span class="plug__node" style="--i: 2">Face …</span>
+              </div>
+              <div class="plug__join" aria-hidden="true"></div>
+              <div class="plug__core" style="--i: 3">
+                <strong>FlinT OS core</strong>
+                <span>time · net · settings · shell</span>
+              </div>
+              <div class="plug__join" aria-hidden="true"></div>
+              <div class="plug__out" style="--i: 4">Display</div>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="architecture">
+        <div class="shell block__grid block__grid--stack-first">
+          <div class="block__copy" data-reveal>
+            <p class="block__label">Architecture</p>
+            <h2 class="block__title">Layers</h2>
+            <p class="block__body">
+              From <code>docs/ARCHITECTURE.md</code>: board JSON and hardware up
+              through services into <code>FaceContext</code>, then face paint and
+              display present.
+            </p>
+          </div>
+
+          <figure class="viz" data-animate>
+            <ol class="layers" data-cycle="item">
+              <li class="layers__item" style="--i: 0">
+                hardware / board JSON
+              </li>
+              <li class="layers__item" style="--i: 1">
+                services — time · net · settings/cfg · day_mode
+              </li>
+              <li class="layers__item layers__item--core" style="--i: 2">
+                FaceContext ← uiBuildContext
+              </li>
+              <li class="layers__item" style="--i: 3">
+                Face::onTick / onForceRedraw
+              </li>
+              <li class="layers__item layers__item--out" style="--i: 4">
+                display — partial or full present
+              </li>
+            </ol>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="events">
+        <div class="shell">
+          <div class="block__copy block__copy--wide" data-reveal>
+            <p class="block__label">Paint path</p>
+            <h2 class="block__title">Events → dirty → paint</h2>
+            <p class="block__body">
+              <code>flintEventEmit</code> → dirty bitfield →
+              <code>onTick</code> / <code>onForceRedraw</code>
+            </p>
+          </div>
+
+          <figure class="viz" data-animate>
+            <ol class="flow" data-cycle="step">
+              <li class="flow__step" style="--i: 0">event</li>
+              <li class="flow__step" style="--i: 1">uiDirtyBridge</li>
+              <li class="flow__step flow__step--core" style="--i: 2">
+                uiMarkDirty
+              </li>
+              <li class="flow__step flow__step--out" style="--i: 3">
+                uiFaceTick
+              </li>
+            </ol>
+            <ul class="bits">
+              <li style="--i: 0">SECOND</li>
+              <li style="--i: 1">MINUTE</li>
+              <li style="--i: 2">WIFI</li>
+              <li style="--i: 3">SETTINGS</li>
+              <li style="--i: 4">DAY_MODE</li>
+              <li style="--i: 5">FORCE</li>
+            </ul>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="boot">
+        <div class="shell block__grid">
+          <div class="block__copy" data-reveal>
+            <p class="block__label">Boot path</p>
+            <h2 class="block__title">From reset to face</h2>
+            <p class="block__body">
+              App bring-up mounts services, then the shell loop drives dirty
+              paint. Splash first; faces after the core is ready.
+            </p>
+          </div>
+          <figure class="viz" data-animate>
+            <ol class="boot" data-cycle="item" aria-label="Boot sequence">
+              <li style="--i: 0"><span>01</span> board JSON / display HAL</li>
+              <li style="--i: 1"><span>02</span> time · net · settings/cfg</li>
+              <li style="--i: 2"><span>03</span> assets on storage</li>
+              <li style="--i: 3"><span>04</span> splash · event bus</li>
+              <li style="--i: 4"><span>05</span> active face · shell</li>
+            </ol>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="scope">
+        <div class="shell block__grid block__grid--stack-first">
+          <div class="block__copy" data-reveal>
+            <p class="block__label">Tick scope</p>
+            <h2 class="block__title">SECOND / MINUTE cadence</h2>
+            <p class="block__body">
+              Schematic of the soft-clock event pulse that marks
+              <code>UI_DIRTY_SECOND</code> and <code>UI_DIRTY_MINUTE</code> —
+              not live device telemetry.
+            </p>
+          </div>
+          <figure class="viz viz--scope" data-animate>
+            <canvas
+              class="scope"
+              id="tick-scope"
+              width="640"
+              height="180"
+              aria-label="Schematic second and minute event pulses"
+            ></canvas>
+            <div class="scope__legend">
+              <span><i class="scope__swatch scope__swatch--sec"></i>SECOND</span>
+              <span><i class="scope__swatch scope__swatch--min"></i>MINUTE</span>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="board">
+        <div class="shell block__grid">
+          <div class="block__copy" data-reveal>
+            <p class="block__label">Hardware</p>
+            <h2 class="block__title">FlinT Spark</h2>
+            <p class="block__body">
+              Board id <code>flint_spark</code> · ESP32‑C3 · display ST7789
+              240×280 SPI (UI landscape 280×240). Pins and panel come from board
+              JSON.
+            </p>
+
+            <div class="pinout">
+              <p class="pinout__title">SPI display (board JSON)</p>
+              <dl class="pinout__list">
+                <div><dt>SCK</dt><dd>GPIO 6</dd></div>
+                <div><dt>MOSI</dt><dd>GPIO 7</dd></div>
+                <div><dt>CS</dt><dd>GPIO 10</dd></div>
+                <div><dt>DC</dt><dd>GPIO 9</dd></div>
+                <div><dt>RST</dt><dd>GPIO 8</dd></div>
+                <div><dt>VCC / LED</dt><dd>3.3V</dd></div>
+                <div><dt>GND</dt><dd>GND</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <figure class="viz viz--device" data-animate>
+            <div class="device-frame">
+              <svg
+                class="viz__svg viz__svg--device"
+                viewBox="0 0 300 340"
+                role="img"
+                aria-label="Schematic outline of FlinT Spark display module"
+              >
+                <rect
+                  class="device-body"
+                  x="40"
+                  y="20"
+                  width="220"
+                  height="300"
+                  rx="28"
+                />
+                <rect
+                  class="device-bezel"
+                  x="58"
+                  y="48"
+                  width="184"
+                  height="214"
+                  rx="8"
+                />
+                <rect
+                  class="device-screen"
+                  x="68"
+                  y="58"
+                  width="164"
+                  height="140"
+                  rx="4"
+                />
+                <text class="device-clock" x="150" y="130">--:--</text>
+                <text class="device-sub" x="150" y="155">Waiting for time</text>
+                <text class="schem-sub" x="150" y="220">ST7789 · 240×280</text>
+                <text class="schem-sub" x="150" y="280">ESP32‑C3</text>
+                <text class="schem-sub" x="150" y="300">USB Serial/JTAG</text>
+                <circle class="device-dot" cx="150" cy="30" r="3" />
+              </svg>
+              <span class="device-scan" aria-hidden="true"></span>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="storage">
+        <div class="shell">
+          <div class="block__copy block__copy--wide" data-reveal>
+            <p class="block__label">Persistence</p>
+            <h2 class="block__title">Three stores</h2>
+            <p class="block__body">
+              UI prefs are not stored as FlinT keys in NVS.
+              <code>cfg</code> survives asset reflash on <code>storage</code>.
+            </p>
+          </div>
+
+          <figure class="viz" data-animate>
+            <ul class="stores" data-cycle="item">
+              <li class="stores__item" style="--i: 0">
+                <strong>storage</strong>
+                <span>LittleFS</span>
+                <span>core.flintpack</span>
+              </li>
+              <li class="stores__item stores__item--core" style="--i: 1">
+                <strong>cfg</strong>
+                <span>LittleFS</span>
+                <span>ui.cfg · time.cfg</span>
+              </li>
+              <li class="stores__item" style="--i: 2">
+                <strong>nvs</strong>
+                <span>ESP‑IDF</span>
+                <span>system / Wi‑Fi</span>
+              </li>
+            </ul>
+          </figure>
+        </div>
+      </section>
+
+      <section class="block" id="built-in">
+        <div class="shell">
+          <div class="block__copy block__copy--wide">
+            <p class="block__label">Built-in</p>
+            <h2 class="block__title">What ships today</h2>
+          </div>
+          <ul class="facts">
+            <li>Digital face · day modes · glances</li>
+            <li>Soft-clock + SNTP + timezone DB</li>
+            <li>Wi‑Fi STA · settings on <code>cfg</code> LittleFS</li>
+            <li>Face picker · event bus · boot splash</li>
+            <li>ESP‑IDF · LovyanGFX (slim) · dual OTA</li>
+            <li>Input: USB serial (buttons later)</li>
+            <li>License: Apache 2.0</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block block--cta" id="start">
+        <div class="shell block__grid">
+          <div class="block__copy">
+            <p class="block__label">Quick start</p>
+            <h2 class="block__title">Build for FlinT Spark</h2>
+            <div class="hero__cta hero__cta--static">
+              <a
+                class="btn btn--primary"
+                href="https://github.com/DeeTech-Labs/FlinT-OS#quick-start"
+              >
+                <svg class="btn__icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    fill-rule="evenodd"
+                    d="M1.75 2A1.75 1.75 0 0 0 0 3.75v8.5C0 13.216.784 14 1.75 14h12.5A1.75 1.75 0 0 0 16 12.25v-8.5A1.75 1.75 0 0 0 14.25 2H1.75ZM1.5 3.75a.25.25 0 0 1 .25-.25h12.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25H1.75a.25.25 0 0 1-.25-.25v-8.5ZM7.25 7a.75.75 0 0 1 .07 1.495L7.25 8.5h-.5a.75.75 0 0 1 0-1.5h.5ZM4.56 6.47a.75.75 0 0 1 0 1.06L3.28 8.81l1.28 1.28a.75.75 0 1 1-1.06 1.06l-1.81-1.81a.75.75 0 0 1 0-1.06l1.81-1.81a.75.75 0 0 1 1.06 0Z"
+                  />
+                </svg>
+                Full quick start
+              </a>
+              <a
+                class="btn btn--ghost"
+                href="https://github.com/DeeTech-Labs/FlinT-OS/blob/main/docs/FACES.md"
+              >
+                <svg class="btn__icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM1.75 1.5a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25ZM3.5 4.75a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75ZM4.25 8a.75.75 0 0 0 0 1.5h7.5a.75.75 0 0 0 0-1.5ZM3.5 11.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"
+                  />
+                </svg>
+                Add a face
+              </a>
+            </div>
+          </div>
+          <div class="codepanel">
+            <div class="codepanel__bar">
+              <span class="codepanel__lang">bash</span>
+            </div>
+            <pre
+              class="codeblock"
+              tabindex="0"
+            ><code class="language-bash">cp components/flint/config/secrets.example.h \
+   components/flint/config/secrets.h
+idf.py set-target esp32c3
+idf.py build
+idf.py -p /dev/ttyACM0 flash monitor</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="shell foot__inner">
+        <p class="foot__brand">
+          FlinT · FlinT OS · DeeTech Labs
+        </p>
+        <p class="foot__meta">
+          <a href="https://github.com/DeeTech-Labs/FlinT-OS">GitHub</a>
+          <span aria-hidden="true">·</span>
+          <a href="./changelog.html">Changelog</a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://github.com/DeeTech-Labs/FlinT-OS/blob/main/docs/ARCHITECTURE.md"
+            >Architecture</a
+          >
+          <span aria-hidden="true">·</span>
+          <a href="https://github.com/DeeTech-Labs/FlinT-OS/blob/main/LICENSE"
+            >Apache 2.0</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script src="./site.js" defer></script>
+  </body>
+</html>

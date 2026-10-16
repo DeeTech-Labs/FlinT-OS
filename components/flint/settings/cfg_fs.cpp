@@ -3,6 +3,7 @@
 
 #include "esp_err.h"
 #include "esp_littlefs.h"
+#include "esp_partition.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -12,6 +13,24 @@ namespace {
 
 bool gReady = false;
 
+// Only a fully erased partition may be initialized automatically. Read errors
+// and existing data must never be interpreted as permission to format.
+bool cfgPartitionErased() {
+  const esp_partition_t* partition = esp_partition_find_first(
+      ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, kCfgPartitionLabel);
+  if (!partition) return false;
+  uint8_t bytes[256];
+  for (size_t offset = 0; offset < partition->size; offset += sizeof(bytes)) {
+    const size_t len = partition->size - offset < sizeof(bytes)
+                           ? partition->size - offset : sizeof(bytes);
+    if (esp_partition_read(partition, offset, bytes, len) != ESP_OK) return false;
+    for (size_t i = 0; i < len; ++i) {
+      if (bytes[i] != 0xff) return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 bool cfgFsBegin() {
@@ -20,7 +39,7 @@ bool cfgFsBegin() {
   esp_vfs_littlefs_conf_t conf = {};
   conf.base_path = kCfgMountPoint;
   conf.partition_label = kCfgPartitionLabel;
-  conf.format_if_mount_failed = true;
+  conf.format_if_mount_failed = cfgPartitionErased();
   conf.grow_on_mount = true;
 
   const esp_err_t err = esp_vfs_littlefs_register(&conf);
@@ -68,12 +87,17 @@ bool cfgFsWriteAtomic(const char* path, const void* data, size_t len) {
     return false;
   }
 
-  fflush(f);
+  bool committed = fflush(f) == 0;
   const int fd = fileno(f);
-  if (fd >= 0) {
-    fsync(fd);
+  if (fd < 0 || (committed && fsync(fd) != 0)) {
+    committed = false;
   }
-  fclose(f);
+  if (fclose(f) != 0) committed = false;
+  if (!committed) {
+    LOGE("cfg", "flush/close %s failed", tmpPath);
+    unlink(tmpPath);
+    return false;
+  }
 
   if (rename(tmpPath, path) != 0) {
     LOGE("cfg", "rename %s -> %s failed", tmpPath, path);

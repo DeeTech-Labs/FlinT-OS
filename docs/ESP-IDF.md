@@ -104,3 +104,12 @@ Everyday debugging: serial monitor + `LOGI` / `LOGE`.
 - [idf.py](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/api-guides/tools/idf-py.html)
 - Board profiles: `components/flint/board/README.md`
 - Tools: `tools/README.md`
+
+## Settings partition recovery
+
+On first boot, a fully erased `cfg` partition is initialized automatically.
+If an existing filesystem cannot mount, the firmware preserves its contents and
+uses default settings for that boot. It does not format a damaged partition.
+After backing up any data you need, explicitly erase only `cfg` to reset settings
+and the saved soft clock; the next boot will initialize it again. Use the offsets
+and size from the partition table of the firmware installed on the device.

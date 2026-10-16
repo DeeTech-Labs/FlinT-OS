@@ -11,7 +11,7 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -UNDEBUG -I$(FLINT) -I.
 .PHONY: all run clean
 
 all: $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
-	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate
+	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate $(BUILD)/test_cfg_fs
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -33,10 +33,14 @@ $(BUILD)/test_settings_clamp: test_settings_clamp.cpp | $(BUILD)
 $(BUILD)/test_fi_validate: test_fi_validate.cpp $(FLINT)/assets/flint_fi.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_fi_validate.cpp
 
+$(BUILD)/test_cfg_fs: test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(wildcard stubs/cfg/*.h stubs/cfg/config/*.h) | $(BUILD)
+	$(CXX) -Istubs/cfg $(CXXFLAGS) -Wl,--wrap=fflush,--wrap=fsync,--wrap=fclose -o $@ test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp
+
 run: all
 	./$(BUILD)/test_day_mode
 	./$(BUILD)/test_date_fmt
 	./$(BUILD)/test_ui_dirty
+	./$(BUILD)/test_cfg_fs
 	./$(BUILD)/test_fi_validate
 	./$(BUILD)/test_settings_clamp
 

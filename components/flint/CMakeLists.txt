@@ -51,6 +51,7 @@ idf_component_register(
     INCLUDE_DIRS
         "."
     REQUIRES
+        esp_partition
         nvs_flash
         esp_event
         esp_netif

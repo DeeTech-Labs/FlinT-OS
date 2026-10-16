@@ -21,7 +21,8 @@ static bool timeNtpSynced = false;
 static bool ntpStarted = false;
 static bool ntpApplyPending = false;
 static time_t baseEpoch = 0;
-static uint32_t baseMillis = 0;
+// Keep elapsed clock time in 64 bits; millis wraps after about 49.7 days.
+static int64_t baseMicros = 0;
 static uint32_t lastNtpSyncMs = 0;
 static uint32_t lastPersistMs = 0;
 
@@ -31,12 +32,12 @@ static time_t clockNowEpoch() {
   if (!timeValid) {
     return 0;
   }
-  return baseEpoch + (time_t)((flintMillis() - baseMillis) / 1000UL);
+  return baseEpoch + (time_t)((esp_timer_get_time() - baseMicros) / 1000000LL);
 }
 
 static void clockSetBase(time_t epoch, bool fromNtp) {
   baseEpoch = epoch;
-  baseMillis = flintMillis();
+  baseMicros = esp_timer_get_time();
   timeValid = true;
   if (fromNtp) {
     timeNtpSynced = true;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 // FlinT OS icon blob (embedded in flintpack). Little-endian on-disk layout.
 
@@ -38,4 +39,35 @@ inline size_t fiL1Stride(uint16_t w) {
 
 inline size_t fiL1PayloadBytes(uint16_t w, uint16_t h) {
   return fiL1Stride(w) * static_cast<size_t>(h);
+}
+
+// Validate the complete blob before any decoder reads pixels or palette entries.
+inline bool fiValidate(const FiHeader& hdr, size_t blobBytes) {
+  if (hdr.magic != kFiMagic || hdr.w == 0 || hdr.h == 0 ||
+      hdr.w > 64 || hdr.h > 64 || (hdr.flags & ~kFiFlagHasTrans)) {
+    return false;
+  }
+  size_t expected = 0;
+  switch (static_cast<FiFormat>(hdr.format)) {
+    case FiFormat::L1:
+      if (hdr.palette_len != 0 || hdr.flags != 0) return false;
+      expected = fiL1PayloadBytes(hdr.w, hdr.h);
+      break;
+    case FiFormat::P4:
+      if (hdr.palette_len == 0 || hdr.palette_len > 16) return false;
+      expected = ((static_cast<size_t>(hdr.w) + 1) / 2) * hdr.h;
+      break;
+    case FiFormat::P8:
+      if (hdr.palette_len == 0 || hdr.palette_len > 256) return false;
+      expected = static_cast<size_t>(hdr.w) * hdr.h;
+      break;
+    case FiFormat::R565:
+      if (hdr.palette_len != 0 || hdr.flags != 0) return false;
+      expected = static_cast<size_t>(hdr.w) * hdr.h * 2;
+      break;
+    default:
+      return false;
+  }
+  return hdr.payload_len == expected &&
+         sizeof(FiHeader) + static_cast<size_t>(hdr.palette_len) * 2 + expected == blobBytes;
 }

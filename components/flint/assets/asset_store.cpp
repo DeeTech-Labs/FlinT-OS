@@ -139,7 +139,8 @@ bool validateEntries(size_t packSize) {
       LOGE("assets", "entry %u bad length %u", (unsigned)i, (unsigned)e.length);
       return false;
     }
-    if (static_cast<size_t>(e.offset) + static_cast<size_t>(e.length) > packSize) {
+    if (e.offset < sizeof(FlintPackHeader) + sizeof(FlintPackEntry) * gEntryCount ||
+        e.offset > packSize || e.length > packSize - e.offset) {
       LOGE("assets", "entry %u past EOF", (unsigned)i);
       return false;
     }
@@ -288,8 +289,7 @@ bool loadFi(const FlintPackEntry& e, FiHeader* outHdr, const uint16_t** outPal,
   }
 
   memcpy(outHdr, blob, sizeof(FiHeader));
-  if (outHdr->magic != kFiMagic || outHdr->w == 0 || outHdr->h == 0 ||
-      outHdr->w > kMaxIconPx || outHdr->h > kMaxIconPx) {
+  if (!fiValidate(*outHdr, e.length)) {
     return false;
   }
 

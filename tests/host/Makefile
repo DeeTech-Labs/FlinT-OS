@@ -11,7 +11,7 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -UNDEBUG -I$(FLINT) -I.
 .PHONY: all run clean
 
 all: $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
-	$(BUILD)/test_settings_clamp
+	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -30,10 +30,14 @@ $(BUILD)/test_ui_dirty: test_ui_dirty.cpp | $(BUILD)
 $(BUILD)/test_settings_clamp: test_settings_clamp.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_settings_clamp.cpp
 
+$(BUILD)/test_fi_validate: test_fi_validate.cpp $(FLINT)/assets/flint_fi.h | $(BUILD)
+	$(CXX) $(CXXFLAGS) -o $@ test_fi_validate.cpp
+
 run: all
 	./$(BUILD)/test_day_mode
 	./$(BUILD)/test_date_fmt
 	./$(BUILD)/test_ui_dirty
+	./$(BUILD)/test_fi_validate
 	./$(BUILD)/test_settings_clamp
 
 clean:

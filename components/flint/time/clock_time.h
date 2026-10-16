@@ -7,6 +7,8 @@ bool clockTimeIsValid();       // soft (cfg) or NTP — safe to show on face
 bool clockTimeIsNtpSynced();   // true only after SNTP
 bool clockTimeGetLocal(struct tm* out);
 uint32_t clockTimeLastSyncMs();
+// Deadline for the next visible clock tick (1..1000 ms).
+uint32_t clockTimeNextTickMs();
 
 // Restore last epoch from cfg so UI shows time before Wi‑Fi/NTP.
 void clockTimeSoftBegin();

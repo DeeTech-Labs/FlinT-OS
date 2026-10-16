@@ -106,6 +106,11 @@ void uiFaceTick() {
     return;
   }
 
+  // Settings/day-mode events rebuild the cached context. A lone SECOND
+  // cannot change the resolved preference, so hidden seconds need no palette,
+  // timezone conversion, or face context rebuild.
+  if (dirty == UI_DIRTY_SECOND && gHaveLastCtx && !gLastCtx.showSeconds) return;
+
   FaceContext ctx = uiBuildContext();
   ctx.dirty = dirty;
   dirty = uiDirtyFilterSeconds(dirty, ctx.showSeconds);

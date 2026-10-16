@@ -206,14 +206,18 @@ void shellHandleKey(char c) {
   }
 }
 
-void shellPollSerial() {
+void shellWaitForInput(unsigned timeoutMs) {
   if (!gConsoleReady) {
+    if (timeoutMs != 0) flintDelay(timeoutMs);
     return;
   }
-
+  TickType_t ticks = pdMS_TO_TICKS(timeoutMs);
+  if (timeoutMs != 0 && ticks == 0) ticks = 1;
   uint8_t buf[16];
-  const int n = usb_serial_jtag_read_bytes(buf, sizeof(buf), 0);
-  for (int i = 0; i < n; i++) {
-    shellHandleKey(static_cast<char>(buf[i]));
-  }
+  const int n = usb_serial_jtag_read_bytes(buf, sizeof(buf), ticks);
+  for (int i = 0; i < n; i++) shellHandleKey(static_cast<char>(buf[i]));
+}
+
+void shellPollSerial() {
+  shellWaitForInput(0);
 }

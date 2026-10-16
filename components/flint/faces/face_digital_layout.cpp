@@ -80,6 +80,8 @@ void DigitalTimeLayout::ensure(const FaceContext& ctx, bool wantSeconds, bool ho
   auto& gfx = displayGfx();
   displaySetFont(gfx, flintFont(FlintFontId::Body));
   const int smallDigitW = displayTextWidth(gfx, "0");
+  smallAscent = displayFontAscent(gfx);
+  smallGlyphH = smallAscent - displayFontDescent(gfx) + UiTok::kTimeGlyphPadY;
   const int secondsGap = UiTok::kGapMd + UiTok::kGapSm;
   // Keep this slot even with seconds hidden: HH:MM never shifts.
   const int secondsW = secondsGap + smallDigitW * 2;
@@ -152,8 +154,11 @@ int DigitalTimeLayout::appendChangedGlyphRects(int screenH, const char* prev,
       continue;
     }
     const int width = cellW[i];
-    out[n++] = DisplayRect{static_cast<int16_t>(cellX[i]), static_cast<int16_t>(ty),
-                           static_cast<int16_t>(width), static_cast<int16_t>(h)};
+    const bool small = i >= 6;
+    out[n++] = DisplayRect{static_cast<int16_t>(cellX[i]),
+                           static_cast<int16_t>(small ? UiTok::timeY(screenH) - smallAscent : ty),
+                           static_cast<int16_t>(width),
+                           static_cast<int16_t>(small ? smallGlyphH : h)};
   }
   return n;
 }
@@ -164,7 +169,8 @@ void DigitalTimeLayout::drawGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint1
   const int width = cellW[index];
   const int x = cellX[index];
   const int ty = UiTok::timeY(screenH);
-  gfx.fillRect(x, ty - ascent, width, glyphH, bg);
+  gfx.fillRect(x, ty - (small ? smallAscent : ascent), width,
+                small ? smallGlyphH : glyphH, bg);
   // Slot 5 is breathing room between minutes and the secondary seconds.
   if (index == 5) return;
   displaySetFont(gfx, small ? flintFont(FlintFontId::Body) : heroFont);

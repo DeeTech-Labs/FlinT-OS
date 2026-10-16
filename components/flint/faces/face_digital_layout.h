@@ -18,6 +18,8 @@ struct DigitalTimeLayout {
   int endX = 0;
   int glyphH = 0;
   int ascent = 0;
+  int smallAscent = 0;
+  int smallGlyphH = 0;
   uint8_t len = 8;
   bool ready = false;
   bool withSeconds = true;

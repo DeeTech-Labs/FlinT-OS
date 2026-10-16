@@ -1,4 +1,5 @@
 #include "app.h"
+#include "anim/anim.h"
 #include "assets/asset_store.h"
 #include "config/config.h"
 #include "config/debug.h"
@@ -162,9 +163,9 @@ void appLoop() {
   shellTick();
   debugHeartbeat(hasTime ? &ti : nullptr);
 
-  if (uiHasDirty()) {
-    flintDelay(20);
-  } else {
-    flintDelay(uiWantsSeconds() ? 50 : 200);
-  }
+  // USB input wakes the task immediately. Static screens need only one
+  // service pass per clock second, not 20–50 polling passes per second.
+  // Overlay animations retain a 20 ms cadence independently of face dirty bits.
+  const uint32_t tickMs = clockTimeNextTickMs();
+  shellWaitForInput(animIsActive() && tickMs > 20 ? 20 : tickMs);
 }

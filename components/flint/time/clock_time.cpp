@@ -1,4 +1,5 @@
 #include "clock_time.h"
+#include "time/clock_schedule.h"
 #include "config/config.h"
 #include "config/debug.h"
 #include "settings/cfg_fs.h"
@@ -185,6 +186,10 @@ bool clockTimeIsNtpSynced() {
 
 uint32_t clockTimeLastSyncMs() {
   return lastNtpSyncMs;
+}
+
+uint32_t clockTimeNextTickMs() {
+  return timeValid ? clockNextSecondDelayMs(esp_timer_get_time() - baseMicros) : 1000;
 }
 
 bool clockTimeGetLocal(struct tm* out) {

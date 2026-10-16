@@ -13,6 +13,8 @@ struct DigitalTimeLayout {
   int glyphWDigit[10] = {0};
   int glyphWDash = 0;
   int cellX[8] = {0};
+  int cellW[8] = {0};
+  const lgfx::IFont* heroFont = nullptr;
   int endX = 0;
   int glyphH = 0;
   int ascent = 0;

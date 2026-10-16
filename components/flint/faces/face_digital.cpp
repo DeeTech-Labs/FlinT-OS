@@ -1,5 +1,4 @@
 #include "sdk/flint_face_sdk.h"
-#include "faces/colon_pulse.h"
 #include "faces/face_digital_layout.h"
 #include "faces/glance.h"
 #include "config/debug.h"
@@ -31,26 +30,7 @@ public:
   }
 
   void onTick(const FaceContext& ctx) override {
-    if (ctx.dirty != 0 && (ctx.dirty & ~UI_DIRTY_MOTION) == 0) {
-      if (mode_ != ctx.dayMode || force_ || !timeLayout_.ready) {
-        paintFull(ctx);
-        return;
-      }
-      if (!pulseColons(ctx)) {
-        return;
-      }
-      if (!displayHasCanvas()) {
-        return;
-      }
-      DisplayRect rects[2];
-      const int n = timeLayout_.appendColonRects(ctx.screenH, lastTime_, rects, 2);
-      if (n == 1) {
-        displayPresentRect(rects[0].x, rects[0].y, rects[0].w, rects[0].h);
-      } else if (n > 1) {
-        displayPresentRects(rects, n);
-      }
-      return;
-    }
+    if (ctx.dirty != 0 && (ctx.dirty & ~UI_DIRTY_MOTION) == 0) return;
 
     // SETTINGS is soft (no FORCE): rebuild when prefs/i18n may have changed.
     if ((ctx.dirty & UI_DIRTY_SETTINGS) != 0 || ctx.dayMode != mode_ || force_
@@ -76,7 +56,6 @@ public:
     bool dateDirty = false;
     bool wifiDirty = false;
     bool ampmDirty = false;
-    bool colonDirty = false;
     char prevTime[16];
     memcpy(prevTime, lastTime_, sizeof(prevTime));
 
@@ -87,8 +66,6 @@ public:
     if (strcmp(timeStr, lastTime_) != 0) {
       drawTime(ctx, timeStr, false);
       timeDirty = true;
-    } else {
-      colonDirty = pulseColons(ctx);
     }
     ampmDirty = drawAmpm(ctx, false);
 
@@ -101,14 +78,14 @@ public:
       lastDate_[sizeof(lastDate_) - 1] = '\0';
       dateDirty = true;
     }
-    if (ctx.wifiBars != lastWifiBars_) {
+    if ((ctx.wifiBars == 0) != (lastWifiBars_ == 0)) {
       displaySetClipRect(wifiBand.x, wifiBand.y, wifiBand.w, wifiBand.h);
       drawWifiDot(ctx);
       wifiDirty = true;
     }
     displayClearClipRect();
 
-    if (!(timeDirty || dateDirty || wifiDirty || ampmDirty || colonDirty)) {
+    if (!(timeDirty || dateDirty || wifiDirty || ampmDirty)) {
       return;
     }
 
@@ -119,9 +96,7 @@ public:
     // Up to 8 time glyphs + AM/PM + date + wifi.
     DisplayRect rects[11];
     int n = 0;
-    if (colonDirty && !timeDirty) {
-      n = timeLayout_.appendColonRects(ctx.screenH, lastTime_, rects, 8);
-    } else if (timeDirty) {
+    if (timeDirty) {
       n = timeLayout_.appendChangedGlyphRects(ctx.screenH, prevTime, lastTime_, rects, 8);
     }
     if (ampmDirty && n < 11) {
@@ -144,7 +119,6 @@ public:
 private:
   UiPalette pal_{};
   DayMode mode_ = DAY_MODE_DAY;
-  DayModeProfile profile_{};
   bool force_ = true;
   bool showSeconds_ = true;
   bool hour12_ = false;
@@ -154,22 +128,21 @@ private:
   char lastTime_[16] = "";
   char lastDate_[32] = "";
   char lastAmpm_[4] = "";
-  char lastModeLabel_[16] = "";
   uint8_t lastWifiBars_ = 0xFF;
-  uint8_t lastColonFade_ = 255;
   int lastDatePresentW_ = 0;
 
   DigitalTimeLayout timeLayout_{};
 
-  static const lgfx::IFont* timeFont() { return flintFont(FlintFontId::TimeLarge); }
+  const lgfx::IFont* timeFont() const {
+    return flintFont(hour12_ ? FlintFontId::TimeCompact : FlintFontId::TimeLarge);
+  }
   static const lgfx::IFont* bodyFont() { return flintFont(FlintFontId::Body); }
 
   void resetState() {
     force_ = true;
     timeLayout_.reset();
-    lastColonFade_ = 255;
     lastDatePresentW_ = 0;
-    lastTime_[0] = lastDate_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
+    lastTime_[0] = lastDate_[0] = lastAmpm_[0] = '\0';
   }
 
   uint16_t pageBg() const { return pal_.bgTop; }
@@ -199,51 +172,18 @@ private:
                         ctx.dateSep);
   }
 
-  void drawStatusHairline(const FaceContext& ctx) {
-    auto& gfx = displayGfx();
-    gfx.drawFastHLine(UiTok::contentLeft(), UiTok::statusHairlineY(ctx.screenH),
-                      UiTok::contentWidth(ctx.screenW), pal_.divider);
-  }
-
   void drawWifiDot(const FaceContext& ctx) {
-    flintGlanceDraw(ctx, GLANCE_WIFI,
-                    GlanceRect{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
-                               static_cast<int16_t>(UiTok::kWifiSize),
-                               static_cast<int16_t>(UiTok::kWifiSize)});
+    // Icons are transparent: erase previous bars before changing signal state.
+    displayGfx().fillRect(UiTok::wifiX(ctx.screenW), UiTok::wifiTop(ctx.screenH),
+                          UiTok::kWifiSize, UiTok::kWifiSize, pageBg());
+    // Normal operation needs no network indicator. Loss of connection stays quiet.
+    if (ctx.wifiBars == 0) {
+      flintDrawIcon(displayGfx(), FlintIconId::WifiOff,
+                    UiTok::wifiX(ctx.screenW) + UiTok::kWifiSize / 2,
+                    UiTok::wifiTop(ctx.screenH) + UiTok::kWifiSize / 2,
+                    colorLerp(pageBg(), pal_.textSecondary, 120), pageBg());
+    }
     lastWifiBars_ = ctx.wifiBars;
-  }
-
-  void drawModeLabel(const FaceContext& ctx, bool force) {
-    auto& gfx = displayGfx();
-    const int maxW = UiTok::modeLabelMaxW(ctx.screenW);
-    const int clearX = (ctx.screenW - maxW) / 2;
-    const int labelY = UiTok::modeLabelY(ctx.screenH);
-    if (!profile_.showModeLabel) {
-      if (lastModeLabel_[0] != '\0') {
-        gfx.fillRect(clearX, UiTok::kModeLabelClearY, maxW, UiTok::kModeLabelClearH, pageBg());
-        lastModeLabel_[0] = '\0';
-      }
-      return;
-    }
-    const char* label = dayModeName(ctx.dayMode);
-    if (!force && strcmp(label, lastModeLabel_) == 0) {
-      return;
-    }
-
-    displaySetFont(gfx, bodyFont());
-    int w = displayTextWidth(gfx, label);
-    if (w > maxW) {
-      w = maxW;
-    }
-    int x = (ctx.screenW - w) / 2;
-    int asc = displayFontAscent(gfx);
-    int desc = displayFontDescent(gfx);
-    gfx.fillRect(clearX, labelY - asc, maxW, asc - desc + UiTok::kTimeGlyphPadY, pageBg());
-    gfx.setTextColor(pal_.textSecondary, pageBg());
-    gfx.drawString(label, x, labelY);
-    strncpy(lastModeLabel_, label, sizeof(lastModeLabel_) - 1);
-    lastModeLabel_[sizeof(lastModeLabel_) - 1] = '\0';
   }
 
   bool drawAmpm(const FaceContext& ctx, bool force) {
@@ -280,26 +220,6 @@ private:
     return true;
   }
 
-  bool pulseColons(const FaceContext& ctx) {
-    if (!ctx.showSeconds || !ctx.hasTime || lastTime_[0] == '\0') {
-      return false;
-    }
-    const uint8_t fade = digitalColonFadeNow();
-    if (!digitalColonFadeChanged(fade, lastColonFade_)) {
-      return false;
-    }
-    lastColonFade_ = fade;
-    auto& gfx = displayGfx();
-    displaySetFont(gfx, timeFont());
-    const uint16_t fg = digitalColonColor(pal_, fade);
-    for (int i = 0; lastTime_[i] != '\0'; i++) {
-      if (lastTime_[i] == ':') {
-        timeLayout_.drawGlyph(gfx, i, ':', fg, pageBg(), ctx.screenH);
-      }
-    }
-    return true;
-  }
-
   void drawTime(const FaceContext& ctx, const char* timeStr, bool force) {
     if (!force && strcmp(timeStr, lastTime_) == 0) {
       return;
@@ -313,11 +233,11 @@ private:
                    timeLayout_.glyphH + UiTok::kTimeGlyphPadY, pageBg());
       lastTime_[0] = '\0';
     }
-    lastColonFade_ = digitalColonFadeNow();
-    const uint16_t cFg = digitalColonColor(pal_, lastColonFade_);
+    const uint16_t cFg = colorLerp(pageBg(), pal_.accent, 150);
     for (int i = 0; timeStr[i] != '\0'; i++) {
       if (force || lastTime_[i] == '\0' || timeStr[i] != lastTime_[i]) {
-        const uint16_t fg = (timeStr[i] == ':') ? cFg : pal_.accent;
+        const uint16_t fg = (i >= 5) ? colorLerp(pageBg(), pal_.textSecondary, 170)
+                            : (timeStr[i] == ':' ? cFg : pal_.textPrimary);
         timeLayout_.drawGlyph(gfx, i, timeStr[i], fg, pageBg(), ctx.screenH);
         lastTime_[i] = timeStr[i];
       }
@@ -347,7 +267,6 @@ private:
 
   void paintFull(const FaceContext& ctx) {
     mode_ = ctx.dayMode;
-    profile_ = ctx.dayProfile;
     pal_ = ctx.palette;
     showSeconds_ = ctx.showSeconds;
     hour12_ = ctx.hour12;
@@ -361,15 +280,12 @@ private:
     displayClearClipRect();
     auto& gfx = displayGfx();
     gfx.fillScreen(pageBg());
-    dayModeDrawWash(ctx.screenW, ctx.screenH, pageBg(), pal_.bgBottom, profile_.washHeight);
 
-    lastTime_[0] = lastDate_[0] = lastModeLabel_[0] = lastAmpm_[0] = '\0';
-    lastColonFade_ = 255;
+
+    lastTime_[0] = lastDate_[0] = lastAmpm_[0] = '\0';
     lastDatePresentW_ = 0;
 
     drawWifiDot(ctx);
-    drawModeLabel(ctx, true);
-    drawStatusHairline(ctx);
 
     char timeStr[16];
     char dateStr[32];

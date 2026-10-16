@@ -52,16 +52,16 @@ constexpr int kRadiusMd = 10;
 // —— Face zones (design-space coordinates) ——
 // Top status: mode label (center) + Wi‑Fi (right).
 constexpr int kStatusH = 48;
-constexpr int kStatusHairlineY = 47;
+constexpr int kStatusHairlineY = 48;
 
 constexpr int kWifiSize = 16;
 constexpr int kWifiRightPad = kSafeInset;
-constexpr int kWifiTop = 12;
+constexpr int kWifiTop = 21;
 
-constexpr int kModeLabelY = 22;  // baseline in top status row
+constexpr int kModeLabelY = 35;  // baseline in top status row
 
-constexpr int kTimeY = 124;      // hero time baseline
-constexpr int kDateY = 160;      // date baseline under time
+constexpr int kTimeY = 140;      // hero time baseline
+constexpr int kDateY = 185;      // date baseline under time
 constexpr int kDateBandH = 22;
 
 // Digital face — time / AM·PM / date dirty-band geometry (design space).
@@ -74,7 +74,7 @@ constexpr int kAmpmBandFallbackH = 24;
 constexpr int kAmpmBaselineLift = 4;
 constexpr int kDatePresentPadX = 16;
 constexpr int kDateBandAscentPad = 16;
-constexpr int kModeLabelClearY = 4;
+constexpr int kModeLabelClearY = 17;
 constexpr int kModeLabelClearH = 24;
 // Colon pulse: ignore fade deltas smaller than this (SPI throttle).
 constexpr int kColonFadeQuant = 16;

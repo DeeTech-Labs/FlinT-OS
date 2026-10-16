@@ -21,8 +21,8 @@ $(BUILD)/test_day_mode: test_day_mode.cpp $(FLINT)/day_mode/day_mode_hour.cpp \
 	$(CXX) $(CXXFLAGS) -o $@ test_day_mode.cpp $(FLINT)/day_mode/day_mode_hour.cpp \
 		$(FLINT)/day_mode/day_mode_profile.cpp
 
-$(BUILD)/test_date_fmt: test_date_fmt.cpp stubs/i18n_stub.cpp $(FLINT)/time/date_fmt.cpp | $(BUILD)
-	$(CXX) $(CXXFLAGS) -o $@ test_date_fmt.cpp stubs/i18n_stub.cpp $(FLINT)/time/date_fmt.cpp
+$(BUILD)/test_date_fmt: test_date_fmt.cpp $(FLINT)/i18n/i18n_catalog.inc $(FLINT)/i18n/i18n.cpp $(FLINT)/time/date_fmt.cpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) -o $@ test_date_fmt.cpp $(FLINT)/i18n/i18n.cpp $(FLINT)/time/date_fmt.cpp
 
 $(BUILD)/test_ui_dirty: test_ui_dirty.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_ui_dirty.cpp

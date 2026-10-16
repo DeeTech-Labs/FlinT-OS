@@ -6,6 +6,8 @@ const lgfx::IFont* flintFont(FlintFontId id) {
   switch (id) {
     case FlintFontId::TimeLarge:
       return flintFontTimeLarge();
+    case FlintFontId::TimeCompact:
+      return flintFontTimeCompact();
     case FlintFontId::Body:
     default:
       return flintFontBody();

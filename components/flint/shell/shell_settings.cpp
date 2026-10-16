@@ -1,4 +1,6 @@
 #include "shell/shell_settings.h"
+#include "shell/settings_pages.h"
+#include "net/wifi_net.h"
 
 #include "display/display.h"
 #include "display/ui_tokens.h"
@@ -13,54 +15,74 @@
 
 #include <stdio.h>
 
-enum SettingsRow : uint8_t {
-  SET_ROW_FACE = 0,
-  SET_ROW_CLOCK_TIME,
-  SET_ROW_CLOCK_DATE,
-  SET_ROW_SECONDS,
-  SET_ROW_HOUR,
-  SET_ROW_DATE,
-  SET_ROW_DATE_SEP,
-  SET_ROW_LANG,
-  SET_ROW_TZ,
-  SET_ROW_COUNT,
-};
-
 enum SettingsDirty : uint8_t {
   SET_OVL_NONE = 0,
   SET_OVL_FULL = 1,
   SET_OVL_ROWS = 2,
 };
 
+static SettingsPage gPage = SET_HOME;
 static int gRow = 0;
+static bool gLastConnected = false;
+static bool gLastTimeValid = false;
 static int gPrevRow = 0;
 static int gStart = 0;
 static SettingsDirty gDirty = SET_OVL_FULL;
 
 void shellSettingsEnter() {
-  gRow = SET_ROW_SECONDS;
+  gPage = SET_HOME;
+  gRow = 0;
   gPrevRow = gRow;
   gStart = 0;
   gDirty = SET_OVL_FULL;
 }
 
 void shellSettingsNavPrev() {
-  gPrevRow = gRow;
-  gRow = (gRow + SET_ROW_COUNT - 1) % SET_ROW_COUNT;
-  gDirty = SET_OVL_ROWS;
+  if (gDirty == SET_OVL_NONE) gPrevRow = gRow;
+  gRow = (gRow + settingsPageRowCount(gPage) - 1) % settingsPageRowCount(gPage);
+  if (gDirty != SET_OVL_FULL) gDirty = SET_OVL_ROWS;
 }
 
 void shellSettingsNavNext() {
-  gPrevRow = gRow;
-  gRow = (gRow + 1) % SET_ROW_COUNT;
-  gDirty = SET_OVL_ROWS;
+  if (gDirty == SET_OVL_NONE) gPrevRow = gRow;
+  gRow = (gRow + 1) % settingsPageRowCount(gPage);
+  if (gDirty != SET_OVL_FULL) gDirty = SET_OVL_ROWS;
 }
 
 bool shellSettingsApply() {
-  return gRow == SET_ROW_FACE;
+  if (gPage == SET_HOME) {
+    gPage = static_cast<SettingsPage>(gRow + 1);
+    gRow = gPrevRow = gStart = 0;
+    gDirty = SET_OVL_FULL;
+    return false;
+  }
+  return gPage == SET_DISPLAY && settingsPageRow(gPage, gRow) == SET_ROW_FACE;
+}
+
+bool shellSettingsBack() {
+  if (gPage == SET_HOME) return true;
+  gRow = static_cast<int>(gPage) - 1;
+  gPage = SET_HOME;
+  gPrevRow = gRow;
+  gStart = 0;
+  gDirty = SET_OVL_FULL;
+  return false;
+}
+
+static const char* pageTitle(SettingsPage page) {
+  switch (page) {
+    case SET_DISPLAY: return flintTr(FlintStr::Display);
+    case SET_CLOCK: return flintTr(FlintStr::DateAndTime);
+    case SET_CONNECTION: return flintTr(FlintStr::Connection);
+    default: return flintTr(FlintStr::Settings);
+  }
 }
 
 bool shellSettingsNeedsFull() {
+  if (gPage == SET_CONNECTION &&
+      (wifiNetIsConnected() != gLastConnected || clockTimeIsValid() != gLastTimeValid)) {
+    gDirty = SET_OVL_FULL;
+  }
   return gDirty == SET_OVL_FULL;
 }
 
@@ -124,52 +146,55 @@ static void formatClockDateValue(char* out, size_t outN) {
   flintFormatDate(out, outN, ti, settingsDateFormat(), settingsDateSep());
 }
 
-static void formatSettingsLine(char* out, size_t outN, int row) {
+static void formatSettingsValue(const FaceContext& ctx, SettingsRow row,
+                                const char** label, char* value, size_t size) {
   const FlintSettings& s = settingsGet();
+  value[0] = '\0';
   switch (row) {
     case SET_ROW_FACE:
-      snprintf(out, outN, "%s   %.16s", flintTr(FlintStr::Face), s.activeFace);
+      *label = flintTr(FlintStr::Face);
+      snprintf(value, size, "%s", s.activeFace);
       break;
-    case SET_ROW_CLOCK_TIME: {
-      char val[16];
-      formatClockTimeValue(val, sizeof(val));
-      snprintf(out, outN, "%s   %s", flintTr(FlintStr::Time), val);
+    case SET_ROW_CLOCK_TIME:
+      *label = flintTr(FlintStr::Time);
+      formatClockTimeValue(value, size);
       break;
-    }
-    case SET_ROW_CLOCK_DATE: {
-      char val[16];
-      formatClockDateValue(val, sizeof(val));
-      snprintf(out, outN, "%s  %s", flintTr(FlintStr::SetDate), val);
+    case SET_ROW_CLOCK_DATE:
+      *label = flintTr(FlintStr::SetDate);
+      formatClockDateValue(value, size);
       break;
-    }
     case SET_ROW_SECONDS:
-      snprintf(out, outN, "%s  %s", flintTr(FlintStr::Seconds), showSecLabel(s.showSeconds));
+      *label = flintTr(FlintStr::Seconds);
+      snprintf(value, size, "%s", showSecLabel(s.showSeconds));
       break;
     case SET_ROW_HOUR:
-      snprintf(out, outN, "%s     %s", flintTr(FlintStr::Hour), hourLabel(s.hourFormat));
+      *label = flintTr(FlintStr::Hour);
+      snprintf(value, size, "%s", hourLabel(s.hourFormat));
       break;
-    case SET_ROW_DATE: {
-      char sample[16];
-      flintDateFormatSample(sample, sizeof(sample), s.dateFormat, s.dateSep);
-      snprintf(out, outN, "%s   %s", flintTr(FlintStr::Date), sample);
+    case SET_ROW_DATE:
+      *label = flintTr(FlintStr::Date);
+      flintDateFormatSample(value, size, s.dateFormat, s.dateSep);
       break;
-    }
-    case SET_ROW_DATE_SEP: {
-      char sep[4];
-      snprintf(sep, sizeof(sep), "%c", flintDateSepChar(s.dateSep));
-      snprintf(out, outN, "%s    %s", flintTr(FlintStr::DateSep), sep);
+    case SET_ROW_DATE_SEP:
+      *label = flintTr(FlintStr::DateSep);
+      if (s.dateFormat == SETTINGS_DATE_NATURAL) snprintf(value, size, "—");
+      else snprintf(value, size, "%c", flintDateSepChar(s.dateSep));
       break;
-    }
     case SET_ROW_LANG:
-      snprintf(out, outN, "%s     %s", flintTr(FlintStr::Lang), langLabel(s.lang));
+      *label = flintTr(FlintStr::Lang);
+      snprintf(value, size, "%s", langLabel(s.lang));
       break;
-    case SET_ROW_TZ: {
-      const TzEntry* e = tzDbFind(s.tzId);
-      snprintf(out, outN, "%s    %.14s", flintTr(FlintStr::Timezone), e->label);
+    case SET_ROW_TZ:
+      *label = flintTr(FlintStr::Timezone);
+      snprintf(value, size, "%s", tzDbFind(s.tzId)->label);
       break;
-    }
-    default:
-      out[0] = '\0';
+    case SET_ROW_WIFI:
+      *label = "Wi-Fi";
+      snprintf(value, size, "%s", flintTr(ctx.wifiConnected ? FlintStr::Connected : FlintStr::Offline));
+      break;
+    case SET_ROW_CLOCK_STATUS:
+      *label = flintTr(FlintStr::ClockStatus);
+      snprintf(value, size, "%s", flintTr(ctx.hasTime ? FlintStr::Ready : FlintStr::NotSet));
       break;
   }
 }
@@ -180,8 +205,8 @@ static int windowStart() {
   if (start < 0) {
     start = 0;
   }
-  if (start > SET_ROW_COUNT - vis) {
-    start = SET_ROW_COUNT - vis;
+  if (start > settingsPageRowCount(gPage) - vis) {
+    start = settingsPageRowCount(gPage) - vis;
   }
   if (start < 0) {
     start = 0;
@@ -190,22 +215,30 @@ static int windowStart() {
 }
 
 static void paintScroll(const FaceContext& ctx) {
+  if (settingsPageRowCount(gPage) <= UiTok::kShellVisibleRows) return;
   const int trackH = UiTok::kShellVisibleRows * UiTok::kShellRowH;
   const int trackY = UiTok::kShellRowsTop;
-  int thumbH = SET_ROW_COUNT > 0 ? (trackH * UiTok::kShellVisibleRows) / SET_ROW_COUNT : trackH;
+  int thumbH = settingsPageRowCount(gPage) > 0 ? (trackH * UiTok::kShellVisibleRows) / settingsPageRowCount(gPage) : trackH;
   if (thumbH > trackH) {
     thumbH = trackH;
   }
-  const int maxStart = SET_ROW_COUNT - UiTok::kShellVisibleRows;
+  const int maxStart = settingsPageRowCount(gPage) - UiTok::kShellVisibleRows;
   const int thumbY =
       trackY + (maxStart > 0 ? (gStart * (trackH - thumbH)) / maxStart : 0);
   chromeScrollTrack(ctx, trackY, trackH, thumbY, thumbH);
 }
 
 static void paintRow(const FaceContext& ctx, int row, int visIndex, uint8_t fade) {
-  char line[48];
-  formatSettingsLine(line, sizeof(line), row);
-  chromeListRow(ctx, UiTok::shellRowFillY(visIndex), UiTok::kShellRowH, line, row == gRow, fade);
+  const int y = UiTok::shellRowFillY(visIndex);
+  if (gPage == SET_HOME) {
+    chromeValueRow(ctx, y, UiTok::kShellRowH,
+                    pageTitle(static_cast<SettingsPage>(row + 1)), "→", row == gRow, fade);
+    return;
+  }
+  const char* label = "";
+  char value[64];
+  formatSettingsValue(ctx, settingsPageRow(gPage, row), &label, value, sizeof(value));
+  chromeValueRow(ctx, y, UiTok::kShellRowH, label, value, row == gRow, fade);
 }
 
 void shellSettingsPaint(uint8_t fade) {
@@ -214,15 +247,18 @@ void shellSettingsPaint(uint8_t fade) {
   }
   const FaceContext ctx = uiBuildContext();
   chromeFillBackdrop(ctx);
-  chromeHeader(ctx, flintTr(FlintStr::Settings), fade);
-  chromeFooter(ctx, flintTr(FlintStr::PNPlusEnterEsc), fade);
-  chromeCounter(ctx, gRow + 1, SET_ROW_COUNT, fade);
+  chromeHeader(ctx, pageTitle(gPage), fade);
+  const char* hint = gPage == SET_HOME ? flintTr(FlintStr::PNEnterEsc)
+                   : gPage == SET_CONNECTION ? "Esc" : flintTr(FlintStr::PNPlusEnterEsc);
+  chromeFooter(ctx, hint, fade);
   gStart = windowStart();
-  for (int i = 0; i < UiTok::kShellVisibleRows && gStart + i < SET_ROW_COUNT; i++) {
+  for (int i = 0; i < UiTok::kShellVisibleRows && gStart + i < settingsPageRowCount(gPage); i++) {
     paintRow(ctx, gStart + i, i, fade);
   }
   paintScroll(ctx);
   displayPresent();
+  gLastConnected = ctx.wifiConnected;
+  gLastTimeValid = ctx.hasTime;
   gPrevRow = gRow;
   gDirty = SET_OVL_NONE;
 }
@@ -262,13 +298,6 @@ void shellSettingsPaintPartial() {
   }
 
   {
-    const DisplayRect counterBand{static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - 48),
-                                  static_cast<int16_t>(UiTok::contentTop() - 2), 52, 22};
-    displaySetClipRect(counterBand.x, counterBand.y, counterBand.w, counterBand.h);
-    chromeCounter(ctx, gRow + 1, SET_ROW_COUNT, 255);
-    rects[n++] = counterBand;
-  }
-  {
     const DisplayRect scrollBand{
         static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - UiTok::kShellScrollW - 1),
         static_cast<int16_t>(UiTok::kShellRowsTop),
@@ -281,6 +310,8 @@ void shellSettingsPaintPartial() {
   displayClearClipRect();
 
   displayPresentRects(rects, n);
+  gLastConnected = ctx.wifiConnected;
+  gLastTimeValid = ctx.hasTime;
   gPrevRow = gRow;
   gDirty = SET_OVL_NONE;
 }
@@ -371,12 +402,15 @@ static void adjustClockDate(int dir) {
 }
 
 void shellSettingsAdjust(int dir) {
-  switch (gRow) {
+  if (gPage == SET_HOME || gPage == SET_CONNECTION) return;
+  switch (settingsPageRow(gPage, gRow)) {
     case SET_ROW_CLOCK_TIME:
       adjustClockTime(dir);
+      gDirty = SET_OVL_FULL;
       break;
     case SET_ROW_CLOCK_DATE:
       adjustClockDate(dir);
+      gDirty = SET_OVL_FULL;
       break;
     case SET_ROW_SECONDS:
       cycleShowSeconds();
@@ -386,9 +420,10 @@ void shellSettingsAdjust(int dir) {
       break;
     case SET_ROW_DATE:
       cycleDateFormat(dir);
+      gDirty = SET_OVL_FULL;
       break;
     case SET_ROW_DATE_SEP:
-      cycleDateSep(dir);
+      if (settingsGet().dateFormat != SETTINGS_DATE_NATURAL) cycleDateSep(dir);
       break;
     case SET_ROW_LANG:
       cycleLang();

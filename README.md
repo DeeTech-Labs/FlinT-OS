@@ -85,6 +85,10 @@ Type in the IDF monitor (no Enter except where noted):
 | `q` / `Esc` | Back to face |
 | `h` | Help in log |
 
+Settings are grouped into Display, Date and time, and Connection. `Esc` returns
+to the category list, then to the clock. The default date uses a month name;
+numeric date formats remain available. Connection is a read-only status page.
+
 Prefs and soft clock live on `cfg` LittleFS (survive asset reflash). Icons load from `storage` — [`assets/README.md`](assets/README.md).
 
 </details>

@@ -1,6 +1,7 @@
 #include "faces/face_digital_layout.h"
 
 #include "display/ui_tokens.h"
+#include "sdk/resources.h"
 
 #include <string.h>
 
@@ -75,30 +76,25 @@ void DigitalTimeLayout::ensure(const FaceContext& ctx, bool wantSeconds, bool ho
   withSeconds = wantSeconds;
   len = wantSeconds ? 8 : 5;
 
-  const int digits = wantSeconds ? 6 : 4;
-  const int colons = wantSeconds ? 2 : 1;
+  // Hours and minutes own the visual hierarchy; seconds use the body font.
+  auto& gfx = displayGfx();
+  displaySetFont(gfx, flintFont(FlintFontId::Body));
+  const int smallDigitW = displayTextWidth(gfx, "0");
+  const int secondsGap = UiTok::kGapMd + UiTok::kGapSm;
+  // Keep this slot even with seconds hidden: HH:MM never shifts.
+  const int secondsW = secondsGap + smallDigitW * 2;
   const int ampmReserve = hour12 ? UiTok::kAmpmLayoutReserve : 0;
-  const int avail = UiTok::contentWidth(ctx.screenW) - ampmReserve;
-  int total = digitW * digits + colonW * colons;
-  if (total > avail && digits > 0) {
-    const int over = total - avail;
-    const int shrink = (over + digits - 1) / digits;
-    digitW -= shrink;
-    if (digitW < UiTok::kMinTimeDigitW) {
-      digitW = UiTok::kMinTimeDigitW;
-    }
-    total = digitW * digits + colonW * colons;
-  }
+  // Each face size is baked at its native resolution: no bitmap enlargement.
+  heroFont = timeFont;
+  const int total = digitW * 4 + colonW + secondsW;
   int x = (ctx.screenW - total - ampmReserve) / 2;
-  if (x < UiTok::contentLeft()) {
-    x = UiTok::contentLeft();
-  }
+  if (x < UiTok::contentLeft()) x = UiTok::contentLeft();
   for (int i = 0; i < len; i++) {
     cellX[i] = x;
-    const bool colonSlot = wantSeconds ? (i == 2 || i == 5) : (i == 2);
-    x += colonSlot ? colonW : digitW;
+    cellW[i] = i == 2 ? colonW : (i == 5 ? secondsGap : (i > 5 ? smallDigitW : digitW));
+    x += cellW[i];
   }
-  endX = x;
+  endX = cellX[0] + total;
   ready = true;
 }
 
@@ -125,11 +121,11 @@ int DigitalTimeLayout::appendColonRects(int screenH, const char* timeStr, Displa
   const int ty = UiTok::timeY(screenH) - ascent;
   const int h = glyphH > 0 ? glyphH + UiTok::kTimeGlyphPadY : UiTok::kTimeBandFallbackH;
   for (int i = 0; timeStr[i] != '\0' && n < cap; i++) {
-    if (timeStr[i] != ':') {
+    if (i != 2 || timeStr[i] != ':') {
       continue;
     }
     out[n++] = DisplayRect{static_cast<int16_t>(cellX[i]), static_cast<int16_t>(ty),
-                           static_cast<int16_t>(colonW > 0 ? colonW : digitW),
+                           static_cast<int16_t>(cellW[i]),
                            static_cast<int16_t>(h)};
   }
   return n;
@@ -155,35 +151,30 @@ int DigitalTimeLayout::appendChangedGlyphRects(int screenH, const char* prev,
     if (prev[i] == next[i]) {
       continue;
     }
-    const bool colonSlot = withSeconds ? (i == 2 || i == 5) : (i == 2);
-    const int cellW = colonSlot ? (colonW > 0 ? colonW : digitW) : digitW;
+    const int width = cellW[i];
     out[n++] = DisplayRect{static_cast<int16_t>(cellX[i]), static_cast<int16_t>(ty),
-                           static_cast<int16_t>(cellW), static_cast<int16_t>(h)};
+                           static_cast<int16_t>(width), static_cast<int16_t>(h)};
   }
   return n;
 }
 
 void DigitalTimeLayout::drawGlyph(lgfx::LGFXBase& gfx, int index, char ch, uint16_t fg,
                                   uint16_t bg, int screenH) const {
-  // Caller must displaySetFont(timeFont) once per paint batch.
-  const bool isColon = (ch == ':');
-  const int cellW = isColon ? colonW : digitW;
+  const bool small = index >= 5;
+  const int width = cellW[index];
   const int x = cellX[index];
   const int ty = UiTok::timeY(screenH);
-  gfx.fillRect(x, ty - ascent, cellW, glyphH, bg);
+  gfx.fillRect(x, ty - ascent, width, glyphH, bg);
+  // Slot 5 is breathing room between minutes and the secondary seconds.
+  if (index == 5) return;
+  displaySetFont(gfx, small ? flintFont(FlintFontId::Body) : heroFont);
+  gfx.setTextSize(1.0f);
   char tmp[2] = {ch, 0};
-  int gw = colonW;
-  if (!isColon) {
-    if (ch >= '0' && ch <= '9') {
-      gw = glyphWDigit[ch - '0'];
-    } else if (ch == '-') {
-      gw = glyphWDash;
-    } else {
-      gw = digitW;
-    }
-  }
+  const int gw = displayTextWidth(gfx, tmp);
   gfx.setTextColor(fg, bg);
-  gfx.drawString(tmp, x + (cellW - gw) / 2, ty);
+  gfx.drawString(tmp, x + (width - gw) / 2, ty);
+  // Font scale is global LovyanGFX state: never leak it into date/shell text.
+  gfx.setTextSize(1.0f);
 }
 
 DisplayRect digitalDateBand(const FaceContext& ctx, const char* dateStr, int* ioPresentW,

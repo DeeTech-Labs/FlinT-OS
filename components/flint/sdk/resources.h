@@ -8,6 +8,7 @@
 enum class FlintFontId : uint8_t {
   TimeLarge = 0,
   Body = 1,
+  TimeCompact = 2,
 };
 
 enum class FlintIconId : uint8_t {

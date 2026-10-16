@@ -103,3 +103,63 @@ msgstr "Время"
 
 msgid "set date"
 msgstr "Уст. дата"
+
+msgid "Display"
+msgstr "Экран"
+
+msgid "Date and time"
+msgstr "Дата и время"
+
+msgid "Connection"
+msgstr "Подключение"
+
+msgid "Connected"
+msgstr "Подключено"
+
+msgid "Offline"
+msgstr "Нет сети"
+
+msgid "Clock status"
+msgstr "Часы"
+
+msgid "Ready"
+msgstr "Настроены"
+
+msgid "Not set"
+msgstr "Не настроены"
+
+msgid "January"
+msgstr "января"
+
+msgid "February"
+msgstr "февраля"
+
+msgid "March"
+msgstr "марта"
+
+msgid "April"
+msgstr "апреля"
+
+msgid "May"
+msgstr "мая"
+
+msgid "June"
+msgstr "июня"
+
+msgid "July"
+msgstr "июля"
+
+msgid "August"
+msgstr "августа"
+
+msgid "September"
+msgstr "сентября"
+
+msgid "October"
+msgstr "октября"
+
+msgid "November"
+msgstr "ноября"
+
+msgid "December"
+msgstr "декабря"

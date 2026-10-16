@@ -22,8 +22,7 @@ set(FLINT_SRCS
     day_mode/day_mode_profile.cpp
     display/display.cpp
     display/resources.cpp
-    display/fonts/u8g2_font_10x20_t_cyrillic.c
-    display/fonts/u8g2_font_logisoso46_tn.c
+    display/fonts_smooth.cpp
     event/event.cpp
     faces/FaceRegistry.cpp
     faces/face_digital.cpp

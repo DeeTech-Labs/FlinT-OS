@@ -25,7 +25,9 @@ jobs:
         run: make -C tests/host run
 
       - name: Tools gen_* smoke
-        run: python3 -m unittest discover -s tools/tests -v
+        run: |
+          python3 -m pip install pyserial==3.5
+          python3 -m unittest discover -s tools/tests -v
 
       - name: Codegen artifacts in sync
         run: |
@@ -43,9 +45,8 @@ jobs:
     container: espressif/idf:v6.0.2
     steps:
       - uses: actions/checkout@v5
-      - name: Build firmware with example credentials
+      - name: Build offline firmware
         shell: bash
         run: |
           . /opt/esp/idf/export.sh
-          cp components/flint/config/secrets.example.h components/flint/config/secrets.h
           idf.py -DIDF_TARGET=esp32c3 build

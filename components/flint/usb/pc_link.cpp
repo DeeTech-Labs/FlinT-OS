@@ -1,11 +1,15 @@
 #include "usb/pc_link.h"
 #include "usb/pc_protocol.h"
+#include "usb/pc_data.h"
 #include "usb/status_pattern.h"
 #include "config/config.h"
 #include "config/debug.h"
 #include "event/event.h"
 #include "time/clock_time.h"
 #include "util/flint_sys.h"
+#include "settings/settings.h"
+#include "display/display.h"
+#include "esp_mac.h"
 
 #include "driver/gpio.h"
 #include "driver/usb_serial_jtag.h"
@@ -15,6 +19,32 @@ bool gConnected = false;
 bool gLedReady = false;
 PcProtocol gProtocol;
 PcStatusPattern gPattern;
+
+void sendInfo() {
+  uint8_t mac[6]{};
+  if (esp_efuse_mac_get_default(mac) != ESP_OK) {
+    printf("FLINT ERROR device id unavailable\n");
+    return;
+  }
+  char id[13];
+  snprintf(id, sizeof(id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  const PcDeviceInfo info{id, "Spark", FLINT_BOARD_ID, FLINT_IDF_TARGET,
+                          FLINT_OS_VERSION_STRING, FLINT_OS_API_VERSION, SCR_W, SCR_H};
+  char json[512];
+  if (pcWriteInfo(json, sizeof(json), info)) printf("FLINT INFO %s\n", json);
+  else printf("FLINT ERROR info overflow\n");
+}
+
+void sendStatus() {
+  const FlintSettings& settings = settingsGet();
+  const PcDeviceStatus status{esp_timer_get_time() / 1000, flintFreeHeap(), gConnected,
+      clockTimeIsValid(), clockTimeIsPcSynced(), clockTimeGetEpoch(), settings.tzId,
+      settings.activeFace, settings.showSeconds, settings.lang, settings.hourFormat,
+      settings.dateFormat, settings.dateSep};
+  char json[768];
+  if (pcWriteStatus(json, sizeof(json), status)) printf("FLINT STATUS %s\n", json);
+  else printf("FLINT ERROR status overflow\n");
+}
 
 void updateLed() {
   if (!gLedReady) return;
@@ -54,6 +84,12 @@ bool pcLinkHandleByte(char c) {
   switch (command.kind) {
     case PcCommandKind::Hello:
       printf("FLINT HELLO 1 %s\n", FLINT_BOARD_ID);
+      break;
+    case PcCommandKind::Info:
+      sendInfo();
+      break;
+    case PcCommandKind::Status:
+      sendStatus();
       break;
     case PcCommandKind::Time:
       if (clockTimeSyncFromPc(static_cast<time_t>(command.epoch))) {

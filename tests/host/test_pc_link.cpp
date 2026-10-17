@@ -1,5 +1,6 @@
 #include "usb/pc_protocol.h"
 #include "usb/status_pattern.h"
+#include "usb/pc_data.h"
 #include "host_check.h"
 
 #include <string>
@@ -15,6 +16,9 @@ int main() {
   PcCommand out;
   hostRequire(!parser.feed('s', 0, out), "shell keys pass through");
   hostRequire(command(parser, "@HELLO\r\n").kind == PcCommandKind::Hello, "CRLF handshake");
+  hostRequire(command(parser, "@INFO\n").kind == PcCommandKind::Info, "device info query");
+  hostRequire(command(parser, "@STATUS\r\n").kind == PcCommandKind::Status, "device state query");
+  hostRequire(command(parser, "@STATUS extra\n").kind == PcCommandKind::Error, "reject status arguments");
   out = command(parser, "@TIME 1792249200\n");
   hostRequire(out.kind == PcCommandKind::Time && out.epoch == 1792249200, "UTC epoch");
   for (const char* invalid : {"@TIME -792249200\n", "@TIME 1792249200x\n",
@@ -55,5 +59,23 @@ int main() {
   hostRequire(led.on(true, 80), "first sync flash");
   hostRequire(!led.on(false, 81), "disconnect cancels sync pattern");
   hostRequire(!led.on(false, 10000), "stays off on USB power only");
+
+  char json[768];
+  const PcDeviceInfo info{"device-id", "Spark", "flint_spark", "esp32c3", "0.2.0", 1, 280, 240};
+  hostRequire(pcWriteInfo(json, sizeof(json), info) && std::string(json).find("\"time_sync\"") != std::string::npos,
+              "advertise supported commands");
+  PcDeviceStatus status{5000000000LL, 123456, true, false, false, 0,
+      "Europe/Moscow", "face\"\\\n", 255, 0, 0, 0, 0};
+  hostRequire(pcWriteStatus(json, sizeof(json), status), "serialize status");
+  hostRequire(std::string(json).find("\"uptime_ms\":5000000000") != std::string::npos, "64-bit uptime");
+  hostRequire(std::string(json).find("\"epoch\":null") != std::string::npos, "invalid time is null");
+  hostRequire(std::string(json).find("face\\\"\\\\\\u000a") != std::string::npos, "escape JSON text");
+  status.timeValid = true;
+  status.epoch = 4102444799LL;
+  hostRequire(pcWriteStatus(json, sizeof(json), status) &&
+      std::string(json).find("\"epoch\":4102444799") != std::string::npos, "64-bit epoch");
+  char tiny[5] = "xxxx";
+  hostRequire(!pcWriteInfo(tiny, sizeof(tiny), info) && tiny[0] == '\0', "reject JSON truncation");
+  hostRequire(!pcWriteInfo(nullptr, 0, info), "reject missing JSON buffer");
   std::puts("ok test_pc_link");
 }

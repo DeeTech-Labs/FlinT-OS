@@ -6,6 +6,8 @@
 bool clockTimeIsValid();       // soft (cfg) or PC — safe to show on face
 bool clockTimeIsPcSynced();    // successful PC sync in this boot; manual edit clears it
 bool clockTimeGetLocal(struct tm* out);
+// UTC epoch, or zero when no time has been set.
+time_t clockTimeGetEpoch();
 // Deadline for the next visible clock tick (1..1000 ms).
 uint32_t clockTimeNextTickMs();
 

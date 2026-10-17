@@ -173,6 +173,10 @@ bool clockTimeIsValid() {
   return timeValid;
 }
 
+time_t clockTimeGetEpoch() {
+  return clockNowEpoch();
+}
+
 bool clockTimeIsPcSynced() {
   return timePcSynced;
 }

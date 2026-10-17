@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
-enum class PcCommandKind { None, Hello, Time, Error };
+enum class PcCommandKind { None, Hello, Info, Status, Time, Error };
 struct PcCommand {
   PcCommandKind kind = PcCommandKind::None;
   int64_t epoch = 0;
@@ -37,6 +37,10 @@ public:
     if (invalid_) return true;
     if (strcmp(line_, "HELLO") == 0) {
       out.kind = PcCommandKind::Hello;
+    } else if (strcmp(line_, "INFO") == 0) {
+      out.kind = PcCommandKind::Info;
+    } else if (strcmp(line_, "STATUS") == 0) {
+      out.kind = PcCommandKind::Status;
     } else if (strncmp(line_, "TIME ", 5) == 0 && count_ == 15) {
       int64_t epoch = 0;
       for (size_t i = 5; i < count_; ++i) {

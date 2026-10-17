@@ -63,3 +63,24 @@ The device keeps elapsed time using a 64-bit monotonic timer, persists the UTC
 epoch on sync and at most once a minute while running, and restores it after
 reset. Without a battery-backed RTC it cannot know time spent powered off;
 the next PC sync corrects this. Manual editing clears the PC-synced status.
+
+## Device data for FlinT Desktop
+
+Two read-only commands extend protocol v1 without changing HELLO or TIME:
+
+- `@INFO\n` returns `FLINT INFO {JSON}\n`: protocol, stable eFuse-based id, model,
+  board, chip, firmware version, API, configured screen size and capabilities
+  (`info`, `status`, `time_sync`). Reading the factory MAC does not enable radio.
+- `@STATUS\n` returns `FLINT STATUS {JSON}\n`: 64-bit `uptime_ms`, `free_heap_bytes`,
+  `usb_connected`, `time_valid`, `pc_synced`, UTC `epoch` (null when unset),
+  `timezone`, `active_face`, and `settings` (`show_seconds`, `language`,
+  `hour_format`, `date_format`, `date_separator`).
+
+Replies are single-line JSON, bounded and escaped; serialization failure returns
+`FLINT ERROR` instead of a truncated document. Queries do not write settings or
+flash. FlinT Desktop polls STATUS every two seconds and supports manual JSON
+capture export. Only one command should be in flight per client. Diagnostic
+logs can appear between replies; clients must match the `FLINT` response prefix.
+
+FlinT Desktop's `docs/USB-DATA.md` documents the fields and capture file format.
+Keep the serial monitor and Python time helper closed while the app owns the port.

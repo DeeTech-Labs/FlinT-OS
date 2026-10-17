@@ -39,7 +39,7 @@ $(BUILD)/test_cfg_fs: test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(wildcard st
 $(BUILD)/test_clock_schedule: test_clock_schedule.cpp $(FLINT)/time/clock_schedule.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_clock_schedule.cpp
 
-$(BUILD)/test_pc_link: test_pc_link.cpp $(FLINT)/usb/pc_protocol.h $(FLINT)/usb/status_pattern.h | $(BUILD)
+$(BUILD)/test_pc_link: test_pc_link.cpp $(FLINT)/usb/pc_protocol.h $(FLINT)/usb/status_pattern.h $(FLINT)/usb/pc_data.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_pc_link.cpp
 
 run: all

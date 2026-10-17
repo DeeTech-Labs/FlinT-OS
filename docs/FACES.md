@@ -25,13 +25,13 @@ Built-in reference: `face_digital.cpp` (partial present + colon pulse).
 
 ## Rules
 
-- Include the Face SDK (and allowed helpers such as `faces/glance.h`, `display/ui_tokens.h`) only — not `net/`, `settings/`, `app/`, or `secrets.h`
+- Include the Face SDK (and allowed helpers such as `faces/glance.h`, `display/ui_tokens.h`) only — not `usb/`, `settings/`, or `app/`
 - Keep `onTick` non-blocking
 - Prefer `FaceContext` prefs/palette over reading services
 - Prefer `UiTok::timeY(screenH)` / mapped helpers over raw `kTimeY` constants
 - Use `flintFont` / `flintDrawIcon` / `flintTr` — do not vendor fonts or bake UI chrome into bitmaps
 - Localized strings: `flintTr(FlintStr::…)`, weekday / day-mode helpers as in the template
-- `GLANCE_DATE` is the usual companion; `GLANCE_WIFI` is optional
+- `GLANCE_DATE` draws the shared date complication
 
 ## API locations
 

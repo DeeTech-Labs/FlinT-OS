@@ -165,3 +165,6 @@ msgstr ""
 
 msgid "December"
 msgstr ""
+
+msgid "Synced with PC"
+msgstr ""

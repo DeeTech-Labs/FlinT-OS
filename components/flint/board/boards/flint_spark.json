@@ -7,8 +7,8 @@
   "pinout": {
     "display": {
       "cs": 10,
-      "dc": 9,
-      "rst": 8,
+      "dc": 4,
+      "rst": 3,
       "mosi": 7,
       "sclk": 6,
       "miso": -1,
@@ -25,5 +25,9 @@
     "max_h": 240
   },
   "safe_inset": 16,
-  "layout": "280x240_landscape"
+  "layout": "280x240_landscape",
+  "status_led": {
+    "gpio": 8,
+    "active": "low"
+  }
 }

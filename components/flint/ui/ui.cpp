@@ -5,7 +5,7 @@
 #include "config/debug.h"
 #include "display/display.h"
 #include "time/clock_time.h"
-#include "net/wifi_net.h"
+#include "usb/pc_link.h"
 #include "day_mode/day_mode.h"
 #include "settings/settings.h"
 #include "faces/FaceRegistry.h"
@@ -25,8 +25,7 @@ FaceContext uiBuildContext() {
   }
   ctx.dayProfile = dayModeProfile(ctx.dayMode);
   ctx.palette = dayModeBuildPalette(ctx.dayMode);
-  ctx.wifiConnected = wifiNetIsConnected();
-  ctx.wifiBars = wifiNetBars();
+  ctx.usbConnected = pcLinkConnected();
 
   ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
   ctx.hour12 = settingsUse12Hour();

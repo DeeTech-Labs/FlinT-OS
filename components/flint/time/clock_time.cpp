@@ -13,18 +13,14 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "esp_sntp.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 
 static bool timeValid = false;
-static bool timeNtpSynced = false;
-static bool ntpStarted = false;
-static bool ntpApplyPending = false;
+static bool timePcSynced = false;
 static time_t baseEpoch = 0;
 // Keep elapsed clock time in 64 bits; millis wraps after about 49.7 days.
 static int64_t baseMicros = 0;
-static uint32_t lastNtpSyncMs = 0;
 static uint32_t lastPersistMs = 0;
 
 static constexpr time_t kMinEpoch = 1700000000;  // ~2023-11
@@ -36,14 +32,11 @@ static time_t clockNowEpoch() {
   return baseEpoch + (time_t)((esp_timer_get_time() - baseMicros) / 1000000LL);
 }
 
-static void clockSetBase(time_t epoch, bool fromNtp) {
+static void clockSetBase(time_t epoch, bool fromPc) {
   baseEpoch = epoch;
   baseMicros = esp_timer_get_time();
   timeValid = true;
-  if (fromNtp) {
-    timeNtpSynced = true;
-    lastNtpSyncMs = flintMillis();
-  }
+  timePcSynced = fromPc;
 }
 
 static void clockSaveEpoch(time_t epoch) {
@@ -64,7 +57,7 @@ static void clockSaveEpoch(time_t epoch) {
     return;
   }
   if (!cfgFsWriteAtomic(kCfgTimePath, buf, static_cast<size_t>(n))) {
-    LOGE("ntp", "time.cfg write failed");
+    LOGE("clock", "time.cfg write failed");
     return;
   }
   lastPersistMs = flintMillis();
@@ -155,7 +148,7 @@ static bool clockLoadEpoch(time_t* out) {
   }
 
   if (clockMigrateEpochFromNvs(out)) {
-    LOGI("ntp", "migrated soft time from NVS");
+    LOGI("clock", "migrated soft time from NVS");
     clockSaveEpoch(*out);
     return true;
   }
@@ -180,12 +173,8 @@ bool clockTimeIsValid() {
   return timeValid;
 }
 
-bool clockTimeIsNtpSynced() {
-  return timeNtpSynced;
-}
-
-uint32_t clockTimeLastSyncMs() {
-  return lastNtpSyncMs;
+bool clockTimeIsPcSynced() {
+  return timePcSynced;
 }
 
 uint32_t clockTimeNextTickMs() {
@@ -216,10 +205,8 @@ bool clockTimeSetLocal(const struct tm* local) {
     return false;
   }
   clockSetBase(epoch, false);
-  // Hold manual value until the next explicit NTP begin/apply cycle.
-  ntpApplyPending = false;
   clockSaveEpoch(epoch);
-  LOGI("ntp", "manual soft time %04d-%02d-%02d %02d:%02d:%02d",
+  LOGI("clock", "manual soft time %04d-%02d-%02d %02d:%02d:%02d",
        editable.tm_year + 1900, editable.tm_mon + 1, editable.tm_mday,
        editable.tm_hour, editable.tm_min, editable.tm_sec);
   return true;
@@ -244,13 +231,13 @@ void clockTimeSoftBegin() {
 
   time_t epoch = 0;
   if (!clockLoadEpoch(&epoch)) {
-    LOGI("ntp", "no soft time in cfg");
+    LOGI("clock", "no soft time in cfg");
     return;
   }
   clockSetBase(epoch, false);
   struct tm ti{};
   localtime_r(&epoch, &ti);
-  LOGI("ntp", "soft time from cfg %04d-%02d-%02d %02d:%02d:%02d (until NTP)",
+  LOGI("clock", "soft time from cfg %04d-%02d-%02d %02d:%02d:%02d (until PC sync)",
        ti.tm_year + 1900, ti.tm_mon + 1, ti.tm_mday, ti.tm_hour, ti.tm_min, ti.tm_sec);
 }
 
@@ -259,62 +246,18 @@ void clockTimePersist() {
     return;
   }
   const uint32_t now = flintMillis();
-  // Throttle cfg writes: every 60s when running; NTP first sync writes immediately.
+  // Throttle cfg writes: every 60s when running; PC sync writes immediately.
   if (lastPersistMs != 0 && (now - lastPersistMs) < 60000UL) {
     return;
   }
   clockSaveEpoch(clockNowEpoch());
 }
 
-void clockTimeBeginNtp() {
-  clockTimeApplyTz(settingsGet().tzId);
-  LOGI("ntp", "begin server=%s tz=%s", NTP_SERVER, settingsGet().tzId);
-
-  ntpApplyPending = true;
-  if (!ntpStarted) {
-    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    esp_sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
-    esp_sntp_setservername(0, NTP_SERVER);
-    esp_sntp_setservername(1, "time.google.com");
-    esp_sntp_setservername(2, "time.cloudflare.com");
-    esp_sntp_init();
-    ntpStarted = true;
-  } else {
-    esp_sntp_restart();
-  }
-}
-
-bool clockTimePollNtp() {
-  if (!ntpStarted) {
-    return timeValid;
-  }
-
-  if (esp_sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED) {
-    return timeValid;
-  }
-
-  if (!ntpApplyPending) {
-    return timeValid;
-  }
-
-  time_t now = 0;
-  time(&now);
-  if (now < kMinEpoch) {
-    return timeValid;
-  }
-
-  struct tm timeinfo{};
-  localtime_r(&now, &timeinfo);
-
-  const bool firstNtp = !timeNtpSynced;
-  clockSetBase(now, true);
-  clockSaveEpoch(now);
-  ntpApplyPending = false;
-
-  if (firstNtp) {
-    LOGI("ntp", "synced %04d-%02d-%02d %02d:%02d:%02d",
-         timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-         timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-  }
+bool clockTimeSyncFromPc(time_t epoch) {
+  // Same UTC range accepted by the USB protocol: 2023-11 through 2099.
+  if (epoch < kMinEpoch || epoch > static_cast<time_t>(4102444799LL)) return false;
+  clockSetBase(epoch, true);
+  clockSaveEpoch(epoch);
+  LOGI("clock", "PC synced epoch=%lld", static_cast<long long>(epoch));
   return true;
 }

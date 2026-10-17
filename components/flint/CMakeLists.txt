@@ -30,7 +30,7 @@ set(FLINT_SRCS
     faces/faces_builtin.cpp
     faces/glance.cpp
     i18n/i18n.cpp
-    net/wifi_net.cpp
+    usb/pc_link.cpp
     settings/cfg_fs.cpp
     settings/settings.cpp
     shell/shell.cpp
@@ -52,12 +52,9 @@ idf_component_register(
     REQUIRES
         esp_partition
         nvs_flash
-        esp_event
-        esp_netif
-        esp_wifi
         esp_timer
+        esp_driver_gpio
         freertos
-        lwip
         heap
         log
         esp_driver_usb_serial_jtag

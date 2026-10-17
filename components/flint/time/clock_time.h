@@ -3,24 +3,22 @@
 #include <time.h>
 #include <stdint.h>
 
-bool clockTimeIsValid();       // soft (cfg) or NTP — safe to show on face
-bool clockTimeIsNtpSynced();   // true only after SNTP
+bool clockTimeIsValid();       // soft (cfg) or PC — safe to show on face
+bool clockTimeIsPcSynced();    // successful PC sync in this boot; manual edit clears it
 bool clockTimeGetLocal(struct tm* out);
-uint32_t clockTimeLastSyncMs();
 // Deadline for the next visible clock tick (1..1000 ms).
 uint32_t clockTimeNextTickMs();
 
-// Restore last epoch from cfg so UI shows time before Wi‑Fi/NTP.
+// Restore last epoch from cfg so UI shows time before USB sync.
 void clockTimeSoftBegin();
 
-// Non-blocking NTP: begin once, then poll each loop
-void clockTimeBeginNtp();
-bool clockTimePollNtp();
+// Set UTC epoch received from the host PC; persists immediately.
+bool clockTimeSyncFromPc(time_t epoch);
 
-// Persist current soft/NTP epoch (call on minute tick when valid).
+// Persist current soft/PC epoch (call on minute tick when valid).
 void clockTimePersist();
 
-// Manual soft-clock edit (settings UI). Persists to cfg. Holds until next NTP apply.
+// Manual soft-clock edit (settings UI). Persists to cfg. PC sync may replace it.
 bool clockTimeSetLocal(const struct tm* local);
 // ±minutes / ±days from current (or default seed if unset); persists.
 bool clockTimeAdjustMinutes(int deltaMin);

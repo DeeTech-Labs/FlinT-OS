@@ -4,7 +4,7 @@
 #include "day_mode/day_mode.h"
 #include "display/ui_palette.h"
 
-// Read-only snapshot for faces. Faces must not mutate services or call net/http.
+// Read-only snapshot for faces. Faces must not mutate services or access hardware.
 
 struct FaceContext {
   bool hasTime;
@@ -14,8 +14,7 @@ struct FaceContext {
   DayModeProfile dayProfile;
   UiPalette palette;
 
-  bool wifiConnected;
-  uint8_t wifiBars;  // 0 = off, 1–3 = RSSI strength while connected
+  bool usbConnected;
 
   // Resolved prefs (shell/settings → /cfg/ui.cfg) — faces must not read cfg/NVS.
   bool showSeconds;

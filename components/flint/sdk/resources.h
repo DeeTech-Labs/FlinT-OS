@@ -12,10 +12,6 @@ enum class FlintFontId : uint8_t {
 };
 
 enum class FlintIconId : uint8_t {
-  WifiOff = 0,
-  Wifi1 = 1,   // connected, weak RSSI
-  Wifi2 = 2,   // medium
-  Wifi3 = 3,   // strong
   BrandMark = 4,
 };
 
@@ -28,9 +24,6 @@ enum class FlintIconSize : uint8_t {
 };
 
 const lgfx::IFont* flintFont(FlintFontId id);
-
-// Status glyph for Wi‑Fi bars (0 = off / disconnected, 1–3 = signal).
-FlintIconId flintWifiIcon(uint8_t bars);
 
 bool flintIconAvailable(FlintIconId id, FlintIconSize size = FlintIconSize::Glance);
 

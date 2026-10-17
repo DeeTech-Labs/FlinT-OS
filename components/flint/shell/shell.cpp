@@ -11,6 +11,7 @@
 #include "shell/shell_settings.h"
 #include "ui/ui.h"
 #include "ui/ui_dirty.h"
+#include "usb/pc_link.h"
 #include "util/flint_sys.h"
 
 #include <stdio.h>
@@ -29,7 +30,7 @@ static ShellState gState = SHELL_FACE;
 static bool gConsoleReady = false;
 
 static void shellLogHelp() {
-  LOGI("shell", "keys: Enter=picker/action  s=settings  p/n=nav  +/- adjust  q/Esc=back  h=help");
+  LOGI("shell", "keys: Enter=picker/action  s=settings  p/n=nav  +/- adjust  q/Esc=back  h=help; PC: @HELLO / @TIME <UTC epoch>");
 }
 
 static void shellConsoleInit() {
@@ -137,6 +138,8 @@ void shellTick() {
 }
 
 void shellHandleKey(char c) {
+  if (pcLinkHandleByte(c)) return;
+
   if (c == 'h' || c == 'H' || c == '?') {
     shellLogHelp();
     return;

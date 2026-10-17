@@ -55,7 +55,8 @@ enum class FlintStr : uint16_t {
   October = 49,
   November = 50,
   December = 51,
-  COUNT = 52
+  SyncedWithPC = 52,
+  COUNT = 53
 };
 
 static const char* const kFlintStrMsgid[] = {
@@ -111,6 +112,7 @@ static const char* const kFlintStrMsgid[] = {
   "October",
   "November",
   "December",
+  "Synced with PC",
 };
 
 static const char* const kFlintStrEn[] = {
@@ -166,6 +168,7 @@ static const char* const kFlintStrEn[] = {
   "October",
   "November",
   "December",
+  "Synced with PC",
 };
 
 static const char* const kFlintStrRu[] = {
@@ -205,7 +208,7 @@ static const char* const kFlintStrRu[] = {
   "Дата и время",
   "Подключение",
   "Подключено",
-  "Нет сети",
+  "Отключено",
   "Часы",
   "Настроены",
   "Не настроены",
@@ -221,5 +224,6 @@ static const char* const kFlintStrRu[] = {
   "октября",
   "ноября",
   "декабря",
+  "Сверены с ПК",
 };
 

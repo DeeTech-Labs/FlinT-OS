@@ -47,14 +47,9 @@ public:
 
     const DisplayRect timeBand = timeLayout_.timeBand(ctx.screenH);
     const DisplayRect ampmBand = timeLayout_.ampmBand(ctx.screenH);
-    const DisplayRect wifiBand{static_cast<int16_t>(UiTok::wifiX(ctx.screenW)),
-                               static_cast<int16_t>(UiTok::wifiTop(ctx.screenH)),
-                               static_cast<int16_t>(UiTok::kWifiSize),
-                               static_cast<int16_t>(UiTok::kWifiSize)};
 
     bool timeDirty = false;
     bool dateDirty = false;
-    bool wifiDirty = false;
     bool ampmDirty = false;
     char prevTime[16];
     memcpy(prevTime, lastTime_, sizeof(prevTime));
@@ -78,14 +73,9 @@ public:
       lastDate_[sizeof(lastDate_) - 1] = '\0';
       dateDirty = true;
     }
-    if ((ctx.wifiBars == 0) != (lastWifiBars_ == 0)) {
-      displaySetClipRect(wifiBand.x, wifiBand.y, wifiBand.w, wifiBand.h);
-      drawWifiDot(ctx);
-      wifiDirty = true;
-    }
     displayClearClipRect();
 
-    if (!(timeDirty || dateDirty || wifiDirty || ampmDirty)) {
+    if (!(timeDirty || dateDirty || ampmDirty)) {
       return;
     }
 
@@ -93,7 +83,7 @@ public:
       return;
     }
 
-    // Up to 8 time glyphs + AM/PM + date + wifi.
+    // Up to 8 time glyphs + AM/PM + date.
     DisplayRect rects[11];
     int n = 0;
     if (timeDirty) {
@@ -104,9 +94,6 @@ public:
     }
     if (dateDirty && n < 11) {
       rects[n++] = dateBand;
-    }
-    if (wifiDirty && n < 11) {
-      rects[n++] = wifiBand;
     }
 
     if (n == 1) {
@@ -128,7 +115,6 @@ private:
   char lastTime_[16] = "";
   char lastDate_[32] = "";
   char lastAmpm_[4] = "";
-  uint8_t lastWifiBars_ = 0xFF;
   int lastDatePresentW_ = 0;
 
   DigitalTimeLayout timeLayout_{};
@@ -170,20 +156,6 @@ private:
     }
     flintFormatDateLine(dateStr, dateN, ctx.hasTime, ctx.localTime, ctx.dateFormat,
                         ctx.dateSep);
-  }
-
-  void drawWifiDot(const FaceContext& ctx) {
-    // Icons are transparent: erase previous bars before changing signal state.
-    displayGfx().fillRect(UiTok::wifiX(ctx.screenW), UiTok::wifiTop(ctx.screenH),
-                          UiTok::kWifiSize, UiTok::kWifiSize, pageBg());
-    // Normal operation needs no network indicator. Loss of connection stays quiet.
-    if (ctx.wifiBars == 0) {
-      flintDrawIcon(displayGfx(), FlintIconId::WifiOff,
-                    UiTok::wifiX(ctx.screenW) + UiTok::kWifiSize / 2,
-                    UiTok::wifiTop(ctx.screenH) + UiTok::kWifiSize / 2,
-                    colorLerp(pageBg(), pal_.textSecondary, 120), pageBg());
-    }
-    lastWifiBars_ = ctx.wifiBars;
   }
 
   bool drawAmpm(const FaceContext& ctx, bool force) {
@@ -285,7 +257,6 @@ private:
     lastTime_[0] = lastDate_[0] = lastAmpm_[0] = '\0';
     lastDatePresentW_ = 0;
 
-    drawWifiDot(ctx);
 
     char timeStr[16];
     char dateStr[32];

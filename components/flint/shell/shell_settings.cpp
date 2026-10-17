@@ -1,6 +1,6 @@
 #include "shell/shell_settings.h"
 #include "shell/settings_pages.h"
-#include "net/wifi_net.h"
+#include "usb/pc_link.h"
 
 #include "display/display.h"
 #include "display/ui_tokens.h"
@@ -25,6 +25,7 @@ static SettingsPage gPage = SET_HOME;
 static int gRow = 0;
 static bool gLastConnected = false;
 static bool gLastTimeValid = false;
+static bool gLastPcSynced = false;
 static bool gLastClockValid = false;
 static struct tm gLastClock{};
 static int gPrevRow = 0;
@@ -91,7 +92,8 @@ bool shellSettingsNeedsFull() {
     }
   }
   if (gPage == SET_CONNECTION &&
-      (wifiNetIsConnected() != gLastConnected || clockTimeIsValid() != gLastTimeValid)) {
+      (pcLinkConnected() != gLastConnected || clockTimeIsValid() != gLastTimeValid ||
+       clockTimeIsPcSynced() != gLastPcSynced)) {
     gDirty = SET_OVL_FULL;
   }
   return gDirty == SET_OVL_FULL;
@@ -201,13 +203,14 @@ static void formatSettingsValue(const FaceContext& ctx, SettingsRow row,
       *label = flintTr(FlintStr::Timezone);
       snprintf(value, size, "%s", tzDbFind(s.tzId)->label);
       break;
-    case SET_ROW_WIFI:
-      *label = "Wi-Fi";
-      snprintf(value, size, "%s", flintTr(ctx.wifiConnected ? FlintStr::Connected : FlintStr::Offline));
+    case SET_ROW_USB:
+      *label = "USB";
+      snprintf(value, size, "%s", flintTr(ctx.usbConnected ? FlintStr::Connected : FlintStr::Offline));
       break;
     case SET_ROW_CLOCK_STATUS:
       *label = flintTr(FlintStr::ClockStatus);
-      snprintf(value, size, "%s", flintTr(ctx.hasTime ? FlintStr::Ready : FlintStr::NotSet));
+      snprintf(value, size, "%s", flintTr(clockTimeIsPcSynced() ? FlintStr::SyncedWithPC :
+                             ctx.hasTime ? FlintStr::Ready : FlintStr::NotSet));
       break;
   }
 }
@@ -273,8 +276,9 @@ void shellSettingsPaint(uint8_t fade) {
   }
   paintScroll(ctx);
   displayPresent();
-  gLastConnected = ctx.wifiConnected;
+  gLastConnected = ctx.usbConnected;
   gLastTimeValid = ctx.hasTime;
+  gLastPcSynced = clockTimeIsPcSynced();
   gPrevRow = gRow;
   gDirty = SET_OVL_NONE;
 }
@@ -326,8 +330,9 @@ void shellSettingsPaintPartial() {
   displayClearClipRect();
 
   displayPresentRects(rects, n);
-  gLastConnected = ctx.wifiConnected;
+  gLastConnected = ctx.usbConnected;
   gLastTimeValid = ctx.hasTime;
+  gLastPcSynced = clockTimeIsPcSynced();
   gPrevRow = gRow;
   gDirty = SET_OVL_NONE;
 }

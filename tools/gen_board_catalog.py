@@ -185,6 +185,14 @@ def validate(board: dict, display: dict, board_id: str) -> None:
         raise SystemExit(f"board {board_id}: unknown canvas.strategy {canvas['strategy']!r}")
     pinout = board.get("pinout") or {}
     disp_pins = pinout.get("display") or {}
+    led = board.get("status_led") or {}
+    led_gpio = int(led.get("gpio", -1))
+    if led and led.get("active") not in ("high", "low"):
+        raise SystemExit(f"board {board_id}: status_led.active must be high or low")
+    used_pins = {int(p) for p in disp_pins.values()}
+    used_pins.add(int((board.get("backlight") or {}).get("gpio", -1)))
+    if led_gpio >= 0 and led_gpio in used_pins:
+        raise SystemExit(f"board {board_id}: status LED conflicts with display GPIO{led_gpio}")
     required_pins = ("cs", "dc", "rst", "mosi", "sclk")
     if bus == "spi":
         missing = [p for p in required_pins if p not in disp_pins]
@@ -239,6 +247,7 @@ def write_inc(board: dict, display: dict) -> None:
     canvas = board["canvas"]
     pinout = board.get("pinout") or {}
     bl = board.get("backlight") or {}
+    led = board.get("status_led") or {}
     impl = display["impl"]
     defer = bool(quirks.get("defer_dispon", False))
     has_touch = bool(board.get("touch"))
@@ -263,6 +272,9 @@ def write_inc(board: dict, display: dict) -> None:
         f"#define FLINT_PANEL_KIND_{display['_panel_kind']} 1",
         f"#define FLINT_HAS_TOUCH {1 if has_touch else 0}",
         f"#define FLINT_PANEL_DEFER_DISPON {1 if defer else 0}",
+        "",
+        f"inline constexpr int FLINT_STATUS_LED_GPIO = {int(led.get('gpio', -1))};",
+        f"inline constexpr bool FLINT_STATUS_LED_ACTIVE_LOW = {bool_lit(led.get('active') == 'low')};",
         "",
         f"inline constexpr int FLINT_TFT_CS = {pin(pinout, 'cs')};",
         f"inline constexpr int FLINT_TFT_DC = {pin(pinout, 'dc')};",

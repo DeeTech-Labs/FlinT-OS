@@ -10,14 +10,6 @@ bool flintGlanceDraw(const FaceContext& ctx, GlanceKind kind, GlanceRect r,
   const UiPalette& pal = ctx.palette;
 
   switch (kind) {
-    case GLANCE_WIFI: {
-      const int cx = r.x + r.w / 2;
-      const int cy = r.y + r.h / 2;
-      const uint16_t fg = ctx.wifiBars > 0 ? pal.wifiOn : pal.wifiOff;
-      flintDrawIcon(gfx, flintWifiIcon(ctx.wifiBars), cx, cy, fg, pal.bgTop);
-      return true;
-    }
-
     case GLANCE_DATE: {
       char dateLocal[40];
       const char* dateStr = label;

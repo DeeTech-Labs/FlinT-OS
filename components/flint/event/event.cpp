@@ -28,8 +28,8 @@ static void uiDirtyBridge(FlintEvent ev, void* /*user*/) {
     case FLINT_EVT_TIME_VALID:
       uiMarkDirty(UI_DIRTY_TIME_VALID | UI_DIRTY_FORCE);
       break;
-    case FLINT_EVT_WIFI:
-      uiMarkDirty(UI_DIRTY_WIFI);
+    case FLINT_EVT_USB:
+      uiMarkDirty(UI_DIRTY_USB);
       break;
     case FLINT_EVT_SETTINGS:
       uiMarkDirty(UI_DIRTY_SETTINGS);

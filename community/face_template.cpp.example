@@ -5,12 +5,12 @@
 //   FaceRegistry::add(createYourFace, yourFaceInfo());
 //
 // Include ONLY the Face SDK (+ std headers). Do not include net/ APIs,
-// settings/, app/, or config/secrets.h. Read FaceContext; draw via display/resources.
+// settings/, app/, or usb/. Read FaceContext; draw via display/resources.
 // Localized UI strings: flintTr(FlintStr::…), flintTrWeekday(), flintTrDayMode().
 //
 // Layout: prefer UiTok mapped helpers (timeY(screenH), …), not raw kTimeY.
 // Complications: flintGlanceDraw(ctx, GLANCE_*, GlanceRect{…}).
-//   GLANCE_DATE is the usual companion; GLANCE_WIFI is optional and may go away.
+//   GLANCE_DATE draws the shared date complication.
 // Colors: ctx.palette (bgTop, accent, textPrimary/Secondary, divider, …).
 // Dirty: UI_DIRTY_SETTINGS is soft → rebuild from onTick (see docs/ARCHITECTURE.md).
 // Built-in references: face_digital.cpp.
@@ -102,7 +102,6 @@ private:
                                static_cast<int16_t>(UiTok::dateBandH(ctx.screenH))},
                     dateStr);
 
-    // Optional: flintGlanceDraw(ctx, GLANCE_WIFI, …) — not required; may go away.
 
     strncpy(lastTime_, timeStr, sizeof(lastTime_) - 1);
     lastTime_[sizeof(lastTime_) - 1] = '\0';

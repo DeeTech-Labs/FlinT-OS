@@ -50,13 +50,10 @@ constexpr int kRadiusSm = 6;
 constexpr int kRadiusMd = 10;
 
 // —— Face zones (design-space coordinates) ——
-// Top status: mode label (center) + Wi‑Fi (right).
+// Top status: centered mode label.
 constexpr int kStatusH = 48;
 constexpr int kStatusHairlineY = 48;
 
-constexpr int kWifiSize = 16;
-constexpr int kWifiRightPad = kSafeInset;
-constexpr int kWifiTop = 21;
 
 constexpr int kModeLabelY = 35;  // baseline in top status row
 
@@ -114,26 +111,21 @@ inline int contentTop() { return kSafeInset; }
 inline int contentBottom(int screenH) { return screenH - kSafeInset; }
 inline int contentWidth(int screenW) { return screenW - kSafeInset * 2; }
 
-inline int wifiX(int screenW) {
-  return screenW - kWifiRightPad - kWifiSize;
-}
-
 inline int statusH(int screenH) { return mapH(kStatusH, screenH); }
 inline int statusHairlineY(int screenH) { return mapY(kStatusHairlineY, screenH); }
 inline int timeY(int screenH) { return mapY(kTimeY, screenH); }
 inline int dateY(int screenH) { return mapY(kDateY, screenH); }
 inline int dateBandH(int screenH) { return mapH(kDateBandH, screenH); }
 inline int modeLabelY(int screenH) { return mapY(kModeLabelY, screenH); }
-inline int wifiTop(int screenH) { return mapY(kWifiTop, screenH); }
 
 inline int splashMarkCy(int screenH) { return mapY(kSplashMarkCy, screenH); }
 inline int splashTitleY(int screenH) { return mapY(kSplashTitleY, screenH); }
 inline int splashSubY(int screenH) { return mapY(kSplashSubY, screenH); }
 
-// Center band left of wifi icon (for mode label).
+// Center band for mode label.
 inline int modeLabelMaxW(int screenW) {
   const int left = contentLeft() + kGapMd;
-  const int right = wifiX(screenW) - kGapMd;
+  const int right = contentRight(screenW) - kGapMd;
   const int w = right - left;
   return w > 40 ? w : 40;
 }

@@ -11,7 +11,7 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -UNDEBUG -I$(FLINT) -I.
 .PHONY: all run clean
 
 all: $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
-	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate $(BUILD)/test_cfg_fs $(BUILD)/test_clock_schedule
+	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate $(BUILD)/test_cfg_fs $(BUILD)/test_clock_schedule $(BUILD)/test_pc_link
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -39,7 +39,11 @@ $(BUILD)/test_cfg_fs: test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(wildcard st
 $(BUILD)/test_clock_schedule: test_clock_schedule.cpp $(FLINT)/time/clock_schedule.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_clock_schedule.cpp
 
+$(BUILD)/test_pc_link: test_pc_link.cpp $(FLINT)/usb/pc_protocol.h $(FLINT)/usb/status_pattern.h | $(BUILD)
+	$(CXX) $(CXXFLAGS) -o $@ test_pc_link.cpp
+
 run: all
+	./$(BUILD)/test_pc_link
 	./$(BUILD)/test_day_mode
 	./$(BUILD)/test_date_fmt
 	./$(BUILD)/test_ui_dirty

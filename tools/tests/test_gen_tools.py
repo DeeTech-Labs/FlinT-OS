@@ -77,6 +77,14 @@ class GenBoardTests(unittest.TestCase):
         self.assertEqual(self.gen.normalize_panel("GC9A01A"), "GC9A01")
         self.assertEqual(self.gen.normalize_panel("st7789"), "ST7789")
 
+    def test_spark_led_cannot_share_display_pin(self):
+        board = self.gen.load_json(self.gen.BOARD_DIR / "boards/flint_spark.json")
+        display = self.gen.load_json(self.gen.BOARD_DIR / "periph/display" / f"{board['display']}.json")
+        self.assertEqual(board["status_led"], {"gpio": 8, "active": "low"})
+        board["pinout"]["display"]["rst"] = 8
+        with self.assertRaises(SystemExit):
+            self.gen.validate(board, display, "flint_spark")
+
     def test_spark_design_macros_from_canvas(self):
         index = self.gen.load_index()
         entry = self.gen.find_board_entry(index, "flint_spark")
@@ -132,7 +140,7 @@ class GenAssetPackTests(unittest.TestCase):
         self.assertGreaterEqual(api_min, 1)
         self.assertGreaterEqual(pack_ver, 1)
         ids = self.gen.load_icon_ids()
-        self.assertIn("WifiOff", ids)
+        self.assertNotIn("WifiOff", ids)
         self.assertIn("BrandMark", ids)
         assets = ROOT / "assets"
         for png in assets.rglob("*.png"):

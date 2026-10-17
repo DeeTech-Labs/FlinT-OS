@@ -148,7 +148,7 @@ def collect_icons(
         if not m:
             raise SystemExit(
                 f"{path.relative_to(assets_root)}: rename to <FlintIconId>_<size>.png "
-                f"(e.g. icons/Wifi3_16.png)"
+                f"(e.g. splash/BrandMark_52.png)"
             )
         name, size_s = m.group(1), int(m.group(2))
         if name not in icon_ids:

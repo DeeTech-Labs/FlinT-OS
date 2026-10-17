@@ -16,5 +16,6 @@ bool cfgFsReady();
 // Write bytes atomically: path.tmp → fflush/fsync → rename to path.
 bool cfgFsWriteAtomic(const char* path, const void* data, size_t len);
 
-// Read whole file into buf (NUL-terminated if space). Returns bytes read, or -1.
+// Read whole file into buf (NUL-terminated). Returns bytes read, or -1 on
+// I/O failure or insufficient space; partial contents are not returned.
 int cfgFsReadFile(const char* path, char* buf, size_t bufSize);

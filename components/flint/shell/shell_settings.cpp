@@ -25,6 +25,8 @@ static SettingsPage gPage = SET_HOME;
 static int gRow = 0;
 static bool gLastConnected = false;
 static bool gLastTimeValid = false;
+static bool gLastClockValid = false;
+static struct tm gLastClock{};
 static int gPrevRow = 0;
 static int gStart = 0;
 static SettingsDirty gDirty = SET_OVL_FULL;
@@ -79,6 +81,15 @@ static const char* pageTitle(SettingsPage page) {
 }
 
 bool shellSettingsNeedsFull() {
+  if (gPage == SET_CLOCK) {
+    struct tm now{};
+    const bool valid = clockTimeGetLocal(&now);
+    if (valid != gLastClockValid ||
+        (valid && (now.tm_year != gLastClock.tm_year || now.tm_yday != gLastClock.tm_yday ||
+                   now.tm_hour != gLastClock.tm_hour || now.tm_min != gLastClock.tm_min))) {
+      gDirty = SET_OVL_FULL;
+    }
+  }
   if (gPage == SET_CONNECTION &&
       (wifiNetIsConnected() != gLastConnected || clockTimeIsValid() != gLastTimeValid)) {
     gDirty = SET_OVL_FULL;
@@ -92,6 +103,8 @@ bool shellSettingsNeedsRows() {
 
 static void markSettingsLayoutChanged() {
   flintEventEmit(FLINT_EVT_SETTINGS);
+  // Clock preferences also change dependent time/date rows.
+  if (gPage == SET_CLOCK) gDirty = SET_OVL_FULL;
 }
 
 static void markRowsUnlessFull() {
@@ -251,6 +264,9 @@ void shellSettingsPaint(uint8_t fade) {
   const char* hint = gPage == SET_HOME ? flintTr(FlintStr::PNEnterEsc)
                    : gPage == SET_CONNECTION ? "Esc" : flintTr(FlintStr::PNPlusEnterEsc);
   chromeFooter(ctx, hint, fade);
+  if (gPage == SET_CLOCK) {
+    gLastClockValid = clockTimeGetLocal(&gLastClock);
+  }
   gStart = windowStart();
   for (int i = 0; i < UiTok::kShellVisibleRows && gStart + i < settingsPageRowCount(gPage); i++) {
     paintRow(ctx, gStart + i, i, fade);

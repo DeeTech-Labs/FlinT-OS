@@ -30,6 +30,14 @@ esp_err_t esp_littlefs_info(const char*, size_t* total, size_t* used) {
   *used = 0;
   return ESP_OK;
 }
+extern "C" size_t __real_fread(void*, size_t, size_t, FILE*);
+extern "C" int __real_ferror(FILE*);
+extern "C" size_t __wrap_fread(void* buf, size_t size, size_t count, FILE* f) {
+  return __real_fread(buf, size, failStage == 4 && count > 1 ? 1 : count, f);
+}
+extern "C" int __wrap_ferror(FILE* f) {
+  return failStage == 4 ? 1 : __real_ferror(f);
+}
 extern "C" int __real_fflush(FILE*);
 extern "C" int __real_fsync(int);
 extern "C" int __real_fclose(FILE*);
@@ -81,6 +89,21 @@ int main() {
   char buf[16];
   hostRequire(cfgFsReadFile(path.c_str(), buf, sizeof(buf)) == 3 &&
               std::strcmp(buf, "new") == 0, "read replacement");
+  char exact[4];
+  hostRequire(cfgFsReadFile(path.c_str(), exact, sizeof(exact)) == 3 &&
+              std::strcmp(exact, "new") == 0, "accept exact fit with terminator");
+  char small[3] = "xx";
+  hostRequire(cfgFsReadFile(path.c_str(), small, sizeof(small)) == -1 && small[0] == '\0',
+              "reject truncated config and clear partial contents");
+  for (int stage : {3, 4}) {
+    failStage = stage;
+    hostRequire(cfgFsReadFile(path.c_str(), buf, sizeof(buf)) == -1 && buf[0] == '\0',
+                "reject read/close failure and clear partial contents");
+  }
+  failStage = 0;
+  hostRequire(cfgFsWriteAtomic(path.c_str(), "", 0), "write empty config");
+  hostRequire(cfgFsReadFile(path.c_str(), buf, sizeof(buf)) == 0 && buf[0] == '\0',
+              "accept empty file");
   unlink(path.c_str());
   rmdir(dir);
   std::puts("ok test_cfg_fs");

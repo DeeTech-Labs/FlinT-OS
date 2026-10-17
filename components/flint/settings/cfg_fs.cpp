@@ -119,7 +119,15 @@ int cfgFsReadFile(const char* path, char* buf, size_t bufSize) {
 
   const size_t maxRead = bufSize - 1;
   const size_t n = fread(buf, 1, maxRead, f);
-  fclose(f);
+  // Probe past the buffer limit so a valid prefix is never accepted as a
+  // complete config. An exact fit (including the NUL) is still successful.
+  const bool tooLong = n == maxRead && fgetc(f) != EOF;
+  const bool readFailed = ferror(f) != 0;
+  const bool closeFailed = fclose(f) != 0;
+  if (tooLong || readFailed || closeFailed) {
+    buf[0] = '\0';
+    return -1;
+  }
   buf[n] = '\0';
   return static_cast<int>(n);
 }

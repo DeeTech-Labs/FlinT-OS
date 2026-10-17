@@ -34,7 +34,7 @@ $(BUILD)/test_fi_validate: test_fi_validate.cpp $(FLINT)/assets/flint_fi.h | $(B
 	$(CXX) $(CXXFLAGS) -o $@ test_fi_validate.cpp
 
 $(BUILD)/test_cfg_fs: test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(wildcard stubs/cfg/*.h stubs/cfg/config/*.h) | $(BUILD)
-	$(CXX) -Istubs/cfg $(CXXFLAGS) -Wl,--wrap=fflush,--wrap=fsync,--wrap=fclose -o $@ test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp
+	$(CXX) -Istubs/cfg $(CXXFLAGS) -Wl,--wrap=fflush,--wrap=fsync,--wrap=fclose,--wrap=fread,--wrap=ferror -o $@ test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp
 
 $(BUILD)/test_clock_schedule: test_clock_schedule.cpp $(FLINT)/time/clock_schedule.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_clock_schedule.cpp

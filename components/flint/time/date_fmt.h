@@ -4,14 +4,15 @@
 #include <stdint.h>
 #include <time.h>
 
-// Numeric date layout (order + year width). Separator is independent.
+// Date layouts. Numeric formats use an independent separator.
 enum SettingsDateFormat : uint8_t {
   SETTINGS_DATE_DMY2 = 0,  // 31.12.26
-  SETTINGS_DATE_DMY4 = 1,  // 31.12.2026 (default)
+  SETTINGS_DATE_DMY4 = 1,  // 31.12.2026
   SETTINGS_DATE_MDY2 = 2,  // 12.31.26
   SETTINGS_DATE_MDY4 = 3,  // 12.31.2026
   SETTINGS_DATE_YMD4 = 4,  // 2026.12.31 (ISO-style order)
-  SETTINGS_DATE_FORMAT_COUNT = 5,
+  SETTINGS_DATE_NATURAL = 5,  // 17 October / 17 октября
+  SETTINGS_DATE_FORMAT_COUNT = 6,
 };
 
 enum SettingsDateSep : uint8_t {
@@ -23,11 +24,11 @@ enum SettingsDateSep : uint8_t {
 
 char flintDateSepChar(uint8_t sep);
 
-// Format numeric date only (no weekday). out e.g. "31.12.2026".
+// Format date without weekday: e.g. "31.12.2026" or "31 December".
 void flintFormatDate(char* out, size_t outN, const struct tm& ti, uint8_t dateFormat,
                      uint8_t dateSep);
 
-// Weekday + numeric date, or waiting-for-time copy when !hasTime.
+// Weekday + selected date format, or waiting copy when !hasTime.
 void flintFormatDateLine(char* out, size_t outN, bool hasTime, const struct tm& ti,
                          uint8_t dateFormat, uint8_t dateSep);
 

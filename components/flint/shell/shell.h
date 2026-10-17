@@ -6,4 +6,6 @@
 void shellBegin();
 void shellTick();
 void shellHandleKey(char c);
-void shellPollSerial();  // non-blocking stdin → shellHandleKey
+void shellPollSerial();  // non-blocking input → shellHandleKey
+// Block until input or the next service deadline, then dispatch received keys.
+void shellWaitForInput(unsigned timeoutMs);

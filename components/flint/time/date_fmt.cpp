@@ -41,6 +41,15 @@ void flintFormatDate(char* out, size_t outN, const struct tm& ti, uint8_t dateFo
   const int yy = year % 100;
 
   switch (dateFormat) {
+    case SETTINGS_DATE_NATURAL: {
+      static const FlintStr months[] = {FlintStr::January, FlintStr::February,
+        FlintStr::March, FlintStr::April, FlintStr::May, FlintStr::June,
+        FlintStr::July, FlintStr::August, FlintStr::September, FlintStr::October,
+        FlintStr::November, FlintStr::December};
+      if (ti.tm_mon < 0 || ti.tm_mon > 11) { out[0] = '\0'; return; }
+      snprintf(out, outN, "%d %s", day, flintTr(months[ti.tm_mon]));
+      break;
+    }
     case SETTINGS_DATE_DMY2:
       formatParts(out, outN, day, mon, yy, false, true, false, sep);
       break;
@@ -69,9 +78,10 @@ void flintFormatDateLine(char* out, size_t outN, bool hasTime, const struct tm& 
     snprintf(out, outN, "%s", flintTr(FlintStr::WaitingForTime));
     return;
   }
-  char num[16];
+  char num[40];
   flintFormatDate(num, sizeof(num), ti, dateFormat, dateSep);
-  snprintf(out, outN, "%s  %s", flintTrWeekday(ti.tm_wday), num);
+  snprintf(out, outN, dateFormat == SETTINGS_DATE_NATURAL ? "%s, %s" : "%s  %s",
+           flintTrWeekday(ti.tm_wday), num);
 }
 
 void flintDateFormatSample(char* out, size_t outN, uint8_t dateFormat, uint8_t dateSep) {

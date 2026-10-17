@@ -7,13 +7,13 @@ Face paint contract and dirty/event wiring. Module map: [`MODULES.md`](MODULES.m
 
 ```text
 hardware / board JSON
-  → services (time, net, settings/cfg, day_mode)
+  → services (time, USB, settings/cfg, day_mode)
     → FaceContext (uiBuildContext)
       → Face::onTick / onForceRedraw
         → display (partial or full present)
 ```
 
-Faces read `FaceContext` and draw. They must not call Wi‑Fi, HTTP, NVS, or settings/cfg APIs.
+Faces read `FaceContext` and draw. They must not call USB/GPIO, NVS, or settings/cfg APIs.
 
 ## Day mode and waiting
 
@@ -29,7 +29,7 @@ When `clockTimeGetLocal` fails (`!hasTime`), `uiBuildContext` sets **`DAY_MODE_W
 |----------------|--------------|------------|
 | `FLINT_EVT_SECOND` | `UI_DIRTY_SECOND` | `onTick` |
 | `FLINT_EVT_MINUTE` | `UI_DIRTY_MINUTE` | `onTick` |
-| `FLINT_EVT_WIFI` | `UI_DIRTY_WIFI` | `onTick` |
+| `FLINT_EVT_USB` | `UI_DIRTY_USB` | `onTick` |
 | shell motion cadence (`uiMarkDirty`) | `UI_DIRTY_MOTION` | `onTick` (colon pulse, …) |
 | `FLINT_EVT_SETTINGS` | `UI_DIRTY_SETTINGS` | `onTick` (**soft**) |
 | `FLINT_EVT_DAY_MODE` | `UI_DIRTY_DAY_MODE` | `onForceRedraw` |
@@ -51,6 +51,6 @@ Clock edits from the settings overlay emit `MINUTE` / `TIME_VALID` as appropriat
 |-------|------|
 | `storage` LittleFS | Asset pack (`core.flintpack`) |
 | `cfg` LittleFS | UI prefs (`ui.cfg`) + soft clock (`time.cfg`) |
-| ESP-IDF NVS | System / Wi‑Fi — **not** FlinT UI prefs |
+| ESP-IDF NVS | Legacy migration — **not** FlinT UI prefs |
 
 One-shot migrators still copy old `"flint"` NVS UI / epoch keys into `cfg` when the file is missing (`settings.cpp`, `clock_time.cpp`). **Sunset plan:** keep until field devices are known migrated; then delete migrate paths and NVS UI key reads in the same change (no long-lived dual-write).

@@ -19,7 +19,6 @@ or copy for flash or i18n.
 
 | Folder | Use |
 |--------|-----|
-| `icons/` | Status (wifi), shared UI glyphs |
 | `splash/` | Boot mark (`BrandMark`); optional full splash frame later |
 | `chrome/` | Designer bitmap decor only — not hairlines / bars |
 | `glances/` | Face glance art beyond shared icons (reserved) |
@@ -32,7 +31,7 @@ or copy for flash or i18n.
 (do not duplicate IDs in Python).
 
 ```text
-icons/Wifi3_16.png
+splash/BrandMark_52.png
 splash/BrandMark_52.png
 ```
 
@@ -42,7 +41,6 @@ Runtime blit skips empty pixels (no solid size×size plate behind the glyph).
 ## Runtime blit
 
 Pack loads **resident in RAM** when size ≤ `kMaxResidentPackBytes` (96 KiB);
-streams from LittleFS only if oversized or malloc fails (logged). Hot status
-icons (≤16 px) keep a small RGB565+key decode cache across blits. Icons decode
+streams from LittleFS only if oversized or malloc fails (logged). Icons decode
 to an RGB565 scratch then one `pushImage`. Keep dirty/clip paths; do not expand
 full present to compensate for slow draws.

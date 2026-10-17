@@ -17,8 +17,6 @@ static void fillChromeRoles(UiPalette& p) {
 
 UiPalette dayModeBuildPalette(DayMode mode) {
   UiPalette p{};
-  p.wifiOn = rgb565(90, 220, 150);
-  p.wifiOff = rgb565(255, 95, 95);
 
   switch (mode) {
     case DAY_MODE_MORNING:
@@ -59,8 +57,6 @@ UiPalette dayModeBuildPalette(DayMode mode) {
       p.textPrimary = rgb565(168, 184, 208);
       p.textSecondary = rgb565(78, 94, 118);
       p.panel = rgb565(10, 14, 24);
-      p.wifiOn = rgb565(48, 128, 92);
-      p.wifiOff = rgb565(128, 56, 56);
       break;
 
     case DAY_MODE_WAITING:

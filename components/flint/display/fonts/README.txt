@@ -8,3 +8,11 @@
  * FlinT OS en_US/ru_RU i18n strings and chrome (not the full upstream set).
  * Re-subset after adding RU/EN UI strings that introduce new codepoints.
  */
+
+Active UI fonts: antialiased Lato subsets in flint_*.inc (SIL OFL 1.1).
+Large time: Lato Light 80px; compact time: Lato Light 62px; body: Lato Regular 20px.
+Only required glyphs are embedded. See Lato-LICENSE.txt for attribution/license.
+Regenerate with Pillow and original Lato TTF files:
+  python3 tools/gen_clock_fonts.py --font-dir /path/to/lato
+Source hashes are recorded in generated files. Old u8g2 blobs are retained
+for attribution/history but are no longer linked into firmware.

@@ -22,7 +22,7 @@ static void settingsApplyDefaults() {
   gSettings.showSeconds = SETTINGS_SEC_AUTO;
   gSettings.lang = SETTINGS_LANG_RU;
   gSettings.hourFormat = SETTINGS_HOUR_24;
-  gSettings.dateFormat = SETTINGS_DATE_DMY4;
+  gSettings.dateFormat = SETTINGS_DATE_NATURAL;
   gSettings.dateSep = SETTINGS_DATE_SEP_DOT;
   strncpy(gSettings.tzId, DEFAULT_TZ_ID, sizeof(gSettings.tzId) - 1);
   gSettings.tzId[sizeof(gSettings.tzId) - 1] = '\0';

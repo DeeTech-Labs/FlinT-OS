@@ -12,6 +12,8 @@ void shellSettingsNavNext();
 void shellSettingsAdjust(int dir);
 // true → open face picker (Face row activated).
 bool shellSettingsApply();
+// true → leave settings; false → returned to the category list.
+bool shellSettingsBack();
 
 void shellSettingsPaint(uint8_t fade);
 void shellSettingsPaintPartial();

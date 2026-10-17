@@ -105,3 +105,66 @@ msgstr ""
 
 msgid "set date"
 msgstr ""
+
+msgid "Display"
+msgstr ""
+
+msgid "Date and time"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Offline"
+msgstr ""
+
+msgid "Clock status"
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "Not set"
+msgstr ""
+
+msgid "January"
+msgstr ""
+
+msgid "February"
+msgstr ""
+
+msgid "March"
+msgstr ""
+
+msgid "April"
+msgstr ""
+
+msgid "May"
+msgstr ""
+
+msgid "June"
+msgstr ""
+
+msgid "July"
+msgstr ""
+
+msgid "August"
+msgstr ""
+
+msgid "September"
+msgstr ""
+
+msgid "October"
+msgstr ""
+
+msgid "November"
+msgstr ""
+
+msgid "December"
+msgstr ""
+
+msgid "Synced with PC"
+msgstr ""

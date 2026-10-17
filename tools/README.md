@@ -156,3 +156,10 @@ Then full `idf.py flash` (not `app-flash` only) to rewrite `storage`.
 The separate `cfg` LittleFS partition (UI prefs + soft clock) is not part of the
 asset image and is left alone when only `storage` is rewritten.
 
+
+## sync_time.py
+
+USB time synchronization: `python3 tools/sync_time.py [--port /dev/ttyACM0]`.
+Requires `pyserial`, included in the ESP-IDF environment. Use `--watch` to sync
+on USB connection and hourly while it runs in your terminal. No startup service
+is installed. See [USB-TIME.md](../docs/USB-TIME.md) for setup and protocol.

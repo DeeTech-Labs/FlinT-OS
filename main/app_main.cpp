@@ -6,9 +6,7 @@
 
 #include "app/app.h"
 
-#include "esp_event.h"
 #include "esp_log.h"
-#include "esp_netif.h"
 #include "nvs_flash.h"
 
 static const char* TAG = "main";
@@ -20,8 +18,6 @@ extern "C" void app_main(void) {
     err = nvs_flash_init();
   }
   ESP_ERROR_CHECK(err);
-  ESP_ERROR_CHECK(esp_netif_init());
-  ESP_ERROR_CHECK(esp_event_loop_create_default());
 
   ESP_LOGI(TAG, "FlinT OS starting");
   appSetup();

@@ -1,6 +1,6 @@
 #include "i18n/i18n.h"
 
-#include "day_mode/day_mode.h"
+#include "day_mode/day_mode_hour.h"
 
 static uint8_t gLang = FLINT_I18N_RU;
 

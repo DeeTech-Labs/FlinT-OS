@@ -6,12 +6,12 @@
 #include "display/ui_tokens.h"
 #include "event/event.h"
 #include "faces/FaceRegistry.h"
-#include "faces/colon_pulse.h"
 #include "settings/settings.h"
 #include "shell/shell_picker.h"
 #include "shell/shell_settings.h"
 #include "ui/ui.h"
 #include "ui/ui_dirty.h"
+#include "usb/pc_link.h"
 #include "util/flint_sys.h"
 
 #include <stdio.h>
@@ -30,7 +30,7 @@ static ShellState gState = SHELL_FACE;
 static bool gConsoleReady = false;
 
 static void shellLogHelp() {
-  LOGI("shell", "keys: Enter=picker/action  s=settings  p/n=nav  +/- adjust  q/Esc=back  h=help");
+  LOGI("shell", "keys: Enter=picker/action  s=settings  p/n=nav  +/- adjust  q/Esc=back  h=help; PC: @HELLO / @TIME <UTC epoch>");
 }
 
 static void shellConsoleInit() {
@@ -109,19 +109,6 @@ void shellTick() {
 
   switch (gState) {
     case SHELL_FACE: {
-      // Colon pulse: mark MOTION only when the fade quantum actually changes
-      // (avoids empty uiTakeDirty/onTick when digitalColonFadeChanged is false).
-      static uint32_t lastMotionMs = 0;
-      static uint8_t lastMotionFade = 255;
-      const uint32_t now = flintMillis();
-      if (uiWantsSeconds() && (now - lastMotionMs >= UiTok::kColonPulseTickMs)) {
-        lastMotionMs = now;
-        const uint8_t fade = digitalColonFadeNow();
-        if (digitalColonFadeChanged(fade, lastMotionFade)) {
-          lastMotionFade = fade;
-          uiMarkDirty(UI_DIRTY_MOTION);
-        }
-      }
       uiFaceTick();
       break;
     }
@@ -151,6 +138,8 @@ void shellTick() {
 }
 
 void shellHandleKey(char c) {
+  if (pcLinkHandleByte(c)) return;
+
   if (c == 'h' || c == 'H' || c == '?') {
     shellLogHelp();
     return;
@@ -199,8 +188,10 @@ void shellHandleKey(char c) {
 
     case SHELL_SETTINGS:
       if (c == 'q' || c == 'Q' || c == 27) {
-        goTo(SHELL_FACE);
-        LOGI("shell", "state=FACE");
+        if (shellSettingsBack()) {
+          goTo(SHELL_FACE);
+          LOGI("shell", "state=FACE");
+        }
       } else if (c == 'p' || c == 'P') {
         shellSettingsNavPrev();
       } else if (c == 'n' || c == 'N') {
@@ -218,14 +209,18 @@ void shellHandleKey(char c) {
   }
 }
 
-void shellPollSerial() {
+void shellWaitForInput(unsigned timeoutMs) {
   if (!gConsoleReady) {
+    if (timeoutMs != 0) flintDelay(timeoutMs);
     return;
   }
-
+  TickType_t ticks = pdMS_TO_TICKS(timeoutMs);
+  if (timeoutMs != 0 && ticks == 0) ticks = 1;
   uint8_t buf[16];
-  const int n = usb_serial_jtag_read_bytes(buf, sizeof(buf), 0);
-  for (int i = 0; i < n; i++) {
-    shellHandleKey(static_cast<char>(buf[i]));
-  }
+  const int n = usb_serial_jtag_read_bytes(buf, sizeof(buf), ticks);
+  for (int i = 0; i < n; i++) shellHandleKey(static_cast<char>(buf[i]));
+}
+
+void shellPollSerial() {
+  shellWaitForInput(0);
 }

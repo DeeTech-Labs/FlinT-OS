@@ -3,6 +3,8 @@
 
 get_filename_component(FLINT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 set(LGFX_ROOT "${FLINT_ROOT}/third_party/LovyanGFX")
+# Keep clean checkouts on the source layout validated with this slim component.
+set(FLINT_LGFX_REVISION "3f78b7058fca0fd1fc1ddb32f75a18262e01d440")
 
 # board_build.cmake is produced by tools/gen_board_catalog.py (root CMakeLists).
 set(FLINT_BOARD_BUILD "${FLINT_ROOT}/components/flint/board/board_build.cmake")
@@ -25,6 +27,22 @@ if(NOT EXISTS "${LGFX_ROOT}/src/LovyanGFX.hpp")
     )
     if(NOT LGFX_CLONE_RESULT EQUAL 0)
         message(FATAL_ERROR "Failed to clone LovyanGFX: ${LGFX_CLONE_ERR}")
+    endif()
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} -C "${LGFX_ROOT}" fetch --depth 1 origin "${FLINT_LGFX_REVISION}"
+        RESULT_VARIABLE LGFX_FETCH_RESULT
+        ERROR_VARIABLE LGFX_FETCH_ERR
+    )
+    if(NOT LGFX_FETCH_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to fetch pinned LovyanGFX: ${LGFX_FETCH_ERR}")
+    endif()
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} -C "${LGFX_ROOT}" checkout --detach "${FLINT_LGFX_REVISION}"
+        RESULT_VARIABLE LGFX_CHECKOUT_RESULT
+        ERROR_VARIABLE LGFX_CHECKOUT_ERR
+    )
+    if(NOT LGFX_CHECKOUT_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to check out pinned LovyanGFX: ${LGFX_CHECKOUT_ERR}")
     endif()
     execute_process(
         COMMAND ${GIT_EXECUTABLE} -C "${LGFX_ROOT}" sparse-checkout set --no-cone

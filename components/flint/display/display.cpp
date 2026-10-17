@@ -12,7 +12,7 @@ static LGFX_Sprite gCanvas(&tft);
 static bool gHasCanvas = false;
 
 // Full RGB565 backbuffer — size from selected board canvas (board_config.inc).
-// BSS strategy: heap on ESP32-C3 often has no contiguous block after Wi-Fi/IDF.
+// BSS strategy: reserve a contiguous canvas on ESP32-C3 before runtime allocations.
 static constexpr int kFbMaxW = FLINT_FB_MAX_W;
 static constexpr int kFbMaxH = FLINT_FB_MAX_H;
 alignas(16) static uint16_t s_framebuf[kFbMaxW * kFbMaxH];

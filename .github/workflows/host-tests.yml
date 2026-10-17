@@ -19,13 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Host C++ (date_fmt, day mode, dirty, settings)
+      - name: Host C++ regression tests
         env:
           CXX: g++
         run: make -C tests/host run
 
       - name: Tools gen_* smoke
-        run: python3 -m unittest discover -s tools/tests -v
+        run: |
+          python3 -m pip install pyserial==3.5
+          python3 -m unittest discover -s tools/tests -v
 
       - name: Codegen artifacts in sync
         run: |
@@ -36,3 +38,15 @@ jobs:
           git diff --exit-code -- assets/fs_root/core.flintpack
           # Board outputs are gitignored; regen must succeed for the default board.
           python3 tools/gen_board_catalog.py --quiet
+
+  firmware:
+    name: ESP32-C3 firmware (ESP-IDF 6.0.2)
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.0.2
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build offline firmware
+        shell: bash
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py -DIDF_TARGET=esp32c3 build

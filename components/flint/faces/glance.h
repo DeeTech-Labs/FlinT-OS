@@ -5,8 +5,7 @@
 #include "faces/FaceContext.h"
 
 enum GlanceKind : uint8_t {
-  GLANCE_WIFI = 0,
-  GLANCE_DATE,
+  GLANCE_DATE = 1,
 };
 
 struct GlanceRect {

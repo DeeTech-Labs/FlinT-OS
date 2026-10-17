@@ -5,7 +5,7 @@
 #include "config/debug.h"
 #include "display/display.h"
 #include "time/clock_time.h"
-#include "net/wifi_net.h"
+#include "usb/pc_link.h"
 #include "day_mode/day_mode.h"
 #include "settings/settings.h"
 #include "faces/FaceRegistry.h"
@@ -25,8 +25,7 @@ FaceContext uiBuildContext() {
   }
   ctx.dayProfile = dayModeProfile(ctx.dayMode);
   ctx.palette = dayModeBuildPalette(ctx.dayMode);
-  ctx.wifiConnected = wifiNetIsConnected();
-  ctx.wifiBars = wifiNetBars();
+  ctx.usbConnected = pcLinkConnected();
 
   ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
   ctx.hour12 = settingsUse12Hour();
@@ -105,6 +104,11 @@ void uiFaceTick() {
     face->onTick(gLastCtx);
     return;
   }
+
+  // Settings/day-mode events rebuild the cached context. A lone SECOND
+  // cannot change the resolved preference, so hidden seconds need no palette,
+  // timezone conversion, or face context rebuild.
+  if (dirty == UI_DIRTY_SECOND && gHaveLastCtx && !gLastCtx.showSeconds) return;
 
   FaceContext ctx = uiBuildContext();
   ctx.dirty = dirty;

@@ -18,7 +18,7 @@ int main() {
   hostRequire(uiDirtyWantsForceRedraw(UI_DIRTY_DAY_MODE), "DAY_MODE");
   hostRequire(uiDirtyWantsForceRedraw(UI_DIRTY_TIME_VALID), "TIME_VALID");
   hostRequire(!uiDirtyWantsForceRedraw(UI_DIRTY_SETTINGS), "SETTINGS soft");
-  hostRequire(!uiDirtyWantsForceRedraw(UI_DIRTY_MINUTE | UI_DIRTY_WIFI), "minute/wifi soft");
+  hostRequire(!uiDirtyWantsForceRedraw(UI_DIRTY_MINUTE | UI_DIRTY_USB), "minute/usb soft");
 
   std::puts("ok test_ui_dirty");
   return 0;

@@ -18,6 +18,10 @@ void chromeFooter(const FaceContext& ctx, const char* hint, uint8_t fade = 255);
 void chromeListRow(const FaceContext& ctx, int rowTopY, int rowH, const char* label,
                    bool selected, uint8_t fade = 255);
 
+// Settings row with independently aligned label and current value.
+void chromeValueRow(const FaceContext& ctx, int rowTopY, int rowH,
+                    const char* label, const char* value, bool selected, uint8_t fade = 255);
+
 DisplayRect chromeListRowRect(const FaceContext& ctx, int rowTopY, int rowH);
 
 void chromeScrollTrack(const FaceContext& ctx, int trackY, int trackH, int thumbY,

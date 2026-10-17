@@ -15,8 +15,6 @@ struct UiPalette {
   uint16_t textSecondary;
   uint16_t panel;
   uint16_t panelBorder;
-  uint16_t wifiOn;
-  uint16_t wifiOff;
   uint16_t divider;
   uint16_t selectionBg;
   uint16_t selectionFg;

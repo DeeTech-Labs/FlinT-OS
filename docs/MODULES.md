@@ -7,7 +7,7 @@ What exists under `components/flint/` today. Paths are from that component root.
 | `app/` | Boot orchestration: bring up services, drive shell loop |
 | `shell/` | State machine (`shell.cpp`) + overlays: `shell_picker.*`, `shell_settings.*` |
 | `settings/` | Load/save prefs and soft clock on `cfg` LittleFS (`ui.cfg` / `time.cfg`) |
-| `config/` | Compile-time defaults, version macros, local `secrets.h` |
+| `config/` | Compile-time defaults, version macros |
 | `board/` | Board JSON profiles → generated `board_config.inc` (canvas → `FLINT_DESIGN_*` / `FLINT_SAFE_INSET`) |
 | `display/` | LovyanGFX HAL, shared fonts, icon draw, UI tokens (design space from board) |
 | `assets/` | Mount `storage` LittleFS; blit from `core.flintpack` |
@@ -15,8 +15,8 @@ What exists under `components/flint/` today. Paths are from that component root.
 | `faces/` | `Face` API, registry, glances, built-in faces (+ `face_digital_layout.*`) |
 | `day_mode/` | Hour→mode (`day_mode_hour.*`), profiles (`day_mode_profile.*`), palettes/wash |
 | `i18n/` | Language packs / `flintTr` |
-| `net/` | Wi‑Fi STA |
-| `time/` | Soft clock, SNTP, date formatting helpers |
+| `usb/` | PC connection, UTC sync protocol, status LED |
+| `time/` | Soft clock, USB UTC sync, date formatting helpers |
 | `ui/` | Active-face paint path + dirty bitfield + chrome/splash |
 | `event/` | Lightweight event bus |
 | `anim/` | Short motion helpers (e.g. overlay fade) |
@@ -42,4 +42,4 @@ Persistence split:
 
 - **`storage`** — read-mostly asset pack (rewritten on full flash)
 - **`cfg`** — mutable prefs + soft clock (survives asset reflash)
-- **`nvs`** — ESP-IDF / Wi‑Fi system NVS (not FlinT UI prefs; one-shot migrate into `cfg` only)
+- **`nvs`** — Legacy NVS migration (not FlinT UI prefs; one-shot migrate into `cfg` only)

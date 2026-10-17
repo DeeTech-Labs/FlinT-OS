@@ -1,11 +1,12 @@
 #include "app.h"
+#include "anim/anim.h"
 #include "assets/asset_store.h"
 #include "config/config.h"
 #include "config/debug.h"
 #include "day_mode/day_mode.h"
 #include "display/display.h"
 #include "event/event.h"
-#include "net/wifi_net.h"
+#include "usb/pc_link.h"
 #include "settings/cfg_fs.h"
 #include "shell/shell.h"
 #include "time/clock_time.h"
@@ -40,7 +41,7 @@ void appSetup() {
   flintEventInit();
   splashShow();
 
-  // Show last-known time immediately (cfg); NTP will correct after Wi‑Fi.
+  // Show last-known time immediately; the PC can correct it over USB.
   clockTimeSoftBegin();
   if (clockTimeIsValid()) {
     flintEventEmit(FLINT_EVT_TIME_VALID);
@@ -49,35 +50,9 @@ void appSetup() {
   shellBegin();
   shellTick();
 
-  wifiNetBegin();
+  pcLinkBegin();
 
-  LOGI("app", "setup done (async wifi/ntp); serial: h=help");
-}
-
-static void maintainServices() {
-  wifiNetMaintain();
-  if (!wifiNetIsConnected()) {
-    return;
-  }
-
-  static uint32_t lastNtpBeginMs = 0;
-  const bool needFirst = !clockTimeIsNtpSynced();
-  const bool needResync = clockTimeIsNtpSynced()
-                          && (flintMillis() - clockTimeLastSyncMs()) > NTP_RESYNC_MS;
-
-  if (needFirst || needResync) {
-    const uint32_t now = flintMillis();
-    const uint32_t stallMs = needFirst ? 5000UL : 10000UL;
-    if (lastNtpBeginMs == 0 || (now - lastNtpBeginMs) >= stallMs) {
-      clockTimeBeginNtp();
-      lastNtpBeginMs = now ? now : 1;
-    }
-  }
-
-  const bool wasNtp = clockTimeIsNtpSynced();
-  if (clockTimePollNtp() && !wasNtp && clockTimeIsNtpSynced()) {
-    flintEventEmit(FLINT_EVT_TIME_VALID);
-  }
+  LOGI("app", "setup done (USB time sync); serial: h=help");
 }
 
 static void scanTimeEvents(const struct tm* tiOpt) {
@@ -141,9 +116,9 @@ static void debugHeartbeat(const struct tm* tiOpt) {
     modeName = dayModeName(dayModeFromHour(ti->tm_hour));
   }
 
-  LOGI("hb", "wifi=%d time=%s%s mode=%s heap=%u dirty=0x%x",
-       (int)wifiNetIsConnected(), tbuf,
-       clockTimeIsValid() && !clockTimeIsNtpSynced() ? "~" : "",
+  LOGI("hb", "usb=%d time=%s%s mode=%s heap=%u dirty=0x%x",
+       (int)pcLinkConnected(), tbuf,
+       clockTimeIsValid() && !clockTimeIsPcSynced() ? "~" : "",
        modeName,
        (unsigned)flintFreeHeap(),
        (unsigned)uiPeekDirty());
@@ -153,8 +128,8 @@ static void debugHeartbeat(const struct tm* tiOpt) {
 }
 
 void appLoop() {
+  pcLinkMaintain();
   shellPollSerial();
-  maintainServices();
 
   struct tm ti{};
   const bool hasTime = clockTimeGetLocal(&ti);
@@ -162,9 +137,9 @@ void appLoop() {
   shellTick();
   debugHeartbeat(hasTime ? &ti : nullptr);
 
-  if (uiHasDirty()) {
-    flintDelay(20);
-  } else {
-    flintDelay(uiWantsSeconds() ? 50 : 200);
-  }
+  // USB input wakes the task immediately; LED/connection polling is bounded
+  // to 50 ms. Overlay animations retain their 20 ms cadence.
+  uint32_t tickMs = clockTimeNextTickMs();
+  if (tickMs > 50) tickMs = 50;  // USB attach/detach and LED pattern cadence.
+  shellWaitForInput(animIsActive() && tickMs > 20 ? 20 : tickMs);
 }

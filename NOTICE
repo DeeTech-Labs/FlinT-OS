@@ -6,3 +6,7 @@ This product includes software developed by DeeTech Labs
 
 Font bitmaps under components/flint/display/fonts/ are subsets of u8g2
 (https://github.com/olikraus/u8g2), used under the u8g2 BSD license.
+
+Antialiased UI font subsets are derived from Lato by Łukasz Dziedzic
+(Copyright 2010-2011), licensed under the SIL Open Font License 1.1.
+See components/flint/display/fonts/Lato-LICENSE.txt.

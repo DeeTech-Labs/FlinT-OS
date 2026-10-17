@@ -29,7 +29,7 @@
 
 **FlinT OS** is the firmware platform for **FlinT** devices (base board: **FlinT Spark**), by **DeeTech Labs**.
 
-Core services stay stable — time, Wi‑Fi, settings, shell, assets. **Faces are plugins**: ship a new look without rewriting networking or the clock.
+Core services stay stable — time, USB, settings, shell, assets. **Faces are plugins**: ship a new look without rewriting the clock or USB services.
 
 <table>
   <tr>
@@ -37,8 +37,8 @@ Core services stay stable — time, Wi‑Fi, settings, shell, assets. **Faces ar
       <h3>Built-in</h3>
       <ul>
         <li>Digital face · day modes · glances</li>
-        <li>Soft-clock + SNTP + timezone DB</li>
-        <li>Wi‑Fi STA · settings on <code>cfg</code> LittleFS</li>
+        <li>Soft-clock + USB PC sync + timezone DB</li>
+        <li>Offline · settings on <code>cfg</code> LittleFS</li>
         <li>Face picker · event bus · boot splash</li>
       </ul>
     </td>
@@ -61,13 +61,21 @@ Core services stay stable — time, Wi‑Fi, settings, shell, assets. **Faces ar
 **Board:** FlinT Spark (ESP32‑C3, USB Serial/JTAG) · **ESP‑IDF** v5.x / v6.x
 
 ```bash
-cp components/flint/config/secrets.example.h components/flint/config/secrets.h
-# edit SSID / password (secrets.h is gitignored)
-
 idf.py set-target esp32c3
 idf.py build
 idf.py -p /dev/ttyACM0 flash monitor
 ```
+
+Time sync from a connected PC (no network required):
+
+```bash
+python3 -m pip install pyserial
+python3 tools/sync_time.py                 # sync once
+python3 tools/sync_time.py --watch         # sync on connection and hourly
+```
+
+The helper must run on the PC to supply its UTC time; merely plugging in USB
+cannot reveal the PC clock. See [USB time sync](docs/USB-TIME.md).
 
 Optional: `idf.py -DFLINT_BOARD=flint_spark build` · board guide: [`components/flint/board/README.md`](components/flint/board/README.md)
 
@@ -85,6 +93,10 @@ Type in the IDF monitor (no Enter except where noted):
 | `q` / `Esc` | Back to face |
 | `h` | Help in log |
 
+Settings are grouped into Display, Date and time, and Connection. `Esc` returns
+to the category list, then to the clock. The default date uses a month name;
+numeric date formats remain available. Connection is a read-only status page.
+
 Prefs and soft clock live on `cfg` LittleFS (survive asset reflash). Icons load from `storage` — [`assets/README.md`](assets/README.md).
 
 </details>
@@ -99,10 +111,13 @@ Default board id: `flint_spark`. Display: GMT028-class **ST7789** 240×280 SPI (
 | SCK | 6 |
 | MOSI (SDA) | 7 |
 | CS | 10 |
-| DC | 9 |
-| RST | 8 |
+| DC | 4 |
+| RST | 3 |
 | VCC / LED | 3.3V |
 | GND | GND |
+
+Spark uses an ESP32-C3 Super Mini. Its active-low blue LED is on GPIO8;
+it blinks while a USB host is connected and flashes quickly three times after PC time sync.
 
 Change pins/panel via JSON under `components/flint/board/`, then rebuild with `-DFLINT_BOARD=…`.
 

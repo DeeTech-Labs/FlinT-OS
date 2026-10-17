@@ -6,7 +6,7 @@
 
 // Community face contract (see docs/ARCHITECTURE.md + sdk/flint_face_sdk.h).
 // Implement Face, export createXxxFace(), register in faces_builtin.cpp.
-// Do not call Wi‑Fi / HTTP / NVS from a face — only read FaceContext and draw.
+// Do not call USB / GPIO / NVS from a face — only read FaceContext and draw.
 
 struct FaceInfo {
   const char* id;       // unique, e.g. "digital"

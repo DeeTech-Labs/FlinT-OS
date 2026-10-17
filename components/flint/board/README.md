@@ -248,4 +248,11 @@ python3 tools/gen_board_catalog.py --board <board_id>
 ## Out of scope here (for now)
 
 - Touch / buttons — reserved board fields; add later under `periph/`
-- Wi‑Fi secrets — `config/secrets.h`
+- USB PC time synchronization — `docs/USB-TIME.md`
+
+## Spark status LED (ESP32-C3 Super Mini)
+
+The single `flint_spark` profile uses `status_led: {"gpio": 8, "active": "low"}`.
+GPIO8 is reserved for the onboard blue LED. TFT reset is GPIO3, DC is GPIO4,
+SCK is GPIO6, MOSI is GPIO7, CS is GPIO10. Do not wire TFT reset to GPIO8.
+The generator rejects LED/display pin collisions.

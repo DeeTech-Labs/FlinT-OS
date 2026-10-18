@@ -33,7 +33,9 @@ struct FlintSettings {
 };
 
 void settingsLoad();
-void settingsSave();
+bool settingsSave();
+// Atomically persist a validated complete settings snapshot before applying it.
+bool settingsApply(const FlintSettings& settings);
 const FlintSettings& settingsGet();
 
 bool settingsSetActiveFace(const char* id);

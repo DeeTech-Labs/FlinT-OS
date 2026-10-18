@@ -145,6 +145,10 @@ flint_os/
 
 ## Docs
 
+USB and BLE share INFO, STATUS and time synchronization. See the
+[companion protocol](docs/COMPANION-PROTOCOL.md) for UUIDs, build configuration,
+pairing limitations and the hardware validation checklist.
+
 | Doc | Contents |
 |-----|----------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Dependencies, Face contract, dirty events |

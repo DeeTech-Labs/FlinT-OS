@@ -1,4 +1,7 @@
 #include "app.h"
+#include "companion/studio.h"
+#include "companion/apps.h"
+#include "ble/ble_link.h"
 #include "anim/anim.h"
 #include "assets/asset_store.h"
 #include "config/config.h"
@@ -47,10 +50,13 @@ void appSetup() {
     flintEventEmit(FLINT_EVT_TIME_VALID);
   }
 
+  studioBegin();
+  companionAppsBegin();
   shellBegin();
   shellTick();
 
   pcLinkBegin();
+  bleLinkBegin();
 
   LOGI("app", "setup done (USB time sync); serial: h=help");
 }
@@ -129,6 +135,7 @@ static void debugHeartbeat(const struct tm* tiOpt) {
 
 void appLoop() {
   pcLinkMaintain();
+  bleLinkMaintain();
   shellPollSerial();
 
   struct tm ti{};

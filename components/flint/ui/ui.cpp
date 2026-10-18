@@ -1,4 +1,5 @@
 #include "ui.h"
+#include <cstring>
 #include "ui/ui_dirty.h"
 #include "ui/ui_dirty_rules.h"
 #include "config/config.h"
@@ -27,7 +28,7 @@ FaceContext uiBuildContext() {
   ctx.palette = dayModeBuildPalette(ctx.dayMode);
   ctx.usbConnected = pcLinkConnected();
 
-  ctx.showSeconds = settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
+  ctx.showSeconds = !strcmp(FaceRegistry::activeId(),"companion") || settingsResolveShowSeconds(ctx.dayProfile.showSeconds);
   ctx.hour12 = settingsUse12Hour();
   ctx.dateFormat = settingsDateFormat();
   ctx.dateSep = settingsDateSep();
@@ -39,6 +40,7 @@ FaceContext uiBuildContext() {
 }
 
 bool uiWantsSeconds() {
+  if (!strcmp(FaceRegistry::activeId(),"companion")) return true;
   if (gHaveLastCtx) {
     return gLastCtx.showSeconds;
   }

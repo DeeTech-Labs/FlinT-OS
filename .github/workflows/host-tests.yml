@@ -43,10 +43,35 @@ jobs:
     name: ESP32-C3 firmware (ESP-IDF 6.0.2)
     runs-on: ubuntu-latest
     container: espressif/idf:v6.0.2
+    env:
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 500M
     steps:
       - uses: actions/checkout@v5
+      - name: Cache firmware dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            third_party/LovyanGFX
+            managed_components
+            /root/.cache/Espressif
+          key: firmware-deps-idf6.0.2-c3-${{ hashFiles('**/idf_component.yml', 'components/LovyanGFX/CMakeLists.txt') }}
+      - name: Cache firmware compilation
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: firmware-ccache-idf6.0.2-c3-${{ hashFiles('config/sdkconfig.defaults', '**/CMakeLists.txt') }}-${{ github.sha }}
+          restore-keys: |
+            firmware-ccache-idf6.0.2-c3-${{ hashFiles('config/sdkconfig.defaults', '**/CMakeLists.txt') }}-
+            firmware-ccache-idf6.0.2-c3-
       - name: Build offline firmware
         shell: bash
         run: |
           . /opt/esp/idf/export.sh
           idf.py -DIDF_TARGET=esp32c3 build
+      - name: Compiler cache statistics
+        if: always()
+        shell: bash
+        run: ccache --show-stats

@@ -25,6 +25,12 @@
 
 ---
 
+## Website
+
+The shared website for Spark, FlinT OS and Desktop is maintained in
+[FlinT-Web](https://github.com/DeeTech-Labs/FlinT-Web) and published at
+[flint.deetech.ru](https://flint.deetech.ru/).
+
 ## What it is
 
 **FlinT OS** is the firmware platform for **FlinT** devices (base board: **FlinT Spark**), by **DeeTech Labs**.

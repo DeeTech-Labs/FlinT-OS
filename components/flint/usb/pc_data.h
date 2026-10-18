@@ -54,6 +54,7 @@ struct PcDeviceInfo {
   int api;
   int screenWidth;
   int screenHeight;
+  bool companionAllowed = true;
 };
 
 inline bool pcWriteInfo(char* buffer, size_t size, const PcDeviceInfo& info) {
@@ -66,7 +67,9 @@ inline bool pcWriteInfo(char* buffer, size_t size, const PcDeviceInfo& info) {
   w.raw(",\"api\":"); w.number(info.api);
   w.raw(",\"screen\":{\"width\":"); w.number(info.screenWidth);
   w.raw(",\"height\":"); w.number(info.screenHeight);
-  w.raw("},\"capabilities\":[\"info\",\"status\",\"time_sync\"]}");
+  w.raw("},\"capabilities\":[\"info\",\"status\",\"time_sync\",\"control\",\"settings\",\"faces\",\"face_studio\"");
+  if (info.companionAllowed) w.raw(",\"companion\"");
+  w.raw("]}");
   return w.finish();
 }
 

@@ -12,10 +12,23 @@ static PcCommand command(PcProtocol& protocol, const std::string& line, uint32_t
 }
 
 int main() {
+  PcCommand packet;
+  hostRequire(pcParsePacket("@STATUS\n", 8, packet) && packet.kind == PcCommandKind::Status, "BLE complete packet");
+  hostRequire(pcParsePacket("@TIME 1792249200\n", 17, packet) && packet.kind == PcCommandKind::Time, "BLE time packet");
+  hostRequire(!pcParsePacket("@HELLO\n@INFO\n", 13, packet), "BLE rejects multiple commands");
+  hostRequire(!pcParsePacket("@@HELLO\n", 8, packet), "BLE rejects nested frames");
+  hostRequire(!pcParsePacket("@STATUS", 7, packet), "BLE rejects incomplete commands");
+  hostRequire(!pcParsePacket(nullptr, 8, packet), "BLE rejects null packet");
   PcProtocol parser;
   PcCommand out;
   hostRequire(!parser.feed('s', 0, out), "shell keys pass through");
   hostRequire(command(parser, "@HELLO\r\n").kind == PcCommandKind::Hello, "CRLF handshake");
+  out = command(parser, "@REQ 123 SETTINGS\n");
+  hostRequire(out.kind == PcCommandKind::Request && out.requestId == 123 && std::string(out.operation) == "SETTINGS", "correlated v1 request");
+  out = command(parser, "@REQ 999999999 SET timezone=Europe/Moscow show_seconds=1\n");
+  hostRequire(out.kind == PcCommandKind::Request && std::string(out.payload) == "timezone=Europe/Moscow show_seconds=1", "bounded request arguments");
+  for (const char* invalid : {"@REQ 0 SETTINGS\n", "@REQ 1000000000 SETTINGS\n", "@REQ 1 lower\n", "@REQ 1 \n"})
+    hostRequire(command(parser, invalid).kind == PcCommandKind::Error, "reject invalid request envelope");
   hostRequire(command(parser, "@INFO\n").kind == PcCommandKind::Info, "device info query");
   hostRequire(command(parser, "@STATUS\r\n").kind == PcCommandKind::Status, "device state query");
   hostRequire(command(parser, "@STATUS extra\n").kind == PcCommandKind::Error, "reject status arguments");

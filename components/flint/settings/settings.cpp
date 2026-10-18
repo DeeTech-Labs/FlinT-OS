@@ -204,10 +204,10 @@ void settingsLoad() {
   gLoaded = true;
 }
 
-void settingsSave() {
+bool settingsSave() {
   if (!cfgFsReady()) {
     LOGE("set", "cfg not ready — save skipped");
-    return;
+    return false;
   }
 
   char buf[384];
@@ -231,14 +231,23 @@ void settingsSave() {
       gSettings.tzId);
   if (n < 0 || static_cast<size_t>(n) >= sizeof(buf)) {
     LOGE("set", "ui.cfg serialize overflow");
-    return;
+    return false;
   }
 
   if (!cfgFsWriteAtomic(kCfgUiPath, buf, static_cast<size_t>(n))) {
     LOGE("set", "ui.cfg write failed");
-    return;
+    return false;
   }
   LOGI("set", "saved face=%s", gSettings.activeFace);
+  return true;
+}
+
+bool settingsApply(const FlintSettings& settings) {
+  const auto previous = settingsGet();
+  gSettings = settings;
+  if (!settingsSave()) { gSettings = previous; return false; }
+  settingsApplyAfterLoad();
+  return true;
 }
 
 const FlintSettings& settingsGet() {

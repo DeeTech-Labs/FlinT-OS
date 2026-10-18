@@ -8,6 +8,22 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 ## [Unreleased]
 
+### Added
+- Protocol v1 correlated settings/face commands with validation and atomic persistence.
+- Persistent Studio face with configurable colors, text placement and 16x16 icon.
+- NimBLE companion GATT service for INFO/STATUS/TIME with bounded indications.
+- Shared USB/BLE application dispatcher and application-task command queue.
+- Companion face with persistent quick note, autonomous focus timer and PC metrics.
+- USB-only Companion command authorization and find-watch status indicator.
+- Companion protocol and pairing limitations documented.
+
+
+### Fixed
+
+- Register the indication characteristic with the access callback required by NimBLE; without it GATT setup failed and the board did not advertise.
+- Initialize the security key-store callbacks and require encrypted subscription before protocol exchange.
+- Reserve a NimBLE key-store slot for pre-pairing capacity checks while keeping runtime bonding disabled.
+
 ## [0.2.0] - 2026-08-07
 
 ### Added
@@ -43,6 +59,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 - Keep Face API / pack / digital face version fields at 1 for pre-release
 
 ### Fixed
+
 
 - Event bus logs when `flintEventSubscribe` rejects (full table / null handler)
 

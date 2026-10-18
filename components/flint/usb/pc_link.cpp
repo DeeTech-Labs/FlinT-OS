@@ -1,4 +1,5 @@
 #include "usb/pc_link.h"
+#include "companion/control.h"
 #include "usb/pc_protocol.h"
 #include "usb/pc_data.h"
 #include "usb/status_pattern.h"
@@ -17,38 +18,42 @@
 namespace {
 bool gConnected = false;
 bool gLedReady = false;
+uint32_t gFindStarted = 0;
+bool gFinding = false;
 PcProtocol gProtocol;
 PcStatusPattern gPattern;
 
-void sendInfo() {
+void sendInfo(char* response, size_t capacity, bool trustedTransport) {
   uint8_t mac[6]{};
   if (esp_efuse_mac_get_default(mac) != ESP_OK) {
-    printf("FLINT ERROR device id unavailable\n");
+    snprintf(response, capacity, "FLINT ERROR device id unavailable\n");
     return;
   }
   char id[13];
   snprintf(id, sizeof(id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   const PcDeviceInfo info{id, "Spark", FLINT_BOARD_ID, FLINT_IDF_TARGET,
-                          FLINT_OS_VERSION_STRING, FLINT_OS_API_VERSION, SCR_W, SCR_H};
+                          FLINT_OS_VERSION_STRING, FLINT_OS_API_VERSION, SCR_W, SCR_H, trustedTransport};
   char json[512];
-  if (pcWriteInfo(json, sizeof(json), info)) printf("FLINT INFO %s\n", json);
-  else printf("FLINT ERROR info overflow\n");
+  if (pcWriteInfo(json, sizeof(json), info)) snprintf(response, capacity, "FLINT INFO %s\n", json);
+  else snprintf(response, capacity, "FLINT ERROR info overflow\n");
 }
 
-void sendStatus() {
+void sendStatus(char* response, size_t capacity) {
   const FlintSettings& settings = settingsGet();
   const PcDeviceStatus status{esp_timer_get_time() / 1000, flintFreeHeap(), gConnected,
       clockTimeIsValid(), clockTimeIsPcSynced(), clockTimeGetEpoch(), settings.tzId,
       settings.activeFace, settings.showSeconds, settings.lang, settings.hourFormat,
       settings.dateFormat, settings.dateSep};
   char json[768];
-  if (pcWriteStatus(json, sizeof(json), status)) printf("FLINT STATUS %s\n", json);
-  else printf("FLINT ERROR status overflow\n");
+  if (pcWriteStatus(json, sizeof(json), status)) snprintf(response, capacity, "FLINT STATUS %s\n", json);
+  else snprintf(response, capacity, "FLINT ERROR status overflow\n");
 }
 
 void updateLed() {
   if (!gLedReady) return;
-  const bool on = gPattern.on(gConnected, flintMillis());
+  const auto now = flintMillis();
+  if (gFinding && now - gFindStarted >= 5000) gFinding = false;
+  const bool on = gFinding ? (now - gFindStarted) % 200 < 100 : gPattern.on(gConnected,now);
   gpio_set_level(static_cast<gpio_num_t>(FLINT_STATUS_LED_GPIO),
                  FLINT_STATUS_LED_ACTIVE_LOW ? !on : on);
 }
@@ -81,31 +86,45 @@ bool pcLinkConnected() { return gConnected; }
 bool pcLinkHandleByte(char c) {
   PcCommand command;
   if (!gProtocol.feed(c, flintMillis(), command)) return false;
+  if (command.kind == PcCommandKind::None) return true;
+  char response[896]{};
+  pcLinkExecute(command, response, sizeof(response), true);
+  if (response[0]) printf("%s", response);
+  return true;
+}
+
+void pcLinkExecute(const PcCommand& command, char* response, size_t capacity, bool trustedTransport) {
+  if (!response || capacity == 0) return;
+  response[0] = '\0';
   switch (command.kind) {
+    case PcCommandKind::Request:
+      companionExecute(command, response, capacity, trustedTransport);
+      break;
     case PcCommandKind::Hello:
-      printf("FLINT HELLO 1 %s\n", FLINT_BOARD_ID);
+      snprintf(response, capacity, "FLINT HELLO 1 %s\n", FLINT_BOARD_ID);
       break;
     case PcCommandKind::Info:
-      sendInfo();
+      sendInfo(response, capacity, trustedTransport);
       break;
     case PcCommandKind::Status:
-      sendStatus();
+      sendStatus(response, capacity);
       break;
     case PcCommandKind::Time:
       if (clockTimeSyncFromPc(static_cast<time_t>(command.epoch))) {
         flintEventEmit(FLINT_EVT_TIME_VALID);
         gPattern.synced(flintMillis());
         updateLed();
-        printf("FLINT TIME OK %lld\n", static_cast<long long>(command.epoch));
+        snprintf(response, capacity, "FLINT TIME OK %lld\n", static_cast<long long>(command.epoch));
         LOGI("usb", "time synced; LED 3 flashes");
         break;
       }
       [[fallthrough]];
     case PcCommandKind::Error:
-      printf("FLINT ERROR invalid command\n");
+      snprintf(response, capacity, "FLINT ERROR invalid command\n");
       break;
     case PcCommandKind::None:
       break;
   }
-  return true;
 }
+
+bool pcLinkFind() { if (!gLedReady) return false; gFinding = true; gFindStarted = flintMillis(); updateLed(); return true; }

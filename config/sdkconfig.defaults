@@ -23,3 +23,13 @@ CONFIG_COMPILER_CXX_RTTI=n
 # Quiet IDF logs (app uses DEBUG_LEVEL / printf)
 CONFIG_LOG_DEFAULT_LEVEL_WARN=y
 CONFIG_LOG_DEFAULT_LEVEL=2
+
+# BLE companion: single peripheral connection, no Wi-Fi or HID.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+# NimBLE checks storage capacity before negotiating non-bonding pairing.
+# Reserve one RAM slot even though runtime bonding and NVS persistence stay off.
+CONFIG_BT_NIMBLE_MAX_BONDS=1

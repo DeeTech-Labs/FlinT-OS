@@ -1,4 +1,6 @@
 #include "companion/control.h"
+#include "render/watch_display.h"
+#include "companion/action_input.h"
 #include "ble/ble_link.h"
 #include "companion/studio.h"
 #include "companion/apps.h"
@@ -56,7 +58,21 @@ void companionExecute(const PcCommand& command, char* response, size_t capacity,
       && strcmp(command.operation,"STUDIO")) {
     result(command,response,capacity,nullptr,"authenticated_transport_required"); return;
   }
-  if (!strcmp(command.operation,"BLE")) {
+  if (!strcmp(command.operation,"SCREEN") || !strcmp(command.operation,"SCENE") || !strcmp(command.operation,"SHOT") || !strcmp(command.operation,"PIXELS")) {
+    if (!watchDisplayCommand(command.operation,command.payload,json,sizeof(json))) {result(command,response,capacity,nullptr,"screen_changed_or_unavailable");return;}
+  } else if (!strcmp(command.operation, "EVENTS")) {
+    uint32_t after = 0;
+    if (!command.payload[0]) after = flintActionInput.sequence();
+    else {
+      for (const char* p = command.payload; *p; ++p) {
+        if (*p < '0' || *p > '9' || after > (UINT32_MAX - unsigned(*p - '0')) / 10) {
+          result(command,response,capacity,nullptr,"invalid_cursor"); return;
+        }
+        after = after * 10 + *p - '0';
+      }
+    }
+    if (!flintActionInput.json(after, json, sizeof(json))) { result(command,response,capacity,nullptr,"invalid_cursor"); return; }
+  } else if (!strcmp(command.operation,"BLE")) {
     PcJsonWriter writer(json,sizeof(json)); writer.raw("{\"state\":"); writer.text(bleLinkState());
     writer.raw(",\"disconnect_reason\":"); writer.number(bleLinkLastDisconnectReason());
     writer.raw(",\"encryption_status\":"); writer.number(bleLinkLastEncryptionStatus()); writer.raw("}"); writer.finish();

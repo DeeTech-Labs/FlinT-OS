@@ -1,5 +1,8 @@
 #include "usb/pc_link.h"
+#include "ble/ble_link.h"
+#include "shell/shell.h"
 #include "companion/control.h"
+#include "companion/action_input.h"
 #include "usb/pc_protocol.h"
 #include "usb/pc_data.h"
 #include "usb/status_pattern.h"
@@ -88,7 +91,23 @@ bool pcLinkHandleByte(char c) {
   if (!gProtocol.feed(c, flintMillis(), command)) return false;
   if (command.kind == PcCommandKind::None) return true;
   char response[896]{};
-  pcLinkExecute(command, response, sizeof(response), true);
+  if (command.kind == PcCommandKind::Request && !strcmp(command.operation, "PAIR")) {
+    char json[672]{};
+    if (bleLinkPairingCommand(command.payload, json, sizeof(json)))
+      snprintf(response, sizeof(response), "FLINT RESULT {\"id\":%lu,\"ok\":true,\"result\":%s}\n", static_cast<unsigned long>(command.requestId), json);
+    else snprintf(response, sizeof(response), "FLINT RESULT {\"id\":%lu,\"ok\":false,\"error\":\"pairing_command_failed\"}\n", static_cast<unsigned long>(command.requestId));
+  } else if (command.kind == PcCommandKind::Request && !strcmp(command.operation, "KEY")) {
+    char key = !strcmp(command.payload,"enter") ? '\r' : !strcmp(command.payload,"settings") ? 's'
+      : !strcmp(command.payload,"next") ? 'n' : !strcmp(command.payload,"previous") ? 'p'
+      : !strcmp(command.payload,"back") ? 'q' : !strcmp(command.payload,"plus") ? '+' : !strcmp(command.payload,"minus") ? '-' : 0;
+    if (key) shellHandleKey(key);
+    snprintf(response, sizeof(response), "FLINT RESULT {\"id\":%lu,\"ok\":%s,%s}\n", static_cast<unsigned long>(command.requestId),
+      key ? "true" : "false", key ? "\"result\":{\"emulated\":true}" : "\"error\":\"invalid_key\"");
+  } else if (command.kind == PcCommandKind::Request && !strcmp(command.operation, "BUTTON")) {
+    const bool okay = flintActionInput.push(command.payload);
+    snprintf(response, sizeof(response), "FLINT RESULT {\"id\":%lu,\"ok\":%s,%s}\n", static_cast<unsigned long>(command.requestId),
+      okay ? "true" : "false", okay ? "\"result\":{\"emulated\":true}" : "\"error\":\"invalid_button\"");
+  } else pcLinkExecute(command, response, sizeof(response), true);
   if (response[0]) printf("%s", response);
   return true;
 }

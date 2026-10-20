@@ -7,7 +7,7 @@
   "panel_height": 280,
   "offset_x": 0,
   "offset_y": 20,
-  "invert": false,
+  "invert": true,
   "rgb_order": false,
   "spi_3wire": true,
   "readable": false,

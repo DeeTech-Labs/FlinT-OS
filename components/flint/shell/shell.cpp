@@ -1,4 +1,5 @@
 #include "shell/shell.h"
+#include "companion/action_input.h"
 
 #include "anim/anim.h"
 #include "config/debug.h"
@@ -63,13 +64,13 @@ static void enterFace() {
 static void enterPicker() {
   gState = SHELL_PICKER;
   shellPickerEnter();
-  animBegin(ANIM_OVERLAY_IN);
+  animBegin(ANIM_NONE);
 }
 
 static void enterSettings() {
   gState = SHELL_SETTINGS;
   shellSettingsEnter();
-  animBegin(ANIM_OVERLAY_IN);
+  animBegin(ANIM_NONE);
 }
 
 static void goTo(ShellState next) {
@@ -139,6 +140,7 @@ void shellTick() {
 
 void shellHandleKey(char c) {
   if (pcLinkHandleByte(c)) return;
+  if (c >= '1' && c <= '3') { flintActionInput.push(c == '1' ? "primary" : c == '2' ? "secondary" : "long"); return; }
 
   if (c == 'h' || c == 'H' || c == '?') {
     shellLogHelp();

@@ -60,15 +60,30 @@ in this MVP, only while Desktop is connected. Optional tray mode keeps polling w
 
 ## Pairing boundary
 
-This MVP uses encrypted Secure Connections Just Works (no input/output), without
-persistent bonding or authenticated peer identity. Nearby clients can pair, change the time, settings and face design. BLE allows
-SETTINGS/SET/FACES/FACE/TIMEZONES/STUDIO only; other request operations return
-`authenticated_transport_required`. The `companion` capability is advertised
-only on USB. Notes and Companion commands are limited to USB until authenticated
-pairing is available. No remote PC command execution, notifications or DFU are exposed.
-Before adding those features, implement physical pairing confirmation, bonding,
-authenticated authorization and per-command policy. Do not advertise Just Works
-as protection against an active intermediary.
+Development firmware now requires encrypted, authenticated, bonded Secure Connections.
+New pairing requires a 60-second window opened through trusted USB serial input.
+This board has no buttons/touch: serial confirmation explicitly emulates local input.
+Compare the six-digit code in Desktop with serial, then confirm on both sides.
+A scoped DisplayYesNo BlueZ agent rejects unexpected peers and expires unanswered
+confirmation after 25 seconds. No automatic acceptance of numeric comparison occurs.
+Bonded peers can reconnect without pairing. NVS stores keys across restart.
+The `companion` and `actions` capabilities are available over authenticated BLE.
+Pairing management and synthetic input remain USB-only, even for bonded BLE peers.
+
+Serial examples (each line ends with LF):
+
+```text
+@REQ 1 PAIR open
+@REQ 2 PAIR status
+@REQ 3 PAIR confirm=123456
+@REQ 4 PAIR reject
+@REQ 5 PAIR revoke=0:001122334455
+```
+
+Use the actual matching code, not the example. Status includes an array of peer
+identifiers; copy a returned identifier for revocation. Revocation invalidates
+queued BLE work, disconnects the active session and deletes peer keys. USB is
+required to manage trust. The firmware does not silently evict existing peers.
 
 ## Firmware build and hardware validation
 
@@ -77,9 +92,8 @@ and `CONFIG_BT_NIMBLE_ENABLED`; defaults select one peripheral connection. Exist
 sdkconfig files keep previous values: use menuconfig to enable NimBLE, or configure
 a fresh build with the repository defaults. Disabling NimBLE keeps USB operational.
 NVS initialization errors in the BLE module disable BLE without erasing stored data.
-`CONFIG_BT_NIMBLE_MAX_BONDS` must be at least 1: NimBLE checks store capacity
-before negotiating non-bonding pairing. This reserves RAM only; runtime bonding
-and NVS key persistence remain disabled. Zero capacity prevents pairing.
+Defaults reserve three bonds and enable `CONFIG_BT_NIMBLE_NVS_PERSIST`.
+Existing sdkconfig files must enable persistence and set the bond capacity explicitly.
 
 Validate on hardware: scan, pair, HELLO/INFO/STATUS, TIME acknowledgement, remove USB
 while powered independently, drop/reconnect BLE, cancel pairing, restart either
@@ -109,7 +123,7 @@ must succeed before acknowledgement. Unsupported settings/operations return erro
 BLE fragments request lines into at most 20 bytes per acknowledged ATT write.
 Firmware reassembles until LF; incomplete frames expire after two seconds.
 
-Future operations (files, Actions, DFU) will extend the same version 1 protocol
+Future operations (files, DFU) will extend the same version 1 protocol
 with capability negotiation, explicit limits, authorization and recovery rules.
 
 ## Face Studio v1
@@ -120,17 +134,23 @@ digits, timeY is 80–150, dateY is 170–220, showDate is 0/1 and pixels is exa
 64 hex digits encoding a 16x16 one-bit icon (row-major, MSB first). The firmware
 validates all fields, atomically stores `/cfg/studio.cfg`, then acknowledges.
 `FACE studio` selects the installed design. The icon starts at y=16, scaled 3x;
-text positions are baselines in the 280x240 reference canvas. This MVP has one
-static icon layer, time and optional date. It does not implement arbitrary code,
-animation, full-color bitmaps, a framebuffer mirror or general file transfer.
+text positions are baselines in the 280x240 reference canvas. The basic definition has an icon, time and optional date. Devices additionally
+advertising `face_studio_layers` accept seven additional fields after pixels:
+`iconX iconY iconScale showIcon order animateIcon alternatePixels`.
+Coordinates must keep the icon inside 280x240; scale is 1–6, flags are 0/1,
+order is one of six permutations (icon/time/date, icon/date/time, time/icon/date,
+time/date/icon, date/icon/time, date/time/icon), and alternatePixels is 64 hex digits.
+Two icon frames alternate every 500 ms while the Studio face is active. Designs
+without these fields retain the original behavior. This is not arbitrary code,
+full-color bitmaps, a framebuffer mirror or general file transfer.
 
 Desktop `.flintface` files are JSON with schema `flint.face/1`, a name, background,
 foreground, timeY, dateY, showDate and pixels. Import is bounded to 8192 bytes and
-validated before replacing the editor. Device transfer excludes the local name.
+validated before replacing the editor. An optional `layers` object carries the extended layer fields. Device transfer excludes the local name.
 
-## USB Companion v1
+## Companion v1
 
-The `companion` capability enables these correlated operations on trusted USB:
+The `companion` capability enables these correlated operations on trusted USB or authenticated/bonded BLE:
 
 - `APPS`: returns note, focus_remaining (seconds), cpu and memory (percent; -1 unknown).
 - `NOTE <hex>`: up to 96 UTF-8 bytes encoded as hex; empty clears the note.
@@ -155,7 +175,72 @@ It also includes `disconnect_reason` (NimBLE/HCI code) and `encryption_status`
 (-1 not attempted, -2 pending, 0 success, other values are NimBLE errors).
 Firmware logs the NimBLE error codes for failed GATT or advertising setup.
 
-Linux Desktop registers a scoped BlueZ NoInputNoOutput agent for its explicit
-connection request. It authorizes Just Works only for the selected address and
-GATT/FlinT services, rejects PIN/passkey/numeric-comparison requests, and unregisters
-on close. It does not replace the system default agent or authenticate ownership.
+## Input and Actions
+
+`actions` enables `EVENTS [cursor]`. Without a cursor it returns the current sequence
+and no historical events. With a cursor it returns newer events from a bounded
+8-event ring. The response includes `sequence`, `lost`, and `events` (`id`, `button`).
+Buttons are `primary`, `secondary`, `long`. Clients must skip lost/pre-arming events,
+initialize a new cursor after reconnect, and never replay an event twice.
+
+USB-only `BUTTON primary|secondary|long` and serial keys `1|2|3` emulate button input.
+USB-only `KEY enter|settings|previous|next|plus|minus|back` routes to the existing
+watch shell, with no arbitrary command execution.
+Desktop Actions require explicit session arming and configured mappings. Linux
+media control uses MPRIS; focus uses the existing watch timer. Presentation keys
+require an X11 session and xdotool. Windows/macOS input dispatch is not validated.
+
+## Confirmed screen scenes (`screen_scene`)
+
+Authenticated BLE and USB can read the committed display scene with:
+
+- `SCREEN [known_revision]`: returns `revision`, `available`, `renderer` (SHA-256
+  identity of the shared rasterizer and font resources), `width`, `height`,
+  `bytes` and FNV-1a `hash`. An unchanged known revision returns only revision
+  and `unchanged:true`. Full metadata snapshots the encoded scene for download.
+- `SCENE <revision> <byte_offset>`: returns revision, offset and up to 224 binary
+  bytes encoded as lowercase hexadecimal in `data`. A snapshot remains stable
+  while the live watch screen changes. A newer full SCREEN replaces that snapshot.
+
+The binary scene is bounded to 1,098 bytes: `FS`, version byte 1, operation count,
+BE16 width/height/data size, then 18-byte operations and their bounded text/icon
+payload. Operations describe rectangles, rounded rectangles, text and 16×16
+monochrome bitmaps. The first operation must cover the entire background.
+Font glyph masks and geometry come from the identical C++ renderer packaged in
+both applications. Text, time, menu selection, settings, animation frame and
+other resolved values originate on the watch. Desktop does not advance the
+clock independently or substitute an illustrative watch screen.
+
+Scenes become visible to the protocol only after the display transfer completes.
+Firmware rasterizes and transfers the union of changed regions, reusing its
+existing framebuffer. Native SDK screens without a shared scene report
+`available:false`; a renderer/resource mismatch disables reconstructed preview.
+FNV checks detect incomplete/corrupt transfers; BLE transport authentication is
+still required for private content.
+
+Desktop polls only while Overview/My watch is visible and the window is not
+minimized: at most once per second on USB or once per 2.5 seconds on BLE, subject
+to other commands. Unchanged scenes require no scene download. A changed scene
+uses a small bounded description plus JSON/hex overhead, rather than the 134,400
+raw RGB565 bytes of a 280×240 frame. Real battery impact is not yet measured.
+
+### Explicit pixel verification (USB only)
+
+`SHOT start` temporarily pins the actual display buffer and returns revision,
+pixel count and FNV-1a hash of canonical big-endian RGB565 bytes.
+`PIXELS <revision> <byte_offset>` reads the same 224-byte blocks from that buffer.
+Desktop compares every byte with its independently reconstructed scene and saves
+the actual pixels as PNG only on this explicit diagnostic path. The screenshot
+is a framebuffer verification, not an optical readback of the physical LCD.
+
+`SHOT stop` releases the buffer and presents the latest pending scene. Cancellation
+and disconnect handling release it where possible; a firmware watchdog releases
+it after 30 seconds even if the client disappears. BLE rejects SHOT and PIXELS
+with `usb_only`, even for authenticated peers. No continuous PNG/video streaming
+is implemented or used. Concurrent snapshot readers may replace each other's
+scene snapshot and must restart on a revision error.
+
+The portable sources live in firmware `components/flint/render`. Run
+`tools/sync_desktop_renderer.py` after editing shared sources/fonts to package
+Desktop's standalone copy and refresh both renderer identities. Desktop's package
+test rejects divergent sources or a stale identity.

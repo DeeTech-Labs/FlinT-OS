@@ -1,4 +1,5 @@
 #include "companion/control.h"
+#include "companion/action_input.h"
 #include "settings/settings.h"
 #include "faces/FaceRegistry.h"
 #include "time/tz_db.h"
@@ -32,6 +33,13 @@ static std::string exchange(const char* operation, const char* payload = "") {
   char response[896]; companionExecute(command,response,sizeof(response),true); return response;
 }
 int main() {
+  hostRequire(flintActionInput.push("primary"), "emulate input");
+  hostRequire(!flintActionInput.push("shell command"), "reject unknown buttons");
+  hostRequire(exchange("EVENTS", "0").find("primary") != std::string::npos, "route event to client cursor");
+  hostRequire(exchange("EVENTS", "1").find("\"events\":[]") != std::string::npos, "no replay after cursor");
+  hostRequire(exchange("EVENTS", "999999999999999999999").find("invalid_cursor") != std::string::npos, "reject cursor overflow");
+  for (int i = 0; i < 10; ++i) flintActionInput.push("secondary");
+  hostRequire(exchange("EVENTS", "0").find("\"lost\":true") != std::string::npos, "report bounded queue loss");
   PcCommand untrusted; untrusted.kind = PcCommandKind::Request; untrusted.requestId = 3; strcpy(untrusted.operation,"APPS");
   char denied[896]; companionExecute(untrusted,denied,sizeof(denied));
   hostRequire(std::string(denied).find("authenticated_transport_required") != std::string::npos,"BLE cannot read private notes without authenticated pairing");
@@ -54,3 +62,5 @@ int main() {
 const char* bleLinkState() { return "disabled"; }
 int bleLinkLastDisconnectReason() { return 0; }
 int bleLinkLastEncryptionStatus() { return -1; }
+
+bool watchDisplayCommand(const char*,const char*,char*,size_t) { return false; }

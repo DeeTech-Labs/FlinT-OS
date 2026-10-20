@@ -1,4 +1,5 @@
 #include "display.h"
+#include "render/watch_display.h"
 #include "config/config.h"
 #include "config/debug.h"
 #include "util/flint_sys.h"
@@ -153,6 +154,8 @@ void displayPresent() {
     return;
   }
   gCanvas.pushSprite(&tft, 0, 0);
+  tft.waitDMA();
+  watchDisplayPresented();
 }
 
 void displayPresentRect(int x, int y, int w, int h) {
@@ -168,6 +171,8 @@ void displayPresentRect(int x, int y, int w, int h) {
     return;
   }
   pushRectDma(buf, x, y, w, h);
+  tft.waitDMA();
+  watchDisplayPresented();
 }
 
 void displayPresentRects(const DisplayRect* rects, int count) {
@@ -199,6 +204,8 @@ void displayPresentRects(const DisplayRect* rects, int count) {
 #endif
   }
   tft.endWrite();
+  tft.waitDMA();
+  watchDisplayPresented();
 }
 
 void displaySetClipRect(int x, int y, int w, int h) {
@@ -284,3 +291,5 @@ void displayDrawUtf8Centered(const char* text, int yBaseline, uint16_t fg,
   gfx.setTextColor(fg);
   gfx.drawString(text, x, yBaseline);
 }
+
+uint16_t* displayPixelBuffer() { return gHasCanvas ? s_framebuf : nullptr; }

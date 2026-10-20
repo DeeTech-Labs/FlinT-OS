@@ -30,6 +30,6 @@ CONFIG_BT_NIMBLE_ENABLED=y
 CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
 CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
-# NimBLE checks storage capacity before negotiating non-bonding pairing.
-# Reserve one RAM slot even though runtime bonding and NVS persistence stay off.
-CONFIG_BT_NIMBLE_MAX_BONDS=1
+# Authenticated numeric comparison; keys survive restart. Never evict a trusted peer automatically.
+CONFIG_BT_NIMBLE_MAX_BONDS=3
+CONFIG_BT_NIMBLE_NVS_PERSIST=y

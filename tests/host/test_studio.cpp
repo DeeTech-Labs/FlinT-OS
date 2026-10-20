@@ -17,6 +17,13 @@ int main() {
       std::string("101112 d4fa70 79 180 1 ")+pixels,
       std::string("101112 d4fa70 128 180 2 ")+pixels,valid+" trailing",valid.substr(0,valid.size()-1)})
     hostRequire(!studioInstall(invalid.c_str()),"reject malformed definition");
+  const auto layered = valid + " 10 20 2 1 5 1 " + std::string(64,'a');
+  hostRequire(studioInstall(layered.c_str()),"install layered two-frame definition");
+  hostRequire(studioDefinition().iconX == 10 && studioDefinition().layerOrder == 5 && studioDefinition().animateIcon,"decode layer properties");
+  hostRequire(!studioAnimate(100,false) && !studioAnimate(599,true) && studioAnimate(600,true) && studioAnimationFrame(),"animation ticks only for active face at 500ms");
+  hostRequire(!studioAnimate(601,false) && !studioAnimationFrame(),"inactive face stops animation");
+  hostRequire(!studioInstall((valid + " 270 20 2 1 5 1 " + std::string(64,'a')).c_str()),"reject offscreen icon");
+  hostRequire(!studioInstall((valid + " 10 20 2 1 6 1 " + std::string(64,'a')).c_str()),"reject invalid layer order");
   storageOkay = false;
   const auto different = std::string("ffffff 000000 100 190 0 ")+std::string(64,'0');
   hostRequire(!studioInstall(different.c_str()) && studioDefinition().background == 0x101112,"failed save preserves active design");

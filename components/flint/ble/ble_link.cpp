@@ -2,7 +2,7 @@
 #include "sdkconfig.h"
 #if CONFIG_BT_NIMBLE_ENABLED
 #if CONFIG_BT_NIMBLE_MAX_BONDS < 1
-#error "FlinT BLE requires CONFIG_BT_NIMBLE_MAX_BONDS >= 1 for NimBLE security capacity checks, even with runtime bonding disabled"
+#error "FlinT BLE requires CONFIG_BT_NIMBLE_MAX_BONDS >= 1 for NimBLE security capacity checks, for persistent authenticated pairing"
 #endif
 #include "usb/pc_link.h"
 #include "esp_log.h"
@@ -10,6 +10,9 @@
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
+#include "host/ble_sm.h"
+#include "host/ble_store.h"
+#include "usb/pc_data.h"
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
@@ -19,6 +22,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <cstdlib>
+#include <cstdio>
 
 // ESP-IDF exports this initializer but omits its declaration from the public header.
 extern "C" void ble_store_config_init(void);
@@ -37,6 +42,17 @@ PcProtocol parser;
 std::atomic<uint16_t> connection{BLE_HS_CONN_HANDLE_NONE};
 std::atomic<uint32_t> generation{0};
 std::atomic<bool> subscribed{false};
+std::atomic<uint32_t> pairingStarted{0};
+std::atomic<bool> pairingOpen{false};
+std::atomic<int> pendingCode{-1};
+std::atomic<uint16_t> pendingConnection{BLE_HS_CONN_HANDLE_NONE};
+uint32_t nowMs() { return xTaskGetTickCount() * portTICK_PERIOD_MS; }
+bool windowOpen() { return pairingOpen && uint32_t(nowMs() - pairingStarted.load()) < 60000; }
+bool trusted(uint16_t handle) {
+  ble_gap_conn_desc desc{};
+  return !ble_gap_conn_find(handle, &desc) && desc.sec_state.encrypted
+      && desc.sec_state.authenticated && desc.sec_state.bonded;
+}
 uint16_t txHandle;
 uint8_t addressType;
 char response[896]{};
@@ -66,6 +82,7 @@ int gapEvent(ble_gap_event* event, void*) {
       connection = BLE_HS_CONN_HANDLE_NONE;
       ++generation;
       subscribed = false;
+      pendingCode = -1; pendingConnection = BLE_HS_CONN_HANDLE_NONE;
       parser.reset();
       advertise();
       break;
@@ -73,11 +90,22 @@ int gapEvent(ble_gap_event* event, void*) {
       if (event->subscribe.attr_handle == txHandle) subscribed = event->subscribe.cur_indicate;
       break;
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-      ESP_LOGW("ble", "pairing IO action=%d", event->passkey.params.action);
+      if (event->passkey.params.action == BLE_SM_IOACT_NUMCMP && windowOpen()) {
+        pendingConnection = event->passkey.conn_handle;
+        pendingCode = event->passkey.params.numcmp;
+        ESP_LOGW("ble", "Compare Desktop code: %06lu. Serial: @REQ 1 PAIR confirm=%06lu (or PAIR reject)",
+                 static_cast<unsigned long>(event->passkey.params.numcmp), static_cast<unsigned long>(event->passkey.params.numcmp));
+      } else {
+        ble_sm_io io{}; io.action = event->passkey.params.action; io.numcmp_accept = 0;
+        ble_sm_inject_io(event->passkey.conn_handle, &io);
+        ble_gap_terminate(event->passkey.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+      }
       break;
     case BLE_GAP_EVENT_ENC_CHANGE:
       lastEncryptionStatus = event->enc_change.status;
       ESP_LOGW("ble", "encryption status=%d", event->enc_change.status);
+      if (!event->enc_change.status && trusted(event->enc_change.conn_handle)) pairingOpen = false;
+      else if (!event->enc_change.status) ble_gap_terminate(event->enc_change.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
       break;
     case BLE_GAP_EVENT_NOTIFY_TX:
       if (event->notify_tx.attr_handle == txHandle && event->notify_tx.indication && event->notify_tx.status != 0) {
@@ -126,6 +154,7 @@ void synced() {
 }
 int access(uint16_t handle, uint16_t, ble_gatt_access_ctxt* ctxt, void*) {
   if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR) return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+  if (!trusted(handle)) return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
   if (!subscribed) return BLE_ATT_ERR_INSUFFICIENT_RES;
   char bytes[32];
   uint16_t length = 0;
@@ -180,15 +209,13 @@ void bleLinkBegin() {
     vQueueDelete(requests); requests = nullptr;
     return;
   }
-  // Encrypted Just Works for time/settings/design. Private Companion operations require USB.
-  ble_hs_cfg.sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT;
+  // Serial temporarily emulates the watch confirmation button.
+  ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_YESNO;
   ble_hs_cfg.sm_sc = 1;
-  // No persistent bonds in this MVP. The reserved RAM slot is required by
-  // NimBLE's pre-pairing capacity check, not by negotiated key persistence.
-  ble_hs_cfg.sm_bonding = 0;
-  ble_hs_cfg.sm_mitm = 0;
-  ble_hs_cfg.sm_our_key_dist = 0;
-  ble_hs_cfg.sm_their_key_dist = 0;
+  ble_hs_cfg.sm_bonding = 1;
+  ble_hs_cfg.sm_mitm = 1;
+  ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+  ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
   ble_hs_cfg.sync_cb = synced;
   // The security manager probes the key store even when bonding is disabled.
   // Without callbacks it receives ENOTSUP instead of ENOENT and aborts pairing.
@@ -197,8 +224,60 @@ void bleLinkBegin() {
   state = "host_starting";
   nimble_port_freertos_init(hostTask);
 }
+bool bleLinkPairingCommand(const char* payload, char* json, size_t capacity) {
+  if (!requests) return false;
+  if (!strcmp(payload, "open")) {
+    pairingStarted = nowMs(); pairingOpen = true;
+  } else if (!strncmp(payload, "confirm=", 8)) {
+    const char* digits = payload + 8;
+    if (strlen(digits) != 6) return false;
+    int code = 0;
+    for (int i = 0; i < 6; ++i) { if (digits[i] < '0' || digits[i] > '9') return false; code = code * 10 + digits[i] - '0'; }
+    const auto handle = pendingConnection.load();
+    if (!windowOpen() || pendingCode < 0 || code != pendingCode || handle != connection) return false;
+    pendingCode = -1; pendingConnection = BLE_HS_CONN_HANDLE_NONE;
+    ble_sm_io io{}; io.action = BLE_SM_IOACT_NUMCMP; io.numcmp_accept = 1;
+    if (ble_sm_inject_io(handle, &io)) return false;
+  } else if (!strcmp(payload, "reject")) {
+    pairingOpen = false; pendingCode = -1;
+    const auto handle = pendingConnection.exchange(BLE_HS_CONN_HANDLE_NONE);
+    if (handle != BLE_HS_CONN_HANDLE_NONE) {
+      ble_sm_io io{}; io.action = BLE_SM_IOACT_NUMCMP; io.numcmp_accept = 0;
+      ble_sm_inject_io(handle, &io);
+    }
+  } else if (!strncmp(payload, "revoke=", 7)) {
+    if (strlen(payload + 7) != 14 || (payload[7] != '0' && payload[7] != '1') || payload[8] != ':') return false;
+    for (int i = 9; i < 21; ++i) if (!((payload[i] >= '0' && payload[i] <= '9') || (payload[i] >= 'a' && payload[i] <= 'f') || (payload[i] >= 'A' && payload[i] <= 'F'))) return false;
+    unsigned type, bytes[6]; int used = 0;
+    if (sscanf(payload + 7, "%u:%2x%2x%2x%2x%2x%2x%n", &type, &bytes[0], &bytes[1], &bytes[2], &bytes[3], &bytes[4], &bytes[5], &used) != 7
+        || payload[7 + used] || type > 1) return false;
+    ble_addr_t peer{}; peer.type = type;
+    for (int i = 0; i < 6; ++i) peer.val[i] = bytes[i];
+    // Invalidate queued work before ending the connection and revoking keys.
+    subscribed = false; ++generation;
+    const auto handle = connection.load();
+    if (handle != BLE_HS_CONN_HANDLE_NONE) ble_gap_terminate(handle, BLE_ERR_REM_USER_CONN_TERM);
+    if (ble_store_util_delete_peer(&peer)) return false;
+  } else if (*payload && strcmp(payload, "status")) return false;
+  ble_addr_t peers[CONFIG_BT_NIMBLE_MAX_BONDS]; int count = 0;
+  if (ble_store_util_bonded_peers(peers, &count, CONFIG_BT_NIMBLE_MAX_BONDS)) return false;
+  PcJsonWriter writer(json, capacity);
+  writer.raw("{\"open\":"); writer.boolean(windowOpen());
+  writer.raw(",\"code\":"); writer.number(pendingCode.load());
+  writer.raw(",\"peers\":[");
+  for (int i = 0; i < count; ++i) {
+    if (i) writer.raw(",");
+    char id[20]; snprintf(id, sizeof(id), "%u:%02x%02x%02x%02x%02x%02x", peers[i].type,
+      peers[i].val[0], peers[i].val[1], peers[i].val[2], peers[i].val[3], peers[i].val[4], peers[i].val[5]);
+    writer.text(id);
+  }
+  writer.raw("]}"); return writer.finish();
+}
 void bleLinkMaintain() {
   if (!requests) return;
+  if (pairingOpen && !windowOpen()) {
+    char ignored[16]; bleLinkPairingCommand("reject", ignored, sizeof(ignored));
+  }
   if (responseGeneration != generation.load()) {
     offset = 0; response[0] = 0; inFlight = false;
     responseGeneration = generation.load();
@@ -207,7 +286,10 @@ void bleLinkMaintain() {
   if (!response[0] && xQueueReceive(requests, &request, 0) == pdTRUE) {
     if (request.connection == connection && request.generation == generation && subscribed) {
       responseGeneration = request.generation;
-      pcLinkExecute(request.command, response, sizeof(response));
+      if (request.command.kind == PcCommandKind::Request &&
+          (!strcmp(request.command.operation, "SHOT") || !strcmp(request.command.operation, "PIXELS")))
+        snprintf(response, sizeof(response), "FLINT RESULT {\"id\":%lu,\"ok\":false,\"error\":\"usb_only\"}\n", static_cast<unsigned long>(request.command.requestId));
+      else pcLinkExecute(request.command, response, sizeof(response), trusted(request.connection));
       offset = 0;
     }
   }
@@ -228,4 +310,5 @@ int bleLinkLastDisconnectReason() { return 0; }
 int bleLinkLastEncryptionStatus() { return -1; }
 void bleLinkBegin() {}
 void bleLinkMaintain() {}
+bool bleLinkPairingCommand(const char*, char*, size_t) { return false; }
 #endif

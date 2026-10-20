@@ -1,4 +1,6 @@
 #include "shell/shell_settings.h"
+#include "render/builders.h"
+#include "render/watch_display.h"
 #include "shell/settings_pages.h"
 #include "usb/pc_link.h"
 
@@ -14,6 +16,7 @@
 #include "ui/ui.h"
 
 #include <stdio.h>
+#include <cstring>
 
 enum SettingsDirty : uint8_t {
   SET_OVL_NONE = 0,
@@ -216,7 +219,7 @@ static void formatSettingsValue(const FaceContext& ctx, SettingsRow row,
 }
 
 static int windowStart() {
-  const int vis = UiTok::kShellVisibleRows;
+  const int vis = 4;
   int start = gRow - vis / 2;
   if (start < 0) {
     start = 0;
@@ -230,112 +233,24 @@ static int windowStart() {
   return start;
 }
 
-static void paintScroll(const FaceContext& ctx) {
-  if (settingsPageRowCount(gPage) <= UiTok::kShellVisibleRows) return;
-  const int trackH = UiTok::kShellVisibleRows * UiTok::kShellRowH;
-  const int trackY = UiTok::kShellRowsTop;
-  int thumbH = settingsPageRowCount(gPage) > 0 ? (trackH * UiTok::kShellVisibleRows) / settingsPageRowCount(gPage) : trackH;
-  if (thumbH > trackH) {
-    thumbH = trackH;
-  }
-  const int maxStart = settingsPageRowCount(gPage) - UiTok::kShellVisibleRows;
-  const int thumbY =
-      trackY + (maxStart > 0 ? (gStart * (trackH - thumbH)) / maxStart : 0);
-  chromeScrollTrack(ctx, trackY, trackH, thumbY, thumbH);
-}
-
-static void paintRow(const FaceContext& ctx, int row, int visIndex, uint8_t fade) {
-  const int y = UiTok::shellRowFillY(visIndex);
-  if (gPage == SET_HOME) {
-    chromeValueRow(ctx, y, UiTok::kShellRowH,
-                    pageTitle(static_cast<SettingsPage>(row + 1)), "→", row == gRow, fade);
-    return;
-  }
-  const char* label = "";
-  char value[64];
-  formatSettingsValue(ctx, settingsPageRow(gPage, row), &label, value, sizeof(value));
-  chromeValueRow(ctx, y, UiTok::kShellRowH, label, value, row == gRow, fade);
-}
-
 void shellSettingsPaint(uint8_t fade) {
-  if (!displayHasCanvas()) {
-    return;
+  (void)fade;
+  const auto ctx=uiBuildContext();
+  auto scene=FlintRender::begin(pageTitle(gPage));
+  gStart=windowStart();
+  for(int i=0;i<4&&gStart+i<settingsPageRowCount(gPage);++i){
+    const int rowIndex=gStart+i;const char* label="";char value[64]{};
+    if(gPage==SET_HOME){label=pageTitle(static_cast<SettingsPage>(rowIndex+1));strcpy(value,"→");}
+    else formatSettingsValue(ctx,settingsPageRow(gPage,rowIndex),&label,value,sizeof(value));
+    FlintRender::row(scene,i,label,value,rowIndex==gRow);
   }
-  const FaceContext ctx = uiBuildContext();
-  chromeFillBackdrop(ctx);
-  chromeHeader(ctx, pageTitle(gPage), fade);
-  const char* hint = gPage == SET_HOME ? flintTr(FlintStr::PNEnterEsc)
-                   : gPage == SET_CONNECTION ? "Esc" : flintTr(FlintStr::PNPlusEnterEsc);
-  chromeFooter(ctx, hint, fade);
-  if (gPage == SET_CLOCK) {
-    gLastClockValid = clockTimeGetLocal(&gLastClock);
-  }
-  gStart = windowStart();
-  for (int i = 0; i < UiTok::kShellVisibleRows && gStart + i < settingsPageRowCount(gPage); i++) {
-    paintRow(ctx, gStart + i, i, fade);
-  }
-  paintScroll(ctx);
-  displayPresent();
-  gLastConnected = ctx.usbConnected;
-  gLastTimeValid = ctx.hasTime;
-  gLastPcSynced = clockTimeIsPcSynced();
-  gPrevRow = gRow;
-  gDirty = SET_OVL_NONE;
+  FlintRender::footer(scene,gPage==SET_CONNECTION?"Esc":gPage==SET_HOME?"p/n · Enter · Esc":"p/n · +/- · Esc");
+  watchPresentScene(scene);
+  if(gPage==SET_CLOCK)gLastClockValid=clockTimeGetLocal(&gLastClock);
+  gLastConnected=ctx.usbConnected;gLastTimeValid=ctx.hasTime;gLastPcSynced=clockTimeIsPcSynced();
+  gPrevRow=gRow;gDirty=SET_OVL_NONE;
 }
-
-void shellSettingsPaintPartial() {
-  if (!displayHasCanvas()) {
-    return;
-  }
-  const FaceContext ctx = uiBuildContext();
-  const int newStart = windowStart();
-  if (newStart != gStart) {
-    gStart = newStart;
-    shellSettingsPaint(255);
-    return;
-  }
-
-  DisplayRect rects[4];
-  int n = 0;
-
-  auto addRow = [&](int row) {
-    const int vis = row - gStart;
-    if (vis < 0 || vis >= UiTok::kShellVisibleRows) {
-      return;
-    }
-    const DisplayRect band =
-        chromeListRowRect(ctx, UiTok::shellRowFillY(vis), UiTok::kShellRowH);
-    displaySetClipRect(band.x, band.y, band.w, band.h);
-    paintRow(ctx, row, vis, 255);
-    rects[n++] = band;
-  };
-
-  if (gPrevRow != gRow) {
-    addRow(gPrevRow);
-    addRow(gRow);
-  } else {
-    addRow(gRow);
-  }
-
-  {
-    const DisplayRect scrollBand{
-        static_cast<int16_t>(UiTok::contentRight(ctx.screenW) - UiTok::kShellScrollW - 1),
-        static_cast<int16_t>(UiTok::kShellRowsTop),
-        static_cast<int16_t>(UiTok::kShellScrollW + 2),
-        static_cast<int16_t>(UiTok::kShellVisibleRows * UiTok::kShellRowH)};
-    displaySetClipRect(scrollBand.x, scrollBand.y, scrollBand.w, scrollBand.h);
-    paintScroll(ctx);
-    rects[n++] = scrollBand;
-  }
-  displayClearClipRect();
-
-  displayPresentRects(rects, n);
-  gLastConnected = ctx.usbConnected;
-  gLastTimeValid = ctx.hasTime;
-  gLastPcSynced = clockTimeIsPcSynced();
-  gPrevRow = gRow;
-  gDirty = SET_OVL_NONE;
-}
+void shellSettingsPaintPartial(){shellSettingsPaint(255);}
 
 static void cycleShowSeconds() {
   const FlintSettings& s = settingsGet();

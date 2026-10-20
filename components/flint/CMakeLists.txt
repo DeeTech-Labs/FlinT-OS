@@ -14,6 +14,8 @@ message(STATUS "FlinT OS board ${FLINT_BOARD_ID} (${FLINT_BOARD_DISPLAY_ID}, bus
 # Explicit SRCS (not SRC_DIRS glob): new .c/.cpp must be listed here so CMake
 # reconfigures on the next build instead of silently omitting the object.
 set(FLINT_SRCS
+    render/watch_display.cpp
+    render/fonts.cpp
     companion/apps.cpp
     faces/face_companion.cpp
     companion/studio.cpp

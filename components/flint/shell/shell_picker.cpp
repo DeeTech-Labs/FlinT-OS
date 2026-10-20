@@ -1,4 +1,6 @@
 #include "shell/shell_picker.h"
+#include "render/builders.h"
+#include "render/watch_display.h"
 
 #include "display/display.h"
 #include "display/ui_tokens.h"
@@ -70,58 +72,13 @@ bool shellPickerNeedsRows() {
   return gDirty == PICK_OVL_ROWS;
 }
 
-static void paintRow(const FaceContext& ctx, int index, uint8_t fade) {
-  const FaceInfo* info = FaceRegistry::infoAt(index);
-  if (!info) {
-    return;
-  }
-  char line[64];
-  snprintf(line, sizeof(line), "%.20s  (%.16s)", info->name ? info->name : "?",
-           info->id ? info->id : "?");
-  chromeListRow(ctx, UiTok::shellRowFillY(index), UiTok::kShellRowH, line, index == gIndex,
-                fade);
-}
-
 void shellPickerPaint(uint8_t fade) {
-  if (!displayHasCanvas()) {
-    return;
-  }
-  const FaceContext ctx = uiBuildContext();
-  chromeFillBackdrop(ctx);
-  chromeHeader(ctx, flintTr(FlintStr::Faces), fade);
-  chromeFooter(ctx, flintTr(FlintStr::PNEnterEsc), fade);
-  const int n = FaceRegistry::count();
-  for (int i = 0; i < n; i++) {
-    paintRow(ctx, i, fade);
-  }
-  displayPresent();
-  gPrevIndex = gIndex;
-  gDirty = PICK_OVL_NONE;
+  (void)fade;
+  auto scene=FlintRender::begin(flintTr(FlintStr::Faces));
+  const int count=FaceRegistry::count();
+  const int start=gIndex<4?0:gIndex-3;
+  for(int i=0;i<4&&start+i<count;++i){const auto* info=FaceRegistry::infoAt(start+i);if(info)FlintRender::row(scene,i,info->name,"",start+i==gIndex);}
+  FlintRender::footer(scene,"p/n · Enter · Esc");
+  watchPresentScene(scene);gPrevIndex=gIndex;gDirty=PICK_OVL_NONE;
 }
-
-void shellPickerPaintPartial() {
-  if (!displayHasCanvas()) {
-    return;
-  }
-  const FaceContext ctx = uiBuildContext();
-  DisplayRect rects[2];
-  int n = 0;
-  auto add = [&](int index) {
-    if (index < 0 || index >= FaceRegistry::count()) {
-      return;
-    }
-    const DisplayRect band =
-        chromeListRowRect(ctx, UiTok::shellRowFillY(index), UiTok::kShellRowH);
-    displaySetClipRect(band.x, band.y, band.w, band.h);
-    paintRow(ctx, index, 255);
-    rects[n++] = band;
-  };
-  if (gPrevIndex != gIndex) {
-    add(gPrevIndex);
-  }
-  add(gIndex);
-  displayClearClipRect();
-  displayPresentRects(rects, n);
-  gPrevIndex = gIndex;
-  gDirty = PICK_OVL_NONE;
-}
+void shellPickerPaintPartial(){shellPickerPaint(255);}

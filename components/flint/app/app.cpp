@@ -1,5 +1,8 @@
 #include "app.h"
+#include "render/watch_display.h"
 #include "companion/studio.h"
+#include "faces/FaceRegistry.h"
+#include <cstring>
 #include "companion/apps.h"
 #include "ble/ble_link.h"
 #include "anim/anim.h"
@@ -134,9 +137,12 @@ static void debugHeartbeat(const struct tm* tiOpt) {
 }
 
 void appLoop() {
+  watchDisplayMaintain();
   pcLinkMaintain();
   bleLinkMaintain();
   shellPollSerial();
+  const auto* activeFace = FaceRegistry::activeId();
+  if (studioAnimate(flintMillis(), activeFace && !strcmp(activeFace, "studio"))) flintEventEmit(FLINT_EVT_FORCE_REDRAW);
 
   struct tm ti{};
   const bool hasTime = clockTimeGetLocal(&ti);

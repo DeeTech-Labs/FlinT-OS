@@ -256,3 +256,13 @@ The single `flint_spark` profile uses `status_led: {"gpio": 8, "active": "low"}`
 GPIO8 is reserved for the onboard blue LED. TFT reset is GPIO3, DC is GPIO4,
 SCK is GPIO6, MOSI is GPIO7, CS is GPIO10. Do not wire TFT reset to GPIO8.
 The generator rejects LED/display pin collisions.
+
+
+### Spark display polarity
+
+The connected 240×280 ST7789 module uses `invert: true` in its peripheral profile.
+This selects panel INVON through LovyanGFX's panel polarity compensation; it does
+not invert the shared RGB565 scene. With the opposite polarity the intended dark
+navy background appears cream and blue accents appear yellow. Physical panel
+polarity must be visually checked on each module revision; framebuffer equality
+alone cannot validate it. Keep `rgb_order` separate from this setting.

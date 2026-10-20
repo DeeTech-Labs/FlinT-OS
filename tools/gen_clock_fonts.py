@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def bake(path, size, chars, name):
+def bake(path, size, chars, name, directory=None):
     font = ImageFont.truetype(str(path), size)
     glyphs = []
     for char in sorted(set(chars)):
@@ -33,7 +33,7 @@ def bake(path, size, chars, name):
              f'alignas(4) static const uint8_t {name}[] = {{']
     lines += ['  ' + ', '.join(f'0x{v:02x}' for v in blob[i:i+20]) + ',' for i in range(0, len(blob), 20)]
     lines += ['};', '']
-    output = ROOT / 'components/flint/display/fonts' / (name + '.inc')
+    output = (directory or ROOT / 'components/flint/display/fonts') / (name + '.inc')
     output.write_text('\n'.join(lines))
     print(f'{output.name}: {len(blob)} bytes, {len(glyphs)} glyphs, {size}px')
 
@@ -42,6 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--font-dir', required=True, type=Path)
     args = parser.parse_args()
+    bake(args.font_dir / 'Lato-Bold.ttf', 34, 'FlinT?', 'flint_brand', ROOT / 'components/flint/render/fonts')
     numbers = '-0123456789:'
     bake(args.font_dir / 'Lato-Light.ttf', 80, numbers, 'flint_time_large')
     bake(args.font_dir / 'Lato-Light.ttf', 62, numbers, 'flint_time_compact')

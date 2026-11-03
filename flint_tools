@@ -3,7 +3,7 @@
 # Usage:
 #   ./flint_tools
 #   ./flint_tools 1 -- --list
-#   ./flint_tools gen_board_catalog -- --set-default
+#   ./flint_tools select_device -- --list
 
 set -euo pipefail
 

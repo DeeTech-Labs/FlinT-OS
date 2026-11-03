@@ -6,7 +6,7 @@ Face paint contract and dirty/event wiring. Module map: [`MODULES.md`](MODULES.m
 ## Layers
 
 ```text
-hardware / board JSON
+fixed model / hardware revision
   → services (time, USB, settings/cfg, day_mode)
     → FaceContext (uiBuildContext)
       → Face::onTick / onForceRedraw

@@ -20,30 +20,35 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 # Must be set after including project.cmake, before project().
 idf_build_set_property(MINIMAL_BUILD ON)
 
-# Board profile must exist before components/LovyanGFX and flint configure.
-set(FLINT_BOARD "" CACHE STRING "FlinT OS board id (components/flint/board/board_index.json)")
+# Device revision must exist before components/LovyanGFX and flint configure.
+set(FLINT_DEVICE "" CACHE STRING "Supported FlinT product revision (default: Spark C3)")
+# Reconfigure when the device registry or maintained hardware files change.
+file(GLOB_RECURSE _flint_device_sources CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_LIST_DIR}/components/flint/board/models/*")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_LIST_DIR}/tools/select_device.py" ${_flint_device_sources})
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
-set(_flint_board_args "${CMAKE_CURRENT_LIST_DIR}/tools/gen_board_catalog.py")
-if(FLINT_BOARD)
-    list(APPEND _flint_board_args --board "${FLINT_BOARD}")
+set(_flint_device_args "${CMAKE_CURRENT_LIST_DIR}/tools/select_device.py")
+if(FLINT_DEVICE)
+    list(APPEND _flint_device_args --device "${FLINT_DEVICE}")
 endif()
 execute_process(
-    COMMAND ${Python3_EXECUTABLE} ${_flint_board_args}
+    COMMAND ${Python3_EXECUTABLE} ${_flint_device_args}
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
-    RESULT_VARIABLE FLINT_BOARD_GEN_RESULT
-    OUTPUT_VARIABLE FLINT_BOARD_GEN_OUT
-    ERROR_VARIABLE FLINT_BOARD_GEN_ERR
+    RESULT_VARIABLE FLINT_DEVICE_GEN_RESULT
+    OUTPUT_VARIABLE FLINT_DEVICE_GEN_OUT
+    ERROR_VARIABLE FLINT_DEVICE_GEN_ERR
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_STRIP_TRAILING_WHITESPACE
 )
-if(NOT FLINT_BOARD_GEN_RESULT EQUAL 0)
-    message(FATAL_ERROR "gen_board_catalog.py failed:\n${FLINT_BOARD_GEN_ERR}\n${FLINT_BOARD_GEN_OUT}")
+if(NOT FLINT_DEVICE_GEN_RESULT EQUAL 0)
+    message(FATAL_ERROR "select_device.py failed:\n${FLINT_DEVICE_GEN_ERR}\n${FLINT_DEVICE_GEN_OUT}")
 endif()
-message(STATUS "FlinT OS board: ${FLINT_BOARD_GEN_OUT}")
+message(STATUS "FlinT OS device: ${FLINT_DEVICE_GEN_OUT}")
 message(STATUS "FlinT OS version: ${PROJECT_VER}")
 
 project(flint_os)
 
 # i18n + asset pack: regenerate only when inputs change (see cmake/flint_codegen.cmake).
-# Board catalog stays configure-time (needed before component CMake).
+# Device selection stays configure-time (needed before component CMake).
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/flint_codegen.cmake")

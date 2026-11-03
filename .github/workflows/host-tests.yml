@@ -37,7 +37,7 @@ jobs:
           python3 tools/gen_asset_pack.py
           git diff --exit-code -- assets/fs_root/core.flintpack
           # Board outputs are gitignored; regen must succeed for the default board.
-          python3 tools/gen_board_catalog.py --quiet
+          python3 tools/select_device.py --quiet
 
   firmware:
     name: ESP32-C3 firmware (ESP-IDF 6.0.2)

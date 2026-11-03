@@ -83,7 +83,7 @@ python3 tools/sync_time.py --watch         # sync on connection and hourly
 The helper must run on the PC to supply its UTC time; merely plugging in USB
 cannot reveal the PC clock. See [USB time sync](docs/USB-TIME.md).
 
-Optional: `idf.py -DFLINT_BOARD=flint_spark build` · board guide: [`components/flint/board/README.md`](components/flint/board/README.md)
+Optional: `idf.py -DFLINT_DEVICE=flint_spark_c3_dev build` · board guide: [`components/flint/board/README.md`](components/flint/board/README.md)
 
 <details>
 <summary><b>Serial controls</b></summary>
@@ -110,7 +110,7 @@ Prefs and soft clock live on `cfg` LittleFS (survive asset reflash). Icons load 
 <details>
 <summary><b>Hardware — FlinT Spark pinout</b></summary>
 
-Default board id: `flint_spark`. Display: GMT028-class **ST7789** 240×280 SPI (UI landscape 280×240).
+Default device revision: `flint_spark_c3_dev`. Display: GMT028-class **ST7789** 240×280 SPI (UI landscape 280×240).
 
 | Signal | GPIO |
 |--------|:----:|
@@ -125,7 +125,7 @@ Default board id: `flint_spark`. Display: GMT028-class **ST7789** 240×280 SPI (
 Spark uses an ESP32-C3 Super Mini. Its active-low blue LED is on GPIO8;
 it blinks while a USB host is connected and flashes quickly three times after PC time sync.
 
-Change pins/panel via JSON under `components/flint/board/`, then rebuild with `-DFLINT_BOARD=…`.
+Hardware is fixed per model/revision under `components/flint/board/models/`. Select a supported revision with `-DFLINT_DEVICE=…`.
 
 </details>
 
@@ -157,6 +157,7 @@ pairing limitations and the hardware validation checklist.
 
 | Doc | Contents |
 |-----|----------|
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Spark scope, hardware revisions, milestones and acceptance criteria (RU) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Dependencies, Face contract, dirty events |
 | [`docs/MODULES.md`](docs/MODULES.md) | What each directory owns |
 | [`docs/FACES.md`](docs/FACES.md) | Add / register a face |

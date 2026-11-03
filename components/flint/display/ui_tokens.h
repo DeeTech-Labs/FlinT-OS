@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "board/board_config.inc"
+#include "board/device_config.h"
 
 // Geometry & motion tokens — single source for layout (not colors).
 // Colors live in UiPalette / day_mode.

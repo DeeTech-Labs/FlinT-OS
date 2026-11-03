@@ -7,12 +7,11 @@ Interactive picker (scans `tools/*.py`, shows each script’s docstring summary)
 ```bash
 ./flint_tools
 ./flint_tools 1 -- --list          # by number + tool args
-./flint_tools gen_board_catalog -- --set-default
 ```
 
 | Tool | When to run | Output |
 |------|-------------|--------|
-| [`gen_board_catalog.py`](#gen_board_catalogpy) | After editing `components/flint/board/` (also auto on **CMake configure**) | `board_config.inc`, `board_impl.inc`, `board_build.cmake` |
+| [`select_device.py`](#select_devicepy) | After editing `components/flint/board/` (also auto on **CMake configure**) | `device_config.h`, `device_display.h`, `device.cmake` |
 | [`gen_i18n_catalog.py`](#gen_i18n_catalogpy) | After editing `components/flint/i18n/lang/` (also auto on **build** if inputs changed) | `i18n_catalog.inc` |
 | [`gen_asset_pack.py`](#gen_asset_packpy) | After editing `assets/<category>/*.png` (also auto on **build** if inputs changed) | `assets/fs_root/core.flintpack` |
 
@@ -26,44 +25,42 @@ only `python3` still works).
 
 ---
 
-## `gen_board_catalog.py`
+## `select_device.py`
 
-Builds hardware macros/CMake fragments from JSON under `components/flint/board/`.
+Selects a fixed product revision from `components/flint/board/models/`.
+Hardware files are maintained with the product; peripheral JSON composition is removed.
 
 Full board authoring guide: [`components/flint/board/README.md`](../components/flint/board/README.md).
 
 ### Commands
 
 ```bash
-python3 tools/gen_board_catalog.py --help
-python3 tools/gen_board_catalog.py --list
-python3 tools/gen_board_catalog.py --list --json
-python3 tools/gen_board_catalog.py --set-default              # interactive menu
-python3 tools/gen_board_catalog.py --set-default flint_spark  # non-interactive
-python3 tools/gen_board_catalog.py                      # codegen default board
-python3 tools/gen_board_catalog.py --board flint_spark  # codegen only
+python3 tools/select_device.py --help
+python3 tools/select_device.py --list
+python3 tools/select_device.py --list --json
+python3 tools/select_device.py                      # select release device
+python3 tools/select_device.py --device flint_spark_c3_dev  # select hardware files
 
-# One-shot: codegen + set-target from JSON + build
-python3 tools/gen_board_catalog.py --board my_desk_s3 --build
+# One-shot: codegen + set-target from the fixed revision + build
+python3 tools/select_device.py --device flint_spark_c3_dev --build
 
 # Flash only (builds once if build/flint_os.bin is missing)
-python3 tools/gen_board_catalog.py -b my_desk_s3 --flash -p /dev/ttyACM0
+python3 tools/select_device.py -d flint_spark_c3_dev --flash -p /dev/ttyACM0
 
 # Monitor only
-python3 tools/gen_board_catalog.py --monitor -p /dev/ttyACM0
+python3 tools/select_device.py --monitor -p /dev/ttyACM0
 
 # Combine as needed
-python3 tools/gen_board_catalog.py --flash --monitor -p /dev/ttyACM0
-python3 tools/gen_board_catalog.py --build --flash -p /dev/ttyACM0
+python3 tools/select_device.py --flash --monitor -p /dev/ttyACM0
+python3 tools/select_device.py --build --flash -p /dev/ttyACM0
 ```
 
 | Flag | Meaning |
 |------|---------|
 | `-h` / `--help` | Help + examples |
 | `-l` / `--list` | List board ids (no files written) |
-| `--set-default [ID]` | Set `board_index.json` default (numbered menu if ID omitted) |
 | `--json` | With `--list`, JSON output |
-| `-b` / `--board ID` | Board id (else `FLINT_BOARD`, else index default) |
+| `-b` / `--device ID` | Device revision id (else `FLINT_DEVICE`, else release default) |
 | `-q` / `--quiet` | Generate without status line |
 | `--build` | `idf.py build` (set-target if needed) |
 | `--flash` | `idf.py flash` only; builds first **only if** `build/flint_os.bin` is missing |
@@ -71,33 +68,33 @@ python3 tools/gen_board_catalog.py --build --flash -p /dev/ttyACM0
 | `-p` / `--port` | Serial port for flash/monitor |
 | `--no-set-target` | Skip `idf.py set-target` for build/flash |
 
-Board selection order: `--board` → env `FLINT_BOARD` → `board_index.json` → `default`.
+Board selection order: `--device` → env `FLINT_DEVICE` → release default.
 
-`idf_target` comes from the board JSON — you do **not** need a separate manual
+`idf_target` comes from the fixed revision — you do **not** need a separate manual
 `idf.py set-target …` when using `--build` / `--flash` (unless `--no-set-target`).
 
 ### Build integration (CMake)
 
 Root `CMakeLists.txt` runs this on every configure **without** `--build` / `--list`
-(codegen only — safe and fast):
+(select hardware files — safe and fast):
 
 ```bash
 # Still valid manual IDF flow:
 idf.py set-target esp32c3
-idf.py -DFLINT_BOARD=flint_spark build
+idf.py -DFLINT_DEVICE=flint_spark_c3_dev build
 ```
 
-Preferred after adding your board:
+Build a supported revision:
 
 ```bash
-python3 tools/gen_board_catalog.py --board <id> --build
+python3 tools/select_device.py --device <id> --build
 ```
 
 ### Outputs (do not edit by hand)
 
-- `components/flint/board/board_config.inc`
-- `components/flint/board/board_impl.inc`
-- `components/flint/board/board_build.cmake`
+- `components/flint/board/device_config.h`
+- `components/flint/board/device_display.h`
+- `components/flint/board/device.cmake`
 
 ---
 

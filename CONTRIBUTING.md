@@ -30,15 +30,15 @@ Never commit `secrets.h` or credentials.
 
 ## Codegen (board / i18n / assets)
 
-Editing JSON, `.po` / `.pot`, or asset PNGs **without regenerating** can leave firmware on stale generated files (`*.inc`, `board_build.cmake`, `core.flintpack`) — builds may succeed while hardware strings or icons are wrong.
+Editing fixed device sources, `.po` / `.pot`, or asset PNGs **without regenerating** can leave firmware on stale generated files (`*.inc`, `device.cmake`, `core.flintpack`) — builds may succeed while hardware strings or icons are wrong.
 
 | You changed… | Run (from repo root) | Generated output (do not hand-edit) |
 |--------------|----------------------|-------------------------------------|
-| `components/flint/board/**` | `python3 tools/gen_board_catalog.py` (or `--board <id>`) | `board_config.inc`, `board_impl.inc`, `board_build.cmake` |
+| `components/flint/board/**` | `python3 tools/select_device.py` (or `--device <id>`) | `device_config.h`, `device_display.h`, `device.cmake` |
 | `components/flint/i18n/lang/**` | `python3 tools/gen_i18n_catalog.py` | `i18n_catalog.inc` |
 | `assets/**/*.png` or `sdk/resources.h` | `python3 tools/gen_asset_pack.py` | `assets/fs_root/core.flintpack` |
 
-CMake often regenerates i18n/pack when inputs change, and board codegen on configure — still run the tools after local edits if you need an immediate refresh, and **commit the generated artifacts** when they change.
+CMake often regenerates i18n/pack when inputs change, and device selection on configure — still run the tools after local edits if you need an immediate refresh, and commit maintained hardware sources; selected device output files are ignored.
 
 Interactive picker: `./flint_tools`. Full flags and examples: [`tools/README.md`](tools/README.md).
 
@@ -55,7 +55,7 @@ python3 -m unittest discover -s tools/tests -v
 ```
 
 CI runs the same commands on every PR via `.github/workflows/host-tests.yml`, plus
-regen of i18n/pack with `git diff --exit-code` and a quiet board catalog codegen.
+regen of i18n/pack with `git diff --exit-code` and a quiet device selection.
 
 Do not add on-target Unity or heavy CI matrices unless agreed separately.
 

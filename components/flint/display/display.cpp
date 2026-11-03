@@ -12,7 +12,7 @@ LGFX tft;
 static LGFX_Sprite gCanvas(&tft);
 static bool gHasCanvas = false;
 
-// Full RGB565 backbuffer — size from selected board canvas (board_config.inc).
+// Full RGB565 backbuffer — size from selected board canvas (device_config.h).
 // BSS strategy: reserve a contiguous canvas on ESP32-C3 before runtime allocations.
 static constexpr int kFbMaxW = FLINT_FB_MAX_W;
 static constexpr int kFbMaxH = FLINT_FB_MAX_H;
@@ -122,7 +122,7 @@ void displayBegin() {
     gHasCanvas = true;
     LOGI("disp", "%s %dx%d canvas %s=%u heap=%u board=%s", FLINT_DISPLAY_PANEL, SCR_W,
          SCR_H, FLINT_CANVAS_STRATEGY, (unsigned)(sizeof(s_framebuf)),
-         (unsigned)flintFreeHeap(), FLINT_BOARD_ID);
+         (unsigned)flintFreeHeap(), FLINT_DEVICE_ID);
   }
 
   if (!gHasCanvas) {

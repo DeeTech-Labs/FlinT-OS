@@ -244,3 +244,12 @@ The portable sources live in firmware `components/flint/render`. Run
 `tools/sync_desktop_renderer.py` after editing shared sources/fonts to package
 Desktop's standalone copy and refresh both renderer identities. Desktop's package
 test rejects divergent sources or a stale identity.
+
+
+## Miniapps v1
+
+Firmware advertising `miniapps_v1` supports bounded face/theme/bundle packages.
+See [MINIAPPS.md](MINIAPPS.md) for the file schema, limits and `MINIS`,
+`MINIINSTALL`, `MINIREMOVE`, `MINITHEME` commands. These commands require a trusted
+transport. `FACES` now returns compact `{id,name,version}` entries including
+installed package faces; themes are listed by `MINIS`.

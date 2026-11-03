@@ -9,8 +9,8 @@
 
 static constexpr uint32_t kFlintPackMagic = 0x4B504C46u;  // 'FLPK'
 static constexpr uint16_t kFlintPackFormatVer = FLINT_PACK_FORMAT_VER;
-static constexpr const char* kAssetMountPoint = "/storage";
-static constexpr const char* kAssetPackPath = "/storage/core.flintpack";
+static constexpr const char* kAssetMountPoint = "/assets";
+static constexpr const char* kAssetPackPath = "/assets/core.flintpack";
 
 #pragma pack(push, 1)
 struct FlintPackHeader {

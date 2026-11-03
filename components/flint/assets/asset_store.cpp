@@ -397,8 +397,9 @@ bool assetStoreBegin() {
 
   esp_vfs_littlefs_conf_t conf = {};
   conf.base_path = kAssetMountPoint;
-  conf.partition_label = "storage";
+  conf.partition_label = "assets";
   conf.format_if_mount_failed = false;
+  conf.read_only = true;
   conf.grow_on_mount = true;
 
   const esp_err_t err = esp_vfs_littlefs_register(&conf);
@@ -409,7 +410,7 @@ bool assetStoreBegin() {
 
   size_t total = 0;
   size_t used = 0;
-  if (esp_littlefs_info("storage", &total, &used) == ESP_OK) {
+  if (esp_littlefs_info("assets", &total, &used) == ESP_OK) {
     LOGI("assets", "littlefs total=%u used=%u", (unsigned)total, (unsigned)used);
   }
 

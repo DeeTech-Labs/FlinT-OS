@@ -2,11 +2,10 @@
 #include "render/watch_display.h"
 #include "companion/action_input.h"
 #include "ble/ble_link.h"
-#include "companion/studio.h"
-#include "companion/apps.h"
-#include "sdk/companion.h"
+#include "companion/miniapps.h"
 #include "usb/pc_data.h"
 #include "settings/settings.h"
+#include "storage/package_storage.h"
 #include "faces/FaceRegistry.h"
 #include "time/tz_db.h"
 #include "event/event.h"
@@ -54,8 +53,7 @@ void settingsJson(char* json, size_t capacity) {
 void companionExecute(const PcCommand& command, char* response, size_t capacity, bool trustedTransport) {
   char json[672]{};
   if (!trustedTransport && strcmp(command.operation,"SETTINGS") && strcmp(command.operation,"SET")
-      && strcmp(command.operation,"FACES") && strcmp(command.operation,"FACE") && strcmp(command.operation,"TIMEZONES")
-      && strcmp(command.operation,"STUDIO")) {
+      && strcmp(command.operation,"FACES") && strcmp(command.operation,"FACE") && strcmp(command.operation,"TIMEZONES")) {
     result(command,response,capacity,nullptr,"authenticated_transport_required"); return;
   }
   if (!strcmp(command.operation,"SCREEN") || !strcmp(command.operation,"SCENE") || !strcmp(command.operation,"SHOT") || !strcmp(command.operation,"PIXELS")) {
@@ -107,19 +105,42 @@ void companionExecute(const PcCommand& command, char* response, size_t capacity,
     if (!settingsApply(next)) { result(command, response, capacity, nullptr, "storage_error"); return; }
     flintEventEmit(FLINT_EVT_SETTINGS);
     settingsJson(json, sizeof(json));
-  } else if (!strcmp(command.operation, "APPS")) {
-    const auto& state = companionState();
-    PcJsonWriter writer(json,sizeof(json));
-    writer.raw("{\"note\":"); writer.text(state.note);
-    writer.raw(",\"focus_remaining\":"); writer.number(companionFocusRemaining());
-    writer.raw(",\"cpu\":"); writer.number(state.cpuPercent);
-    writer.raw(",\"memory\":"); writer.number(state.memoryPercent);
-    writer.raw("}");
-    if (!writer.finish()) { result(command,response,capacity,nullptr,"overflow"); return; }
-  } else if (!strcmp(command.operation, "STUDIO")) {
-    if (!studioInstall(command.payload)) { result(command, response, capacity, nullptr, "invalid_definition_or_storage"); return; }
+  } else if (!strcmp(command.operation, "MINIINSTALL")) {
+    const char* error = miniappInstall(command.payload);
+    if (error) { result(command,response,capacity,nullptr,error); return; }
+    miniappThemeRestore();
+    FaceRegistry::setActiveId(settingsGet().activeFace);
+    uiFaceActivateCurrent();
     flintEventEmit(FLINT_EVT_FORCE_REDRAW);
     strcpy(json,"{\"installed\":true}");
+  } else if (!strcmp(command.operation, "MINIREMOVE")) {
+    const char* error = miniappDelete(command.payload);
+    if (error) { result(command,response,capacity,nullptr,error); return; }
+    strcpy(json,"{\"removed\":true}");
+  } else if (!strcmp(command.operation, "MINITHEME")) {
+    const char* error=miniappThemeUse(command.payload);
+    if(error) { result(command,response,capacity,nullptr,error);return; }
+    flintEventEmit(FLINT_EVT_FORCE_REDRAW);
+    strcpy(json,"{\"applied\":true}");
+  } else if (!strcmp(command.operation, "MINIUSE")) {
+    const char* error=miniappActivate(command.payload);
+    if(error){result(command,response,capacity,nullptr,error);return;}
+    strcpy(json,"{\"applied\":true}");
+  } else if (!strcmp(command.operation, "MINISTORAGE")) {
+    PackageStorageInfo storage;
+    if(!packageStorageInfo(storage)){result(command,response,capacity,nullptr,"storage_unavailable");return;}
+    snprintf(json,sizeof(json),"{\"partition\":\"storage\",\"total\":%u,\"used\":%u,\"free\":%u,\"reserved\":%u,\"write_budget\":%u,\"capacity\":%d,\"installed\":%d,\"free_ram\":%u,\"ram_reserve\":%u}",
+        unsigned(storage.total),unsigned(storage.used),unsigned(storage.free),unsigned(MiniappStorageReserve),unsigned(MiniappAtomicWriteBudget),MiniappSlots,miniappsCount(),unsigned(miniappFreeRam()),unsigned(MiniappRamReserve));
+  } else if (!strcmp(command.operation, "MINIS")) {
+    PcJsonWriter writer(json,sizeof(json));writer.raw("[{\"id\":\"digital\",\"name\":\"Spark Base\",\"version\":3,\"kind\":2,\"protected\":true}");
+    for(int i=0;i<miniappsCount();++i) {
+      const auto* p=miniappAt(i);writer.raw(",");
+      writer.raw("{\"id\":");writer.text(p->id);
+      writer.raw(",\"name\":");writer.text(p->name);
+      writer.raw(",\"version\":");writer.number(p->version);
+      writer.raw(",\"kind\":");writer.number(p->kind);writer.raw("}");
+    }
+    writer.raw("]");if(!writer.finish()){result(command,response,capacity,nullptr,"overflow");return;}
   } else if (!strcmp(command.operation, "FACES")) {
     PcJsonWriter writer(json, sizeof(json));
     writer.raw("[");
@@ -128,38 +149,22 @@ void companionExecute(const PcCommand& command, char* response, size_t capacity,
       if (index) writer.raw(",");
       writer.raw("{\"id\":"); writer.text(info->id);
       writer.raw(",\"name\":"); writer.text(info->name);
-      writer.raw(",\"author\":"); writer.text(info->author);
       writer.raw(",\"version\":"); writer.number(info->version);
-      writer.raw(",\"min_api\":"); writer.number(info->minApi);
       writer.raw("}");
     }
     writer.raw("]");
     if (!writer.finish()) { result(command, response, capacity, nullptr, "overflow"); return; }
   } else if (!strcmp(command.operation, "FACE")) {
-    bool exists = false;
-    for (int i = 0; i < FaceRegistry::count(); ++i) exists |= !strcmp(FaceRegistry::infoAt(i)->id, command.payload);
-    if (!exists) { result(command, response, capacity, nullptr, "unknown_face"); return; }
-    auto next = settingsGet();
-    const auto previous = next;
-    if (strlen(command.payload) >= sizeof(next.activeFace)) { result(command, response, capacity, nullptr, "invalid_arguments"); return; }
-    strcpy(next.activeFace, command.payload);
-    if (!settingsApply(next)) { result(command, response, capacity, nullptr, "storage_error"); return; }
-    if (!FaceRegistry::setActiveId(command.payload)) {
-      settingsApply(previous);
-      result(command, response, capacity, nullptr, "face_error"); return;
-    }
-    uiFaceActivateCurrent();
-    flintEventEmit(FLINT_EVT_FORCE_REDRAW);
-    settingsJson(json, sizeof(json));
+    const char* error=miniappActivate(command.payload);
+    if(error){result(command,response,capacity,nullptr,error);return;}
+    settingsJson(json,sizeof(json));
   } else if (!strcmp(command.operation, "TIMEZONES")) {
     PcJsonWriter writer(json, sizeof(json)); writer.raw("[");
     for (int i = 0; i < tzDbCount(); ++i) { if (i) writer.raw(","); writer.text(tzDbAt(i)->id); }
     writer.raw("]");
     if (!writer.finish()) { result(command, response, capacity, nullptr, "overflow"); return; }
   } else {
-    const char* error = companionAppCommand(command.operation,command.payload);
-    if (error) { result(command, response, capacity, nullptr, error); return; }
-    strcpy(json,"{\"accepted\":true}");
+    result(command,response,capacity,nullptr,"unsupported_operation");return;
   }
   result(command, response, capacity, json);
 }

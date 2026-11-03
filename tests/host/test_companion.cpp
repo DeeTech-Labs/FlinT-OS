@@ -5,7 +5,6 @@
 #include "time/tz_db.h"
 #include "event/event.h"
 #include "host_check.h"
-#include "sdk/companion.h"
 #include <cstring>
 #include <string>
 static FlintSettings settings{"digital",255,0,0,5,0,"Europe/Moscow"};
@@ -13,10 +12,6 @@ static bool storageOkay = true;
 static unsigned writes = 0;
 const FlintSettings& settingsGet() { return settings; }
 bool settingsApply(const FlintSettings& next) { if (!storageOkay) return false; settings = next; ++writes; return true; }
-const CompanionState& companionState() { static CompanionState state; return state; }
-uint32_t companionFocusRemaining() { return 0; }
-const char* companionAppCommand(const char*,const char*) { return "unsupported_operation"; }
-bool studioInstall(const char*) { return false; }
 void uiFaceActivateCurrent() {}
 void flintEventEmit(FlintEvent) {}
 int tzDbIndexOf(const char* id) { return !strcmp(id,"UTC") ? 0 : !strcmp(id,"Europe/Moscow") ? 1 : -1; }
@@ -54,7 +49,7 @@ int main() {
   hostRequire(exchange("SET","language=1").find("storage_error") != std::string::npos && settings.lang == 0, "failed persistence is not acknowledged");
   storageOkay = true;
   hostRequire(exchange("FACES").find("digital") != std::string::npos, "enumerate firmware faces");
-  hostRequire(exchange("FACE","unknown").find("unknown_face") != std::string::npos, "reject missing face");
+  hostRequire(exchange("FACE","unknown").find("unknown_package") != std::string::npos, "reject missing face");
   hostRequire(exchange("TIMEZONES").find("Europe/Moscow") != std::string::npos, "enumerate supported zones");
   hostRequire(exchange("UNKNOWN").find("unsupported_operation") != std::string::npos, "structured unknown operation");
 }
@@ -64,3 +59,19 @@ int bleLinkLastDisconnectReason() { return 0; }
 int bleLinkLastEncryptionStatus() { return -1; }
 
 bool watchDisplayCommand(const char*,const char*,char*,size_t) { return false; }
+
+int miniappsCount() { return 0; }
+#include "companion/miniapps.h"
+const MiniappDefinition* miniappAt(int) { return nullptr; }
+const char* miniappInstall(const char*) { return "invalid_package"; }
+const char* miniappRemove(const char*) { return "unknown_package"; }
+const char* miniappThemeUse(const char*) { return "unknown_theme"; }
+void miniappThemeRestore() {}
+
+#include "settings/cfg_fs.h"
+#include "storage/package_storage.h"
+bool packageStorageInfo(PackageStorageInfo& info){info={65536,4096,61440};return true;}
+const char* miniappActivate(const char*){return "unknown_package";}
+const char* miniappDelete(const char*){return "unknown_package";}
+
+uint32_t miniappFreeRam(){return 60000;}

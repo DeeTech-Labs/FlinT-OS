@@ -99,7 +99,7 @@ bool pcLinkHandleByte(char c) {
   } else if (command.kind == PcCommandKind::Request && !strcmp(command.operation, "KEY")) {
     char key = !strcmp(command.payload,"enter") ? '\r' : !strcmp(command.payload,"settings") ? 's'
       : !strcmp(command.payload,"next") ? 'n' : !strcmp(command.payload,"previous") ? 'p'
-      : !strcmp(command.payload,"back") ? 'q' : !strcmp(command.payload,"plus") ? '+' : !strcmp(command.payload,"minus") ? '-' : 0;
+      : !strcmp(command.payload,"delete") ? 'd' : !strcmp(command.payload,"back") ? 'q' : !strcmp(command.payload,"plus") ? '+' : !strcmp(command.payload,"minus") ? '-' : 0;
     if (key) shellHandleKey(key);
     snprintf(response, sizeof(response), "FLINT RESULT {\"id\":%lu,\"ok\":%s,%s}\n", static_cast<unsigned long>(command.requestId),
       key ? "true" : "false", key ? "\"result\":{\"emulated\":true}" : "\"error\":\"invalid_key\"");

@@ -16,10 +16,11 @@ message(STATUS "FlinT OS board ${FLINT_DEVICE_ID} (${FLINT_DEVICE_DISPLAY_ID}, b
 set(FLINT_SRCS
     render/watch_display.cpp
     render/fonts.cpp
-    companion/apps.cpp
-    faces/face_companion.cpp
-    companion/studio.cpp
-    faces/face_studio.cpp
+    storage/fs_io.cpp
+    storage/package_storage.cpp
+    companion/miniapp_runtime.cpp
+    companion/miniapps.cpp
+    faces/face_miniapp.cpp
     companion/control.cpp
     anim/anim.cpp
     ble/ble_link.cpp
@@ -34,7 +35,6 @@ set(FLINT_SRCS
     event/event.cpp
     faces/FaceRegistry.cpp
     faces/face_digital.cpp
-    faces/face_digital_layout.cpp
     faces/faces_builtin.cpp
     faces/glance.cpp
     i18n/i18n.cpp

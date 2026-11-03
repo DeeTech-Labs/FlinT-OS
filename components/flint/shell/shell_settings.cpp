@@ -14,6 +14,7 @@
 #include "time/tz_db.h"
 #include "ui/chrome.h"
 #include "ui/ui.h"
+#include "faces/FaceRegistry.h"
 
 #include <stdio.h>
 #include <cstring>
@@ -169,10 +170,12 @@ static void formatSettingsValue(const FaceContext& ctx, SettingsRow row,
   const FlintSettings& s = settingsGet();
   value[0] = '\0';
   switch (row) {
-    case SET_ROW_FACE:
+    case SET_ROW_FACE: {
       *label = flintTr(FlintStr::Face);
-      snprintf(value, size, "%s", s.activeFace);
+      const FaceInfo* active = FaceRegistry::active() ? &FaceRegistry::active()->info() : nullptr;
+      snprintf(value, size, "%s", active ? active->name : s.activeFace);
       break;
+    }
     case SET_ROW_CLOCK_TIME:
       *label = flintTr(FlintStr::Time);
       formatClockTimeValue(value, size);
@@ -219,7 +222,7 @@ static void formatSettingsValue(const FaceContext& ctx, SettingsRow row,
 }
 
 static int windowStart() {
-  const int vis = 4;
+  const int vis = FlintRender::VisibleRows;
   int start = gRow - vis / 2;
   if (start < 0) {
     start = 0;
@@ -238,9 +241,17 @@ void shellSettingsPaint(uint8_t fade) {
   const auto ctx=uiBuildContext();
   auto scene=FlintRender::begin(pageTitle(gPage));
   gStart=windowStart();
-  for(int i=0;i<4&&gStart+i<settingsPageRowCount(gPage);++i){
+  FlintRender::counter(scene, gRow, settingsPageRowCount(gPage));
+  for(int i=0;i<FlintRender::VisibleRows&&gStart+i<settingsPageRowCount(gPage);++i){
     const int rowIndex=gStart+i;const char* label="";char value[64]{};
-    if(gPage==SET_HOME){label=pageTitle(static_cast<SettingsPage>(rowIndex+1));strcpy(value,"→");}
+    if (gPage == SET_HOME) {
+      label = pageTitle(static_cast<SettingsPage>(rowIndex + 1));
+      const bool ru = flintI18nLang() == FLINT_I18N_RU;
+      const char* descriptions[] = {ru ? "Циферблаты и язык" : "Faces and language",
+          ru ? "Формат и часовой пояс" : "Format and timezone",
+          ru ? "USB и синхронизация" : "USB and clock sync"};
+      snprintf(value, sizeof(value), "%s", descriptions[rowIndex]);
+    }
     else formatSettingsValue(ctx,settingsPageRow(gPage,rowIndex),&label,value,sizeof(value));
     FlintRender::row(scene,i,label,value,rowIndex==gRow);
   }

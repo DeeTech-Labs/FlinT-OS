@@ -13,8 +13,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "nvs.h"
-#include "nvs_flash.h"
 
 static bool timeValid = false;
 static bool timePcSynced = false;
@@ -113,30 +111,6 @@ static bool clockParseEpochFile(const char* text, time_t* out) {
   return false;
 }
 
-// One-shot migrate: old NVS epoch_lo/hi → time.cfg when file is missing.
-static bool clockMigrateEpochFromNvs(time_t* out) {
-  nvs_handle_t h;
-  if (nvs_open("flint", NVS_READONLY, &h) != ESP_OK) {
-    return false;
-  }
-  uint32_t lo = 0, hi = 0;
-  const esp_err_t e1 = nvs_get_u32(h, "epoch_lo", &lo);
-  const esp_err_t e2 = nvs_get_u32(h, "epoch_hi", &hi);
-  nvs_close(h);
-  if (e1 != ESP_OK) {
-    return false;
-  }
-  if (e2 != ESP_OK) {
-    hi = 0;
-  }
-  const time_t epoch = static_cast<time_t>((static_cast<uint64_t>(hi) << 32) | lo);
-  if (epoch < kMinEpoch) {
-    return false;
-  }
-  *out = epoch;
-  return true;
-}
-
 static bool clockLoadEpoch(time_t* out) {
   if (cfgFsReady()) {
     char buf[128];
@@ -147,11 +121,6 @@ static bool clockLoadEpoch(time_t* out) {
     }
   }
 
-  if (clockMigrateEpochFromNvs(out)) {
-    LOGI("clock", "migrated soft time from NVS");
-    clockSaveEpoch(*out);
-    return true;
-  }
   return false;
 }
 

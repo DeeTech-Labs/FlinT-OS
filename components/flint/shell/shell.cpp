@@ -8,6 +8,7 @@
 #include "event/event.h"
 #include "faces/FaceRegistry.h"
 #include "settings/settings.h"
+#include "companion/miniapps.h"
 #include "shell/shell_picker.h"
 #include "shell/shell_settings.h"
 #include "ui/ui.h"
@@ -93,6 +94,8 @@ static void goTo(ShellState next) {
 void shellBegin() {
   shellConsoleInit();
   settingsLoad();
+  miniappsBegin();
+  miniappThemeRestore();
   if (!displayHasCanvas()) {
     LOGE("shell", "no canvas — shell idle");
     return;
@@ -173,8 +176,10 @@ void shellHandleKey(char c) {
 
     case SHELL_PICKER:
       if (c == 'q' || c == 'Q' || c == 27) {
-        goTo(SHELL_FACE);
-        LOGI("shell", "state=FACE (cancel)");
+        if(shellPickerBack())goTo(SHELL_FACE);
+        LOGI("shell", "picker back");
+      } else if(c=='d'||c=='D'){
+        shellPickerDelete();
       } else if (c == 'p' || c == 'P') {
         shellPickerNavPrev();
       } else if (c == 'n' || c == 'N') {

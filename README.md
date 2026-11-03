@@ -19,7 +19,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#docs">Docs</a> ·
-  <a href="docs/FACES.md">Add a face</a> ·
+  <a href="docs/MINIAPPS.md">Miniapps</a> ·
   <a href="https://github.com/DeeTech-Labs/FlinT-OS/discussions">Discussions</a>
 </p>
 
@@ -42,7 +42,7 @@ Core services stay stable — time, USB, settings, shell, assets. **Faces are pl
     <td width="50%" valign="top">
       <h3>Built-in</h3>
       <ul>
-        <li>Digital face · day modes · glances</li>
+        <li>Protected Spark Base · installable miniapps</li>
         <li>Soft-clock + USB PC sync + timezone DB</li>
         <li>Offline · settings on <code>cfg</code> LittleFS</li>
         <li>Face picker · event bus · boot splash</li>
@@ -53,7 +53,7 @@ Core services stay stable — time, USB, settings, shell, assets. **Faces are pl
       <ul>
         <li>ESP‑IDF · LovyanGFX (slim)</li>
         <li><code>-Os</code> · no C++ exceptions / RTTI</li>
-        <li>Dual OTA · assets on <code>storage</code></li>
+        <li>Dual OTA · protected assets · package storage</li>
         <li>Input: USB serial (buttons later)</li>
       </ul>
     </td>
@@ -103,7 +103,7 @@ Settings are grouped into Display, Date and time, and Connection. `Esc` returns
 to the category list, then to the clock. The default date uses a month name;
 numeric date formats remain available. Connection is a read-only status page.
 
-Prefs and soft clock live on `cfg` LittleFS (survive asset reflash). Icons load from `storage` — [`assets/README.md`](assets/README.md).
+Prefs and soft clock live on `cfg` LittleFS (survive asset reflash). System icons load from `assets`; installed packages live in `storage` — [`assets/README.md`](assets/README.md).
 
 </details>
 
@@ -157,10 +157,11 @@ pairing limitations and the hardware validation checklist.
 
 | Doc | Contents |
 |-----|----------|
+| [`docs/MINIAPPS.md`](docs/MINIAPPS.md) | Installable watch faces, themes and combined packages |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Spark scope, hardware revisions, milestones and acceptance criteria (RU) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Dependencies, Face contract, dirty events |
 | [`docs/MODULES.md`](docs/MODULES.md) | What each directory owns |
-| [`docs/FACES.md`](docs/FACES.md) | Add / register a face |
+| [`docs/FACES.md`](docs/FACES.md) | Native face contract and Miniapp entry point |
 | [`docs/ESP-IDF.md`](docs/ESP-IDF.md) | Build / flash / monitor cheatsheet |
 | [`assets/README.md`](assets/README.md) | LittleFS icon pack |
 | [`components/flint/board/README.md`](components/flint/board/README.md) | Board profiles |

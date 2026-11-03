@@ -1,5 +1,8 @@
 #include "faces/FaceRegistry.h"
 #include "config/config.h"
+#include "companion/miniapps.h"
+
+Face* createMiniappFace(const MiniappDefinition& definition);
 #include "config/debug.h"
 
 #include <string.h>
@@ -7,7 +10,7 @@
 namespace FaceRegistry {
 namespace {
 
-static const int kMaxFaces = 16;
+static const int kMaxFaces = 1;
 
 struct FaceEntry {
   FaceFactory factory;
@@ -46,17 +49,29 @@ bool add(FaceFactory factory, const FaceInfo& info) {
 }
 
 int count() {
-  return gFactoryCount;
+  int count = gFactoryCount;
+  for (int i=0;i<miniappsCount();++i) if (miniappAt(i)->kind != 1) ++count;
+  return count;
 }
 
 const FaceInfo* infoAt(int index) {
-  if (index < 0 || index >= gFactoryCount) {
-    return nullptr;
+  if (index < 0) return nullptr;
+  if (index < gFactoryCount) return &gEntries[index].info;
+  index -= gFactoryCount;
+  static FaceInfo metadata[MiniappSlots];
+  for (int i=0;i<miniappsCount();++i) {
+    const auto* p = miniappAt(i);
+    if (p->kind == 1) continue;
+    if (index-- == 0) {
+      metadata[i] = {p->id,p->name,"Miniapp",p->version,1};
+      return &metadata[i];
+    }
   }
-  return &gEntries[index].info;
+  return nullptr;
 }
 
 Face* createById(const char* id) {
+  if (const auto* p = miniappFind(id)) return p->kind != 1 ? createMiniappFace(*p) : nullptr;
   if (!id) {
     return nullptr;
   }

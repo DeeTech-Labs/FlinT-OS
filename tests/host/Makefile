@@ -10,7 +10,7 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -UNDEBUG -I$(FLINT) -I.
 
 .PHONY: all run clean
 
-all: $(BUILD)/test_renderer $(BUILD)/test_apps $(BUILD)/test_studio $(BUILD)/test_companion $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
+all: $(BUILD)/test_miniapps $(BUILD)/test_renderer $(BUILD)/test_companion $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
 	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate $(BUILD)/test_cfg_fs $(BUILD)/test_clock_schedule $(BUILD)/test_pc_link
 
 $(BUILD):
@@ -33,8 +33,8 @@ $(BUILD)/test_settings_clamp: test_settings_clamp.cpp | $(BUILD)
 $(BUILD)/test_fi_validate: test_fi_validate.cpp $(FLINT)/assets/flint_fi.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_fi_validate.cpp
 
-$(BUILD)/test_cfg_fs: test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(wildcard stubs/cfg/*.h stubs/cfg/config/*.h) | $(BUILD)
-	$(CXX) -Istubs/cfg $(CXXFLAGS) -Wl,--wrap=fflush,--wrap=fsync,--wrap=fclose,--wrap=fread,--wrap=ferror -o $@ test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp
+$(BUILD)/test_cfg_fs: test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(FLINT)/storage/fs_io.cpp $(wildcard stubs/cfg/*.h stubs/cfg/config/*.h) | $(BUILD)
+	$(CXX) -Istubs/cfg $(CXXFLAGS) -Wl,--wrap=fflush,--wrap=fsync,--wrap=fclose,--wrap=fread,--wrap=ferror -o $@ test_cfg_fs.cpp $(FLINT)/settings/cfg_fs.cpp $(FLINT)/storage/fs_io.cpp
 
 $(BUILD)/test_clock_schedule: test_clock_schedule.cpp $(FLINT)/time/clock_schedule.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_clock_schedule.cpp
@@ -45,19 +45,15 @@ $(BUILD)/test_pc_link: test_pc_link.cpp $(FLINT)/usb/pc_protocol.h $(FLINT)/usb/
 $(BUILD)/test_companion: test_companion.cpp $(FLINT)/companion/control.cpp | $(BUILD)
 	$(CXX) -Istubs/control $(CXXFLAGS) -o $@ test_companion.cpp $(FLINT)/companion/control.cpp
 
-$(BUILD)/test_studio: test_studio.cpp $(FLINT)/companion/studio.cpp | $(BUILD)
-	$(CXX) $(CXXFLAGS) -o $@ test_studio.cpp $(FLINT)/companion/studio.cpp
-
-$(BUILD)/test_apps: test_apps.cpp $(FLINT)/companion/apps.cpp | $(BUILD)
-	$(CXX) -Istubs/apps $(CXXFLAGS) -o $@ test_apps.cpp $(FLINT)/companion/apps.cpp
-
 $(BUILD)/test_renderer: test_renderer.cpp $(wildcard $(FLINT)/render/*.h) $(FLINT)/render/fonts.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_renderer.cpp $(FLINT)/render/fonts.cpp
 
+$(BUILD)/test_miniapps: test_miniapps.cpp $(FLINT)/companion/miniapps.cpp $(FLINT)/companion/miniapps.h $(FLINT)/render/builders.h | $(BUILD)
+	$(CXX) $(CXXFLAGS) -o $@ test_miniapps.cpp $(FLINT)/companion/miniapps.cpp
+
 run: all
+	./$(BUILD)/test_miniapps
 	./$(BUILD)/test_renderer
-	./$(BUILD)/test_apps
-	./$(BUILD)/test_studio
 	./$(BUILD)/test_companion
 	./$(BUILD)/test_pc_link
 	./$(BUILD)/test_day_mode

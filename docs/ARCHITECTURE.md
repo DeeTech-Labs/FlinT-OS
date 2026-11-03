@@ -49,8 +49,12 @@ Clock edits from the settings overlay emit `MINUTE` / `TIME_VALID` as appropriat
 
 | Store | Role |
 |-------|------|
-| `storage` LittleFS | Asset pack (`core.flintpack`) |
+| `assets` LittleFS | Protected system asset pack (`core.flintpack`) |
+| `storage` LittleFS | Installed miniapps and package resources |
 | `cfg` LittleFS | UI prefs (`ui.cfg`) + soft clock (`time.cfg`) |
-| ESP-IDF NVS | Legacy migration — **not** FlinT UI prefs |
+| ESP-IDF NVS | BLE keys and system state; no UI/clock migration |
 
-One-shot migrators still copy old `"flint"` NVS UI / epoch keys into `cfg` when the file is missing (`settings.cpp`, `clock_time.cpp`). **Sunset plan:** keep until field devices are known migrated; then delete migrate paths and NVS UI key reads in the same change (no long-lived dual-write).
+System resources are loaded from the `assets` LittleFS partition (`/assets`).
+Downloadable miniapp descriptors live in `storage` (`/storage/packages`).
+Only preferences, selected IDs and the soft clock live in `cfg` (`/cfg`).
+Old NVS UI/epoch migration paths are removed during active development.

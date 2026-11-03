@@ -25,7 +25,7 @@
 
 void appSetup() {
   printf("\n======== FlinT OS boot ========\n");
-  LOGI("app", "DEBUG_LEVEL=%d board=%s", DEBUG_LEVEL, FLINT_BOARD_ID);
+  LOGI("app", "DEBUG_LEVEL=%d board=%s", DEBUG_LEVEL, FLINT_DEVICE_ID);
 
   // Init panel ASAP (fills brand bg) — no delay before this, avoids white flash.
   displayBegin();

@@ -1,18 +1,9 @@
 #pragma once
 
-// Stock SPI panel factory — panel class from FLINT_PANEL_KIND_* (periph JSON "panel").
-//
-// Controllers chosen from common ESP32/Arduino SPI TFT usage (2024–2026 guides +
-// TFT_eSPI driver set), not an exhaustive LovyanGFX dump:
-//   ILI9341, ST7789, ST7735/ST7735S, ST7796, GC9A01, ILI9486/ILI9488, ILI9342, ILI9163
-// Aliases: GC9A01A → GC9A01.
-//
-// Community boards: JSON only. Custom impl/*.h only for unsupported panels/buses.
+// FlinT Spark c3_dev: ST7789 over SPI, with deferred first DISPON.
 
 namespace flint_lgfx {
 
-#if defined(FLINT_PANEL_KIND_ST7789)
-#if FLINT_PANEL_DEFER_DISPON
 // Stock ST7789 init ends with DISPON while GRAM is still empty/zero.
 // Defer DISPON until after the first fill (see displayBegin).
 struct Panel_ST7789_NoDispOn : public lgfx::Panel_ST7789 {
@@ -45,46 +36,6 @@ struct Panel_ST7789_NoDispOn : public lgfx::Panel_ST7789 {
   }
 };
 using PanelType = Panel_ST7789_NoDispOn;
-#else
-using PanelType = lgfx::Panel_ST7789;
-#endif
-
-#elif defined(FLINT_PANEL_KIND_ILI9341)
-using PanelType = lgfx::Panel_ILI9341;
-
-#elif defined(FLINT_PANEL_KIND_ILI9342)
-using PanelType = lgfx::Panel_ILI9342;
-
-#elif defined(FLINT_PANEL_KIND_ST7735)
-using PanelType = lgfx::Panel_ST7735;
-
-#elif defined(FLINT_PANEL_KIND_ST7735S)
-using PanelType = lgfx::Panel_ST7735S;
-
-#elif defined(FLINT_PANEL_KIND_ST7796)
-using PanelType = lgfx::Panel_ST7796;
-
-#elif defined(FLINT_PANEL_KIND_GC9A01)
-using PanelType = lgfx::Panel_GC9A01;
-
-#elif defined(FLINT_PANEL_KIND_ILI9488)
-using PanelType = lgfx::Panel_ILI9488;
-
-#elif defined(FLINT_PANEL_KIND_ILI9486)
-using PanelType = lgfx::Panel_ILI9486;
-
-#elif defined(FLINT_PANEL_KIND_ILI9481)
-using PanelType = lgfx::Panel_ILI9481;
-
-#elif defined(FLINT_PANEL_KIND_ILI9163)
-using PanelType = lgfx::Panel_ILI9163;
-
-#else
-#error \
-    "Unknown SPI panel for lgfx_spi_stock — set periph \"panel\" to a supported id " \
-    "(ILI9341, ST7789, ST7735, ST7735S, ST7796, GC9A01, ILI9488, ILI9486, ILI9481, " \
-    "ILI9342, ILI9163) or add board/impl/<custom>.h"
-#endif
 
 }  // namespace flint_lgfx
 

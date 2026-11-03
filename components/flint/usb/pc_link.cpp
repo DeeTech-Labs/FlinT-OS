@@ -34,7 +34,7 @@ void sendInfo(char* response, size_t capacity, bool trustedTransport) {
   }
   char id[13];
   snprintf(id, sizeof(id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  const PcDeviceInfo info{id, "Spark", FLINT_BOARD_ID, FLINT_IDF_TARGET,
+  const PcDeviceInfo info{id, "Spark", FLINT_DEVICE_ID, FLINT_IDF_TARGET,
                           FLINT_OS_VERSION_STRING, FLINT_OS_API_VERSION, SCR_W, SCR_H, trustedTransport};
   char json[512];
   if (pcWriteInfo(json, sizeof(json), info)) snprintf(response, capacity, "FLINT INFO %s\n", json);
@@ -120,7 +120,7 @@ void pcLinkExecute(const PcCommand& command, char* response, size_t capacity, bo
       companionExecute(command, response, capacity, trustedTransport);
       break;
     case PcCommandKind::Hello:
-      snprintf(response, capacity, "FLINT HELLO 1 %s\n", FLINT_BOARD_ID);
+      snprintf(response, capacity, "FLINT HELLO 1 %s\n", FLINT_DEVICE_ID);
       break;
     case PcCommandKind::Info:
       sendInfo(response, capacity, trustedTransport);

@@ -1,268 +1,70 @@
-# FlinT board profiles — setup guide
+# FlinT Spark: модели и аппаратные ревизии
 
-Build-time hardware selection for **FlinT OS** (firmware for FlinT devices).
-Base / default device: **FlinT Spark** (`flint_spark`). Same idea as `i18n/lang/`.
+Прошивка собирается для законченной аппаратной ревизии. Пользователь выбирает
+профиль целиком, а не процессор, дисплей, GPIO и датчики по отдельности.
+Каждая ревизия имеет собственные исходники настроек, драйвера и зависимостей.
+Каталог произвольных плат и подключаемых периферийных JSON удалён.
 
-**All hardware authoring stays in this directory.** Do not edit
-`display/LgfxBoard.h` or `components/LovyanGFX/CMakeLists.txt` to add a board or
-panel — the generator wires `impl/` and LovyanGFX sources from JSON.
+## Текущая ревизия
 
-```bash
-# From repo root — see also tools/README.md
-python3 tools/gen_board_catalog.py --help
-python3 tools/gen_board_catalog.py --list
-python3 tools/gen_board_catalog.py --set-default              # pick catalog default
-python3 tools/gen_board_catalog.py --board flint_spark
-# codegen + set-target from JSON + build (ESP-IDF must be available):
-python3 tools/gen_board_catalog.py --board <board_id> --build
-python3 tools/gen_board_catalog.py --flash -p /dev/ttyACM0          # flash; build only if no .bin
-python3 tools/gen_board_catalog.py --monitor -p /dev/ttyACM0        # monitor only
-```
+Единственный доступный профиль: `flint_spark_c3_dev`.
+Модель: **FlinT Spark**, ревизия: **c3_dev**, стадия: **development**.
 
-CMake still runs the generator on configure **without** `--build` (codegen only).
-`-DFLINT_BOARD` remains optional when you drive `idf.py` yourself.
+- ESP32-C3 Super Mini, 4 MB flash.
+- ST7789 240×280, поворот 3, рабочая область 280×240, canvas в BSS.
+- TFT: CS 10, DC 4, RST 3, MOSI 7, SCLK 6.
+- Синий LED: GPIO8, active low. Не подключать к нему reset дисплея.
+- USB и существующая BLE-связь, время, циферблаты и настройки сохраняются.
+- Нет сенсорного ввода, пользовательских кнопок навигации, измерения заряда,
+  вибрации и программного управления подсветкой.
 
----
+Возможности заданы константами в исходниках ревизии.
+Наличие BOOT на модуле не означает поддержку кнопочной навигации.
 
-## Who writes what
+## Сборка
 
-| You want… | You edit… | C++ in `impl/`? |
-|-----------|-----------|-----------------|
-| New PCB / other pins, **same known panel** | `boards/*.json` + `board_index.json` | **No** |
-| Same controller, other size / invert / offset | `periph/display/*.json` + board | **No** |
-| Common SPI panel already in stock list | periph JSON (`"panel": "ST7789"` …) + board | **No** |
-| Exotic panel or non-SPI bus | custom `impl/*.h` + periph + board | Yes (advanced) |
-
-**Default path for community: JSON only.** Stock SPI factory is `impl/lgfx_spi_stock.h`
-(maintained with the project). It picks the LovyanGFX panel class from periph `"panel"`.
-
-Supported stock SPI panels (from common ESP32/Arduino TFT usage — guides + TFT_eSPI):
-**ILI9341, ST7789, ST7735, ST7735S, ST7796, GC9A01** (alias `GC9A01A`),
-**ILI9488, ILI9486, ILI9481, ILI9342, ILI9163**.
-See `impl/README.md`.
-
----
-
-## Layout
-
-```text
-board/
-├── board_index.json          # catalog + default board id
-├── boards/                   # one JSON per product / wiring
-│   └── <board_id>.json
-├── periph/
-│   └── display/              # reusable panel profiles
-│       └── <display_id>.json
-├── impl/
-│   ├── lgfx_spi_stock.h      # ★ default — do not copy per board
-│   ├── README.md
-│   └── <custom>.h            # only if panel not in stock list
-├── board_config.inc          # GENERATED — C++ macros
-├── board_impl.inc            # GENERATED — #include of selected impl
-└── board_build.cmake         # GENERATED — LovyanGFX bus sources / requires
-```
-
----
-
-## Concepts
-
-1. **`periph/display/`** — what the panel is (controller name, size, invert, SPI freq).
-2. **`boards/`** — how *this* PCB is wired (GPIO, rotation, canvas, idf target).
-3. **`impl/`** — C++ factory. Prefer stock (`lgfx_spi_stock`); custom only when needed.
-
-Same display on two pinouts → two board JSON files, one shared periph. No new `.h`.
-
----
-
-## Typical: add a board (known panel)
-
-1. Copy `boards/flint_spark.json` → `boards/<your_id>.json`
-2. Change `id`, `pinout`, `rotation`, `backlight`, `idf_target` if needed
-3. Keep `"display": "st7789_spi_240x280"` (or another existing periph id)
-4. Register in `board_index.json`
-5. Build: `idf.py set-target …` then `idf.py -DFLINT_BOARD=<your_id> build`
-
----
-
-## New size / quirks of a stock panel (still no C++)
-
-1. Add `periph/display/<panel>_<bus>_<WxH>.json`:
-
-```json
-{
-  "id": "st7789_spi_240x280",
-  "type": "display",
-  "panel": "ST7789",
-  "bus": "spi",
-  "panel_width": 240,
-  "panel_height": 280,
-  "offset_x": 0,
-  "offset_y": 20,
-  "invert": false,
-  "rgb_order": false,
-  "spi_3wire": true,
-  "readable": false,
-  "freq_write_hz": 40000000,
-  "freq_read_hz": 16000000,
-  "quirks": { "defer_dispon": true },
-  "impl": "lgfx_spi_stock",
-  "lgfx_sources": ["platforms/esp32/Bus_SPI.cpp"],
-  "idf_requires": ["esp_driver_spi", "esp_driver_ledc", "esp_driver_gpio"]
-}
-```
-
-- `"panel"` must be one of the stock names (case-insensitive).
-- `"impl": "lgfx_spi_stock"` — or omit `impl` for SPI; generator defaults to stock.
-- Naming tip: `<panel>_<bus>_<WxH>` (native orientation, before rotation).
-
-2. Point a board’s `"display"` at that id; register the board; build.
-
----
-
-## Greenfield (repo `board/` empty)
-
-1. Keep / restore `impl/lgfx_spi_stock.h` (shipped with FlinT OS — not written per user).
-2. Add `periph/display/….json` with `"panel": "ST7789"` (or other stock) and `"impl": "lgfx_spi_stock"`.
-3. Add `boards/<id>.json` with pins + `"display"`.
-4. Add `board_index.json` with `default` + boards list.
-5. `python3 tools/gen_board_catalog.py` → then `idf.py … build`.
-
-You still **do not** write a per-board `.h`.
-
----
-
-## Advanced: custom `impl/*.h`
-
-Only when:
-
-- panel is not in the stock SPI list, or
-- bus is not covered by stock (QSPI / RGB / …), or
-- you need init sequences stock cannot express.
-
-Then:
-
-1. Add `impl/<custom_id>.h` defining `class LGFX` (use macros from `board_config.inc`).
-2. Periph: `"impl": "<custom_id>"`, plus `lgfx_sources` / `idf_requires`.
-3. Optionally extend `lgfx_spi_stock.h` instead, so the next person stays JSON-only.
-
-See `impl/README.md`.
-
----
-
-## Field reference
-
-### `board_index.json`
-
-| Field | Meaning |
-|-------|---------|
-| `default` | Board id when `FLINT_BOARD` / `-DFLINT_BOARD` is empty |
-| `boards[].id` | Build selector |
-| `boards[].name` | Human label |
-| `boards[].file` | Filename under `boards/` |
-
-### `boards/<id>.json`
-
-| Field | Required | Meaning |
-|-------|----------|---------|
-| `id` | yes | Must match index id |
-| `idf_target` | yes | Must match `idf.py set-target` |
-| `display` | yes | Periph display id (filename stem) |
-| `rotation` | yes | LovyanGFX `0…3` |
-| `pinout.display` | yes (SPI) | GPIO; unused = `-1` |
-| `backlight.gpio` | no | `-1` = none |
-| `canvas.strategy` | yes | `bss` \| `psram` \| `none` |
-| `canvas.max_w` / `max_h` | yes | FB size **after** rotation (= UI design space) |
-| `safe_inset` | no | Content inset for rounded glass (default `16` → `FLINT_SAFE_INSET`) |
-| `layout` | no | Optional human label (not used for geometry) |
-| `touch` | no | Future periph id |
-
-**SPI pins required:** `cs`, `dc`, `rst`, `mosi`, `sclk`. Optional: `miso`, `busy`.
-
-### `periph/display/<id>.json`
-
-| Field | Required | Meaning |
-|-------|----------|---------|
-| `id` | yes | = filename stem |
-| `type` | yes | `"display"` |
-| `panel` | yes | Controller id → stock `FLINT_PANEL_KIND_*` |
-| `bus` | yes | `spi` \| `qspi` \| `i80` \| `rgb` |
-| `panel_width` / `panel_height` | yes | Native pixels |
-| `offset_x` / `offset_y` | no | GRAM window offset |
-| `invert` / `rgb_order` / `spi_3wire` / `readable` | no | → macros |
-| `freq_write_hz` | yes | SPI write clock |
-| `freq_read_hz` | no | default 16 MHz |
-| `quirks.defer_dispon` | no | skip DISPON in init (ST7789) |
-| `impl` | no* | default `lgfx_spi_stock` when `bus` is `spi` |
-| `lgfx_sources` | yes* | relative to LovyanGFX `src/lgfx/v1/` |
-| `idf_requires` | recommended | extra IDF components |
-
-\*SPI without `lgfx_sources` defaults to `platforms/esp32/Bus_SPI.cpp`.
-
----
-
-## Generator output
-
-- `FLINT_PANEL_KIND_<PANEL> 1` (e.g. `FLINT_PANEL_KIND_ST7789`) — selects class inside `lgfx_spi_stock.h`
-- pins, rotation, canvas size, SPI flags, `FLINT_PANEL_DEFER_DISPON`
-- `FLINT_DESIGN_W` / `FLINT_DESIGN_H` from `canvas.max_w` / `max_h` (UiTok design space)
-- `FLINT_SAFE_INSET` from board `safe_inset` (default 16)
-- `board_impl.inc` → `#include "board/impl/<impl>.h"`
-- `board_build.cmake` → LovyanGFX sources / requires
-
----
-
-## Build selection
+Из корня FlinT OS:
 
 ```bash
-idf.py -DFLINT_BOARD=flint_spark build
+python3 tools/select_device.py
+python3 tools/select_device.py --list
+python3 tools/select_device.py --device flint_spark_c3_dev --build
 ```
 
-Or one-shot from the generator (reads `idf_target` from the board JSON):
+Выбор ревизии: `FLINT_DEVICE` или `idf.py -DFLINT_DEVICE=flint_spark_c3_dev build`.
+По умолчанию выбирается та же ревизия C3. Генератор создаёт
+`device_config.h`, `device_display.h`, `device.cmake`; вручную их не редактируют.
+В C++ доступны `FLINT_MODEL_ID`, `FLINT_HW_REVISION`, `FLINT_HW_STAGE`
+и `FLINT_HAS_*` для аппаратных возможностей.
 
-```bash
-python3 tools/gen_board_catalog.py --board flint_spark --build
-```
+## Следующая ревизия
 
-`idf_target` in the board JSON must match the current IDF target.
+Waveshare ESP32-S3-Touch-LCD-1.69 — предварительный кандидат для беты **той же
+модели Flint Spark**, а не уже поддерживаемая конфигурация. Плата ещё не куплена;
+переход на S3 сейчас не выполняется. Профиль появится после проверки платы,
+разводки, дисплея и ввода. Датчики, питание и автономность нельзя считать
+готовыми только по названию платы.
 
----
+Новая ревизия получает отдельный стабильный ID сборки, собственный набор
+возможностей и проверенные драйверы. `flint_spark_c3_dev` обозначает ревизию C3:
+его нельзя незаметно переназначить на S3. До появления проверенной ревизии
+не добавляем её в каталог или меню выбора.
 
-## Checklist
+## Внутреннее устройство
 
-| Symptom | Check |
-|---------|--------|
-| `unknown board` | listed in `board_index.json`? |
-| `panel … not in lgfx_spi_stock` | use a supported `"panel"` or add custom impl / extend stock |
-| `missing impl header` | custom `impl` id without matching `.h`? |
-| `pinout.display missing` | SPI needs cs/dc/rst/mosi/sclk |
-| `expects idf_target=` | run matching `idf.py set-target` |
-| Wrong colors / flash | `invert`, `defer_dispon`, `offset_y` |
-| Canvas OOM / clip | `canvas.max_w/h` vs rotation |
+`models/flint_spark/c3_dev/` — единственное место аппаратного описания Spark C3:
 
-```bash
-python3 tools/gen_board_catalog.py --board <board_id>
-```
+- `device_config.h`: идентичность, возможности, GPIO, геометрия и частоты;
+- `display.h`: драйвер конкретного ST7789, включая отложенный DISPON;
+- `device_display.h`: подключение драйвера;
+- `device.cmake`: процессор и точные зависимости сборки.
 
----
+`tools/select_device.py` теперь только выбирает разрешённую ревизию и
+копирует её готовые файлы в точки подключения сборки. Он не
+синтезирует железо из настроек. Реестр `PROFILES` в этом скрипте перечисляет
+поддерживаемые ревизии. Новая ревизия требует реализации драйверов и проверки,
+а не добавления сочетания компонентов в JSON. Значения пользовательских
+настроек (язык, время, циферблат) остаются в обычной системе настроек.
 
-## Out of scope here (for now)
-
-- Touch / buttons — reserved board fields; add later under `periph/`
-- USB PC time synchronization — `docs/USB-TIME.md`
-
-## Spark status LED (ESP32-C3 Super Mini)
-
-The single `flint_spark` profile uses `status_led: {"gpio": 8, "active": "low"}`.
-GPIO8 is reserved for the onboard blue LED. TFT reset is GPIO3, DC is GPIO4,
-SCK is GPIO6, MOSI is GPIO7, CS is GPIO10. Do not wire TFT reset to GPIO8.
-The generator rejects LED/display pin collisions.
-
-
-### Spark display polarity
-
-The connected 240×280 ST7789 module uses `invert: true` in its peripheral profile.
-This selects panel INVON through LovyanGFX's panel polarity compensation; it does
-not invert the shared RGB565 scene. With the opposite polarity the intended dark
-navy background appears cream and blue accents appear yellow. Physical panel
-polarity must be visually checked on each module revision; framebuffer equality
-alone cannot validate it. Keep `rgb_order` separate from this setting.
+Для текущего ST7789 сохраняется `invert: true`; полярность проверяется на
+физическом экране отдельно от RGB565 и `rgb_order`.

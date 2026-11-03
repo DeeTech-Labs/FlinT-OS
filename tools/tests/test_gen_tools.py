@@ -25,87 +25,32 @@ def load_tool(name: str):
 class GenBoardTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.gen = load_tool("gen_board_catalog")
+        cls.gen = load_tool("select_device")
 
-    def test_board_index_ids_match_files(self):
-        index = self.gen.load_index()
-        self.assertTrue(index.get("default"))
-        boards_dir = ROOT / "components" / "flint" / "board" / "boards"
-        for entry in index.get("boards") or []:
-            bid = entry["id"]
-            path = self.gen.board_json_path(entry, bid)
-            self.assertTrue(path.is_file(), path)
-            data = self.gen.load_json(path)
-            self.assertEqual(data["id"], bid)
-            self.assertEqual(path.parent, boards_dir)
+    def test_only_supported_revision_can_be_selected(self):
+        self.assertEqual(self.gen.resolve_device_id("flint_spark_c3_dev"), "flint_spark_c3_dev")
+        for name in ("my_desk_s3", "../flint_spark", "waveshare_s3"):
+            with self.subTest(name=name), self.assertRaises(SystemExit):
+                self.gen.resolve_device_id(name)
 
-    def test_all_boards_validate(self):
-        index = self.gen.load_index()
-        for entry in index.get("boards") or []:
-            board_id = entry["id"]
-            board = self.gen.load_json(self.gen.board_json_path(entry, board_id))
-            display_id = board["display"]
-            display_path = (
-                ROOT
-                / "components"
-                / "flint"
-                / "board"
-                / "periph"
-                / "display"
-                / f"{display_id}.json"
-            )
-            display = self.gen.load_json(display_path)
-            self.gen.validate(board, copy.deepcopy(display), board_id)
+    def test_selected_hardware_matches_fixed_revision(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [Path(directory) / name for name in
+                     ("device_config.h", "device_display.h", "device.cmake")]
+            with patch.multiple(self.gen, OUT_INC=paths[0], OUT_IMPL=paths[1], OUT_CMAKE=paths[2]):
+                selected, profile = self.gen.cmd_generate("flint_spark_c3_dev", quiet=True)
+                self.assertEqual(profile["idf_target"], "esp32c3")
+                source = self.gen.DEVICE_DIR / profile["directory"]
+                for path in paths:
+                    self.assertEqual(path.read_bytes(), (source / path.name).read_bytes())
+                modified = paths[0].stat().st_mtime_ns
+                self.gen.cmd_generate(selected, quiet=True)
+                self.assertEqual(paths[0].stat().st_mtime_ns, modified)
+                self.assertIn('FLINT_TFT_RST = 3', paths[0].read_text())
+                self.assertIn('FLINT_STATUS_LED_GPIO = 8', paths[0].read_text())
 
-    def test_board_validate_rejects_id_mismatch(self):
-        index = self.gen.load_index()
-        entry = self.gen.find_board_entry(index, "flint_spark")
-        board = self.gen.load_json(self.gen.board_json_path(entry, "flint_spark"))
-        display = self.gen.load_json(
-            ROOT
-            / "components"
-            / "flint"
-            / "board"
-            / "periph"
-            / "display"
-            / f"{board['display']}.json"
-        )
-        with self.assertRaises(SystemExit):
-            self.gen.validate(board, copy.deepcopy(display), "not_spark")
-
-    def test_normalize_panel_alias(self):
-        self.assertEqual(self.gen.normalize_panel("GC9A01A"), "GC9A01")
-        self.assertEqual(self.gen.normalize_panel("st7789"), "ST7789")
-
-    def test_spark_led_cannot_share_display_pin(self):
-        board = self.gen.load_json(self.gen.BOARD_DIR / "boards/flint_spark.json")
-        display = self.gen.load_json(self.gen.BOARD_DIR / "periph/display" / f"{board['display']}.json")
-        self.assertEqual(board["status_led"], {"gpio": 8, "active": "low"})
-        board["pinout"]["display"]["rst"] = 8
-        with self.assertRaises(SystemExit):
-            self.gen.validate(board, display, "flint_spark")
-
-    def test_spark_design_macros_from_canvas(self):
-        index = self.gen.load_index()
-        entry = self.gen.find_board_entry(index, "flint_spark")
-        board = self.gen.load_json(self.gen.board_json_path(entry, "flint_spark"))
-        display = self.gen.load_json(
-            ROOT
-            / "components"
-            / "flint"
-            / "board"
-            / "periph"
-            / "display"
-            / f"{board['display']}.json"
-        )
-        self.gen.validate(board, display, "flint_spark")
-        self.gen.write_inc(board, display)
-        text = self.gen.OUT_INC.read_text(encoding="utf-8")
-        canvas = board["canvas"]
-        self.assertIn(f"FLINT_DESIGN_W = {int(canvas['max_w'])}", text)
-        self.assertIn(f"FLINT_DESIGN_H = {int(canvas['max_h'])}", text)
-        inset = int(board.get("safe_inset", 16))
-        self.assertIn(f"FLINT_SAFE_INSET = {inset}", text)
 
 
 class GenI18nTests(unittest.TestCase):

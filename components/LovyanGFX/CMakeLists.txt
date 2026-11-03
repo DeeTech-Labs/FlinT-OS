@@ -6,13 +6,13 @@ set(LGFX_ROOT "${FLINT_ROOT}/third_party/LovyanGFX")
 # Keep clean checkouts on the source layout validated with this slim component.
 set(FLINT_LGFX_REVISION "3f78b7058fca0fd1fc1ddb32f75a18262e01d440")
 
-# board_build.cmake is produced by tools/gen_board_catalog.py (root CMakeLists).
-set(FLINT_BOARD_BUILD "${FLINT_ROOT}/components/flint/board/board_build.cmake")
-if(EXISTS "${FLINT_BOARD_BUILD}")
-    include("${FLINT_BOARD_BUILD}")
-    message(STATUS "LovyanGFX board bus=${FLINT_BOARD_DISPLAY_BUS} impl=${FLINT_BOARD_DISPLAY_IMPL}")
+# device.cmake is produced by tools/select_device.py (root CMakeLists).
+set(FLINT_DEVICE_BUILD "${FLINT_ROOT}/components/flint/board/device.cmake")
+if(EXISTS "${FLINT_DEVICE_BUILD}")
+    include("${FLINT_DEVICE_BUILD}")
+    message(STATUS "LovyanGFX board bus=${FLINT_DEVICE_DISPLAY_BUS} impl=${FLINT_DEVICE_DISPLAY_IMPL}")
 else()
-    message(FATAL_ERROR "Missing ${FLINT_BOARD_BUILD} — run tools/gen_board_catalog.py or reconfigure")
+    message(FATAL_ERROR "Missing ${FLINT_DEVICE_BUILD} — run tools/select_device.py or reconfigure")
 endif()
 
 if(NOT EXISTS "${LGFX_ROOT}/src/LovyanGFX.hpp")
@@ -70,16 +70,15 @@ set(LGFX_SRCS
     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/Light_PWM.cpp
 )
 
-# Bus / panel extras come from periph JSON via board_build.cmake — no per-board
-# edits in this file.
-if(NOT DEFINED FLINT_BOARD_LGFX_SOURCES OR FLINT_BOARD_LGFX_SOURCES STREQUAL "")
-    message(FATAL_ERROR "FLINT_BOARD_LGFX_SOURCES empty — regenerate board_build.cmake")
+# Exact bus sources are owned by the selected product revision.
+if(NOT DEFINED FLINT_DEVICE_LGFX_SOURCES OR FLINT_DEVICE_LGFX_SOURCES STREQUAL "")
+    message(FATAL_ERROR "FLINT_DEVICE_LGFX_SOURCES empty — regenerate device.cmake")
 endif()
-foreach(_flint_lgfx_rel IN LISTS FLINT_BOARD_LGFX_SOURCES)
+foreach(_flint_lgfx_rel IN LISTS FLINT_DEVICE_LGFX_SOURCES)
     list(APPEND LGFX_SRCS "${LGFX_ROOT}/src/lgfx/v1/${_flint_lgfx_rel}")
 endforeach()
 
-# Base IDF deps always present; periph may add more (spi, esp_lcd, …).
+# Base IDF dependencies plus the selected product revision dependencies.
 # esp_driver_i2c stays: platforms/esp32/common.cpp includes I2C headers unconditionally.
 set(LGFX_REQUIRES
     efuse
@@ -91,8 +90,8 @@ set(LGFX_REQUIRES
     freertos
     log
 )
-if(DEFINED FLINT_BOARD_IDF_REQUIRES AND NOT FLINT_BOARD_IDF_REQUIRES STREQUAL "")
-    list(APPEND LGFX_REQUIRES ${FLINT_BOARD_IDF_REQUIRES})
+if(DEFINED FLINT_DEVICE_IDF_REQUIRES AND NOT FLINT_DEVICE_IDF_REQUIRES STREQUAL "")
+    list(APPEND LGFX_REQUIRES ${FLINT_DEVICE_IDF_REQUIRES})
 endif()
 list(REMOVE_DUPLICATES LGFX_REQUIRES)
 

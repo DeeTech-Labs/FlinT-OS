@@ -17,10 +17,10 @@ idf.py set-target esp32c3
 idf.py reconfigure
 ```
 
-Optional board profile (default **FlinT Spark** / `flint_spark`):
+Product revision (default **FlinT Spark C3** / `flint_spark_c3_dev`):
 
 ```bash
-idf.py -DFLINT_BOARD=flint_spark build
+idf.py -DFLINT_DEVICE=flint_spark_c3_dev build
 ```
 
 ## Build / size

@@ -2,15 +2,15 @@
 
 #include <stdint.h>
 #include "config/flint_version.h"
-#include "board/board_config.inc"
+#include "board/device_config.h"
 
 // FlinT OS — shared configuration (safe to commit)
 // Versions: config/flint_version.h
-// Display pins / panel: components/flint/board/ (see board_config.inc)
+// Display pins / panel: components/flint/board/ (see device_config.h)
 
 inline constexpr const char* DEFAULT_TZ_ID = "Europe/Moscow";
 
-// Display pins / rotation (from selected FLINT_BOARD)
+// Display pins / rotation (from selected FLINT_DEVICE)
 static const int TFT_CS = FLINT_TFT_CS;
 static const int TFT_DC = FLINT_TFT_DC;
 static const int TFT_RST = FLINT_TFT_RST;

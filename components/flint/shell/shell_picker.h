@@ -15,3 +15,6 @@ void shellPickerPaintPartial();
 
 bool shellPickerNeedsFull();
 bool shellPickerNeedsRows();
+
+void shellPickerDelete();
+bool shellPickerBack(); // false cancels the delete dialog, true exits the picker

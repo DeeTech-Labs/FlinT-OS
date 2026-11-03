@@ -1,9 +1,8 @@
 #include "app.h"
 #include "render/watch_display.h"
-#include "companion/studio.h"
 #include "faces/FaceRegistry.h"
+#include "companion/miniapps.h"
 #include <cstring>
-#include "companion/apps.h"
 #include "ble/ble_link.h"
 #include "anim/anim.h"
 #include "assets/asset_store.h"
@@ -14,6 +13,7 @@
 #include "event/event.h"
 #include "usb/pc_link.h"
 #include "settings/cfg_fs.h"
+#include "storage/package_storage.h"
 #include "shell/shell.h"
 #include "time/clock_time.h"
 #include "ui/splash.h"
@@ -44,6 +44,8 @@ void appSetup() {
     LOGE("assets", "unavailable — icons/splash mark will be blank until storage is flashed");
   }
 
+  if(!packageStorageBegin())LOGE("storage","package storage unavailable");
+
   flintEventInit();
   splashShow();
 
@@ -53,8 +55,6 @@ void appSetup() {
     flintEventEmit(FLINT_EVT_TIME_VALID);
   }
 
-  studioBegin();
-  companionAppsBegin();
   shellBegin();
   shellTick();
 
@@ -141,8 +141,6 @@ void appLoop() {
   pcLinkMaintain();
   bleLinkMaintain();
   shellPollSerial();
-  const auto* activeFace = FaceRegistry::activeId();
-  if (studioAnimate(flintMillis(), activeFace && !strcmp(activeFace, "studio"))) flintEventEmit(FLINT_EVT_FORCE_REDRAW);
 
   struct tm ti{};
   const bool hasTime = clockTimeGetLocal(&ti);

@@ -33,6 +33,14 @@ def bake(path, size, chars, name, directory=None):
              f'alignas(4) static const uint8_t {name}[] = {{']
     lines += ['  ' + ', '.join(f'0x{v:02x}' for v in blob[i:i+20]) + ',' for i in range(0, len(blob), 20)]
     lines += ['};', '']
+    if directory and directory == ROOT / 'components/flint/render/fonts':
+        offset = 24 + len(glyphs) * 28
+        offsets = []
+        for glyph in glyphs:
+            offsets.append(offset)
+            offset += glyph[1] * glyph[2]
+        lines += [f'static const uint32_t {name}_offsets[] = {{',
+                  '  ' + ', '.join(map(str, offsets)), '};', '']
     output = (directory or ROOT / 'components/flint/display/fonts') / (name + '.inc')
     output.write_text('\n'.join(lines))
     print(f'{output.name}: {len(blob)} bytes, {len(glyphs)} glyphs, {size}px')

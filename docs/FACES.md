@@ -1,15 +1,19 @@
-# Add a face
+# Watch faces and miniapps
 
-Pluggable faces live under `components/flint/faces/`. Do not edit core services to ship a theme.
+User-installable faces and themes use [Flint Miniapps v1](MINIAPPS.md). Install
+packages from the Companion Market; choose and remove them in the watch Apps menu.
+Spark ships exactly one protected built-in package, Spark Base.
 
-Also: [ARCHITECTURE.md](ARCHITECTURE.md) · Face SDK `components/flint/sdk/flint_face_sdk.h` · template `community/face_template.cpp.example`.
+Native `Face` classes are firmware implementation details. The built-in registry
+has one slot for Spark Base; additional installed faces are supplied by the
+package registry. Adding an application does not mean appending native factories
+to `faces_builtin.cpp` or growing a community board configuration.
 
-## Steps
+The render layouts `digital`, `blocks` and `quiet` are shared engines for installed
+package descriptions. The native Face SDK remains available for development of
+the base firmware and new bounded render engines; packages do not load native code.
 
-1. Copy `community/face_template.cpp.example` → `components/flint/faces/face_yourname.cpp`
-2. Implement `Face`, export `Face* createYourFace()` and a stable `FaceInfo` (see template), set `id`, name, author, versions, `minApi` ≤ `FLINT_OS_API_VERSION`
-3. Register in `components/flint/faces/faces_builtin.cpp` (`FaceRegistry::add(createYourFace, yourFaceInfo())`) and list the `.cpp` in `components/flint/CMakeLists.txt`
-4. Build & flash; pick via serial face picker (`Enter` from the face), or rely on `ACTIVE_FACE_ID` when `cfg` is empty
+Also: [ARCHITECTURE.md](ARCHITECTURE.md) · SDK `components/flint/sdk/flint_face_sdk.h`.
 
 ## Dirty / paint contract
 

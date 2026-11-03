@@ -11,17 +11,21 @@ struct Glyph {
   const uint8_t *alpha = nullptr;
 };
 const uint8_t *fontData(unsigned font);
+uint32_t fontPixelOffset(unsigned font, unsigned index);
 inline Glyph glyph(unsigned font, uint32_t cp) {
   const auto *data = fontData(font);
   const int n = be32(data);
-  size_t offset = 24 + n * 28;
-  for (int i = 0; i < n; ++i) {
-    const auto *p = data + 24 + i * 28;
-    const int h = be32(p + 4), w = be32(p + 8);
-    if (uint32_t(be32(p)) == cp)
-      return Glyph{
-          w, h, be32(p + 12), be32(p + 16), be32(p + 20), data + offset};
-    offset += size_t(h) * w;
+  // Glyph metadata is sorted by codepoint; bitmap offsets live in flash.
+  // No linear scan of all preceding glyphs and no heap/cache allocation.
+  int low = 0, high = n;
+  while (low < high) {
+    const int mid = low + (high - low) / 2;
+    const auto *p = data + 24 + mid * 28;
+    const auto code = uint32_t(be32(p));
+    if (code < cp) low = mid + 1;
+    else if (code > cp) high = mid;
+    else return Glyph{be32(p + 8), be32(p + 4), be32(p + 12),
+                      be32(p + 16), be32(p + 20), data + fontPixelOffset(font, mid)};
   }
   if (cp != '?')
     return glyph(Body, '?');
@@ -123,6 +127,13 @@ public:
               endX = std::min({width, x + w, clip.x + clip.w});
     const int startY = std::max({0, y, clip.y}),
               endY = std::min({height, y + h, clip.y + clip.h});
+    if (startX >= endX || startY >= endY) return;
+    if (r == 0) {
+      const auto color = swapped ? swap(c) : c;
+      for (int yy = startY; yy < endY; ++yy)
+        std::fill(pixels + yy * width + startX, pixels + yy * width + endX, color);
+      return;
+    }
     r = std::min(r, std::min(w, h) / 2);
     for (int yy = startY; yy < endY; ++yy)
       for (int xx = startX; xx < endX; ++xx) {

@@ -32,7 +32,7 @@ if(_flint_lib)
     add_dependencies(${_flint_lib} flint_gen_i18n)
 endif()
 
-# —— Asset pack (→ LittleFS storage image) ——
+# —— Asset pack (→ LittleFS system-assets image) ——
 # Mirror tools/gen_asset_pack.py: assets/<category>/*.png, skip fs_root.
 set(FLINT_ASSET_PNGS "")
 file(GLOB FLINT_ASSET_DIRS CONFIGURE_DEPENDS LIST_DIRECTORIES true
@@ -62,5 +62,5 @@ add_custom_command(
 add_custom_target(flint_gen_asset_pack DEPENDS "${FLINT_ASSET_PACK}")
 
 set(FLINT_ASSETS_FS_ROOT "${CMAKE_SOURCE_DIR}/assets/fs_root")
-littlefs_create_partition_image(storage "${FLINT_ASSETS_FS_ROOT}" FLASH_IN_PROJECT
+littlefs_create_partition_image(assets "${FLINT_ASSETS_FS_ROOT}" FLASH_IN_PROJECT
     DEPENDS flint_gen_asset_pack)

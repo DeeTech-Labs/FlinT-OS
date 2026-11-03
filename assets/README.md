@@ -1,6 +1,6 @@
 # FlinT OS assets (LittleFS)
 
-Editable PNGs in category folders → one pack on `storage`.
+Editable PNGs in category folders → one pack on `assets`.
 
 **Rule:** pack only what a designer edits as a picture. Lines, fills, and text
 stay draw primitives (fonts / `fillRect` / hairlines). Do not rasterize chrome
@@ -11,7 +11,7 @@ or copy for flash or i18n.
 1. Edit / add PNG under the right category folder
 2. `idf.py build` (runs `gen_asset_pack.py` only if PNG / `FlintIconId` changed)
    — or manually: `python3 tools/gen_asset_pack.py`
-3. `idf.py flash` (full flash rewrites `storage`; `app-flash` keeps it).
+3. `idf.py flash` (full flash rewrites `assets`; `app-flash` keeps it).
    Mutable prefs live on a separate `cfg` LittleFS partition and are not
    overwritten when the asset image is flashed.
 
@@ -44,3 +44,5 @@ Pack loads **resident in RAM** when size ≤ `kMaxResidentPackBytes` (96 KiB);
 streams from LittleFS only if oversized or malloc fails (logged). Icons decode
 to an RGB565 scratch then one `pushImage`. Keep dirty/clip paths; do not expand
 full present to compensate for slow draws.
+
+Downloaded miniapps use the separate writable `storage` partition. Ordinary firmware/resource flashing does not rewrite it.

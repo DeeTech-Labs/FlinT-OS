@@ -3,14 +3,24 @@
 #include <stdio.h>
 
 namespace FlintRender {
-constexpr uint16_t Background = 0x0863, Surface = 0x10a5, Accent = 0x3bdf,
-                   Muted = 0x8d16, White = 0xef7d;
+// Shared watch palette: quiet surfaces, one mint focus color, high contrast text.
+inline uint16_t Background = 0x0842, Surface = 0x10c4, Accent = 0x7ef5,
+                   Muted = 0x94b2, White = 0xf7be, Selected = 0x1947;
+struct ThemeColors {
+  uint16_t background = 0x0842, surface = 0x10c4, accent = 0x7ef5,
+           muted = 0x94b2, foreground = 0xf7be, selected = 0x1947;
+};
+inline ThemeColors currentTheme() { return {Background, Surface, Accent, Muted, White, Selected}; }
+inline void setTheme(const ThemeColors& theme) {
+  Background=theme.background; Surface=theme.surface; Accent=theme.accent;
+  Muted=theme.muted; White=theme.foreground; Selected=theme.selected;
+}
+constexpr int VisibleRows = 3;
 inline Scene begin(const char *title) {
   Scene s;
   rect(s, 0, 0, 280, 240, Background);
-  rect(s, 14, 12, 5, 19, Accent, 2);
-  text(s, 29, 29, title, White);
-  rect(s, 14, 42, 252, 1, 0x19a8);
+  text(s, 20, 32, title, White);
+  rect(s, 20, 43, 240, 1, Surface);
   return s;
 }
 inline void fit(char *out, size_t capacity, const char *value, int width) {
@@ -40,26 +50,29 @@ inline void fit(char *out, size_t capacity, const char *value, int width) {
 }
 inline void row(Scene &s, int index, const char *label, const char *value,
                 bool selected) {
-  const int y = 51 + index * 40;
-  if (selected) {
-    rect(s, 10, y, 260, 36, 0x194e, 7);
-    rect(s, 10, y + 8, 3, 20, Accent, 1);
-  }
-  char left[96], right[96];
+  const int y = 49 + index * 52;
+  rect(s, 14, y, 252, 48, selected ? Selected : Background, 9);
+  rect(s, 14, y + 16, 3, 16, selected ? Accent : Background, 1);
+  char fitted[96];
   const bool hasValue = value && *value;
-  int valueWidth = 0;
+  fit(fitted, sizeof(fitted), label, 224);
+  text(s, 26, y + (hasValue ? 20 : 31), fitted,
+       hasValue ? Muted : White);
   if (hasValue) {
-    fit(right, sizeof(right), value, 118);
-    valueWidth = textWidth(Body, reinterpret_cast<const uint8_t *>(right),
-                           strlen(right));
+    fit(fitted, sizeof(fitted), value, 224);
+    text(s, 26, y + 41, fitted, selected ? Accent : White);
   }
-  fit(left, sizeof(left), label, hasValue ? 226 - valueWidth : 238);
-  text(s, 21, y + 25, left, selected ? White : Muted);
-  if (hasValue)
-    text(s, 259 - valueWidth, y + 25, right, White);
+}
+inline void counter(Scene &s, int current, int total) {
+  char value[32];
+  snprintf(value, sizeof(value), "%d/%d", current + 1, total);
+  text(s, 260 - textWidth(Body, reinterpret_cast<const uint8_t *>(value),
+                        strlen(value)), 32, value, Muted);
 }
 inline void footer(Scene &s, const char *hint) {
-  text(s, 140, 232, hint, Muted, Body, true);
+  char fitted[96];
+  fit(fitted, sizeof(fitted), hint, 232);
+  text(s, 140, 224, fitted, Muted, Body, true);
 }
 // Both the editor and firmware supply resolved text and reuse the exact layer
 // geometry.

@@ -37,7 +37,7 @@ Artifacts: `build/flint_os.bin`, `build/flint_os.elf`.
 
 ```bash
 idf.py -p /dev/ttyACM0 flash monitor
-idf.py -p /dev/ttyACM0 app-flash monitor   # app partition only; keeps storage image
+idf.py -p /dev/ttyACM0 app-flash monitor   # app partition only; keeps assets, installed packages and preferences
 # Leave monitor: Ctrl+]
 ```
 
@@ -124,3 +124,10 @@ This reduces application work; it does not enable automatic light-sleep or
 establish a measured current saving. Radio/network services are not linked. The current C3 board
 profile has no backlight control GPIO, so firmware cannot dim that wiring.
 An S3 power profile needs hardware validation, including USB behaviour during sleep.
+
+
+The current C3 layout separates `assets` (system resources), `storage` (downloaded
+packages) and `cfg` (preferences). Ordinary `flash` writes `assets.bin` but never
+writes an empty package-store image. See [Miniapps storage](MINIAPPS.md) before
+provisioning an older development layout; the first layout transition requires
+clean initialization of the affected writable partitions.

@@ -1,84 +1,63 @@
 #include "shell/shell_picker.h"
+#include "companion/miniapps.h"
+#include "faces/FaceRegistry.h"
 #include "render/builders.h"
 #include "render/watch_display.h"
-
-#include "display/display.h"
-#include "display/ui_tokens.h"
-#include "faces/FaceRegistry.h"
 #include "i18n/i18n.h"
-#include "settings/settings.h"
-#include "ui/chrome.h"
-#include "ui/ui.h"
-
-#include <stdio.h>
-#include <string.h>
-
-enum PickerDirty : uint8_t {
-  PICK_OVL_NONE = 0,
-  PICK_OVL_FULL = 1,
-  PICK_OVL_ROWS = 2,
-};
-
-static int gIndex = 0;
-static int gPrevIndex = 0;
-static PickerDirty gDirty = PICK_OVL_FULL;
-
-void shellPickerEnter() {
-  gIndex = 0;
-  const char* cur = FaceRegistry::activeId();
-  for (int i = 0; i < FaceRegistry::count(); i++) {
-    const FaceInfo* info = FaceRegistry::infoAt(i);
-    if (info && cur && strcmp(info->id, cur) == 0) {
-      gIndex = i;
-      break;
+#include <cstring>
+namespace {
+int gIndex=0, lastCount=-1;
+bool gDirty=true, confirmDelete=false;
+const char* error=nullptr;
+int count(){return 1+miniappsCount();}
+const char* selectedId(){const auto* p=miniappAt(gIndex-1);return p?p->id:"digital";}
+const char* selectedName(){const auto* p=miniappAt(gIndex-1);return p?p->name:"Spark Base";}
+void move(int direction){gIndex=(gIndex+count()+direction)%count();confirmDelete=false;error=nullptr;gDirty=true;}
+}
+void shellPickerEnter(){gIndex=0;for(int i=0;i<miniappsCount();++i)if(!strcmp(miniappAt(i)->id,FaceRegistry::activeId()))gIndex=i+1;lastCount=count();confirmDelete=false;error=nullptr;gDirty=true;}
+void shellPickerNavPrev(){move(-1);}
+void shellPickerNavNext(){move(1);}
+void shellPickerDelete(){
+  if(gIndex==0){error="protected_package";gDirty=true;return;}
+  confirmDelete=true;error=nullptr;gDirty=true;
+}
+bool shellPickerBack(){if(confirmDelete){confirmDelete=false;gDirty=true;return false;}return true;}
+bool shellPickerConfirm(){
+  if(confirmDelete){
+    error=miniappDelete(selectedId());confirmDelete=false;gIndex=0;gDirty=true;return false;
+  }
+  error=miniappActivate(selectedId());gDirty=true;return error==nullptr;
+}
+bool shellPickerNeedsFull(){if(lastCount!=count()){gIndex=0;gDirty=true;}return gDirty;}
+bool shellPickerNeedsRows(){return false;}
+void shellPickerPaint(uint8_t fade){
+  (void)fade;using namespace FlintRender;
+  const bool ru=flintI18nLang()==FLINT_I18N_RU;
+  auto scene=begin(ru?"Приложения":"Apps");
+  if(confirmDelete){
+    text(scene,140,88,ru?"Удалить пакет?":"Remove package?",White,Body,true);
+    char name[64];fit(name,sizeof(name),selectedName(),224);
+    text(scene,140,126,name,Accent,Body,true);
+    text(scene,140,172,ru?"Возврат к Spark Base":"Returns to Spark Base",Muted,Body,true);
+    footer(scene,ru?"Enter — удалить · Esc — назад":"Enter — remove · Esc — back");
+  }else{
+    counter(scene,gIndex,count());
+    const int start=(gIndex/VisibleRows)*VisibleRows;
+    for(int i=0;i<VisibleRows&&start+i<count();++i){
+      const int n=start+i;const auto* p=miniappAt(n-1);
+      const char* label=p?p->name:"Spark Base";
+      const char* detail=!p?(ru?"Базовый · защищён":"Base · protected"):
+          p->kind==1?(ru?"Тема":"Theme"):p->kind==0?(ru?"Циферблат":"Watch face"):(ru?"Комплект":"Bundle");
+      char status[96];
+      const bool active=p?(!strcmp(p->id,FaceRegistry::activeId())||!strcmp(p->id,miniappActiveTheme())):
+          (!strcmp(FaceRegistry::activeId(),"digital")&&!*miniappActiveTheme());
+      if(!p)snprintf(status,sizeof(status),"%s",ru?(active?"Выбран · защищён":"Защищён"):(active?"Active · protected":"Protected"));
+      else snprintf(status,sizeof(status),"%s%s",active?(ru?"Выбран · ":"Active · "):"",detail);
+      row(scene,i,label,status,n==gIndex);
     }
+    footer(scene,error?(strcmp(error,"protected_package")? (ru?"Не удалось сохранить":"Could not save") : (ru?"Базовый пакет защищён":"Base package is protected")):
+        (gIndex?"Enter · d — delete · Esc":"Enter · Esc"));
   }
-  gPrevIndex = gIndex;
-  gDirty = PICK_OVL_FULL;
-}
-
-void shellPickerNavPrev() {
-  if (FaceRegistry::count() <= 0) {
-    return;
-  }
-  gPrevIndex = gIndex;
-  gIndex = (gIndex + FaceRegistry::count() - 1) % FaceRegistry::count();
-  gDirty = PICK_OVL_ROWS;
-}
-
-void shellPickerNavNext() {
-  if (FaceRegistry::count() <= 0) {
-    return;
-  }
-  gPrevIndex = gIndex;
-  gIndex = (gIndex + 1) % FaceRegistry::count();
-  gDirty = PICK_OVL_ROWS;
-}
-
-bool shellPickerConfirm() {
-  const FaceInfo* info = FaceRegistry::infoAt(gIndex);
-  if (!info || !FaceRegistry::setActiveId(info->id)) {
-    return false;
-  }
-  settingsSetActiveFace(info->id);
-  return true;
-}
-
-bool shellPickerNeedsFull() {
-  return gDirty == PICK_OVL_FULL;
-}
-
-bool shellPickerNeedsRows() {
-  return gDirty == PICK_OVL_ROWS;
-}
-
-void shellPickerPaint(uint8_t fade) {
-  (void)fade;
-  auto scene=FlintRender::begin(flintTr(FlintStr::Faces));
-  const int count=FaceRegistry::count();
-  const int start=gIndex<4?0:gIndex-3;
-  for(int i=0;i<4&&start+i<count;++i){const auto* info=FaceRegistry::infoAt(start+i);if(info)FlintRender::row(scene,i,info->name,"",start+i==gIndex);}
-  FlintRender::footer(scene,"p/n · Enter · Esc");
-  watchPresentScene(scene);gPrevIndex=gIndex;gDirty=PICK_OVL_NONE;
+  watchPresentScene(scene);lastCount=count();gDirty=false;
 }
 void shellPickerPaintPartial(){shellPickerPaint(255);}

@@ -33,3 +33,6 @@ CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 # Authenticated numeric comparison; keys survive restart. Never evict a trusted peer automatically.
 CONFIG_BT_NIMBLE_MAX_BONDS=3
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
+
+# cfg, protected assets, and writable package storage.
+CONFIG_LITTLEFS_MAX_PARTITIONS=3

@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "nvs.h"
-#include "nvs_flash.h"
 
 static FlintSettings gSettings{};
 static bool gLoaded = false;
@@ -132,50 +130,6 @@ static bool settingsLoadFromFile() {
   return true;
 }
 
-// One-shot migrate: old NVS "flint" UI keys → ui.cfg when file is missing.
-static bool settingsMigrateFromNvs() {
-  nvs_handle_t h;
-  if (nvs_open("flint", NVS_READONLY, &h) != ESP_OK) {
-    return false;
-  }
-
-  bool any = false;
-  size_t len = sizeof(gSettings.activeFace);
-  if (nvs_get_str(h, "active_face", gSettings.activeFace, &len) == ESP_OK) {
-    any = true;
-  }
-
-  uint8_t u8 = 0;
-  if (nvs_get_u8(h, "show_sec", &u8) == ESP_OK) {
-    gSettings.showSeconds = u8;
-    any = true;
-  }
-  if (nvs_get_u8(h, "lang", &u8) == ESP_OK) {
-    gSettings.lang = u8;
-    any = true;
-  }
-  if (nvs_get_u8(h, "hour_fmt", &u8) == ESP_OK) {
-    gSettings.hourFormat = u8;
-    any = true;
-  }
-  if (nvs_get_u8(h, "date_fmt", &u8) == ESP_OK && u8 < SETTINGS_DATE_FORMAT_COUNT) {
-    gSettings.dateFormat = u8;
-    any = true;
-  }
-  if (nvs_get_u8(h, "date_sep", &u8) == ESP_OK && u8 < SETTINGS_DATE_SEP_COUNT) {
-    gSettings.dateSep = u8;
-    any = true;
-  }
-
-  len = sizeof(gSettings.tzId);
-  if (nvs_get_str(h, "tz_id", gSettings.tzId, &len) == ESP_OK) {
-    any = true;
-  }
-
-  nvs_close(h);
-  return any;
-}
-
 void settingsLoad() {
   if (gLoaded) {
     return;
@@ -193,9 +147,7 @@ void settingsLoad() {
     LOGI("set", "loaded face=%s sec=%u lang=%u tz=%s",
          gSettings.activeFace, (unsigned)gSettings.showSeconds, (unsigned)gSettings.lang,
          gSettings.tzId);
-  } else if (settingsMigrateFromNvs()) {
-    LOGI("set", "migrated from NVS face=%s", gSettings.activeFace);
-    settingsSave();
+
   } else {
     LOGI("set", "no ui.cfg — defaults face=%s", gSettings.activeFace);
   }

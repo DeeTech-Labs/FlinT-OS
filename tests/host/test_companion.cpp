@@ -60,18 +60,18 @@ int bleLinkLastEncryptionStatus() { return -1; }
 
 bool watchDisplayCommand(const char*,const char*,char*,size_t) { return false; }
 
-int miniappsCount() { return 0; }
-#include "companion/miniapps.h"
-const MiniappDefinition* miniappAt(int) { return nullptr; }
-const char* miniappInstall(const char*) { return "invalid_package"; }
-const char* miniappRemove(const char*) { return "unknown_package"; }
-const char* miniappThemeUse(const char*) { return "unknown_theme"; }
-void miniappThemeRestore() {}
+int ignitsCount() { return 0; }
+#include "companion/ignits.h"
+const IgnitDefinition* ignitAt(int) { return nullptr; }
+const char* ignitInstall(const char*) { return "invalid_package"; }
+const char* ignitRemove(const char*) { return "unknown_package"; }
+const char* ignitThemeUse(const char*) { return "unknown_theme"; }
+void ignitThemeRestore() {}
 
 #include "settings/cfg_fs.h"
 #include "storage/package_storage.h"
 bool packageStorageInfo(PackageStorageInfo& info){info={65536,4096,61440};return true;}
-const char* miniappActivate(const char*){return "unknown_package";}
-const char* miniappDelete(const char*){return "unknown_package";}
+const char* ignitActivate(const char*){return "unknown_package";}
+const char* ignitDelete(const char*){return "unknown_package";}
 
-uint32_t miniappFreeRam(){return 60000;}
+uint32_t ignitFreeRam(){return 60000;}

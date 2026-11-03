@@ -7,4 +7,4 @@
   during ordinary updates; an erased filesystem is initialized at first boot.
 
 Hardware sources: `components/flint/board/models/flint_spark/c3_dev/`.
-Package storage and first-time provisioning: [Miniapps](../docs/MINIAPPS.md).
+Package storage and first-time provisioning: [Ignits](../docs/IGNITS.md).

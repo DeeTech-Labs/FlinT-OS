@@ -1,4 +1,4 @@
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 #include "util/flint_sys.h"
 #include "settings/settings.h"
 #include "settings/cfg_fs.h"
@@ -6,10 +6,10 @@
 #include "event/event.h"
 #include "ui/ui.h"
 #include <cstring>
-const char* miniappActivate(const char* id) {
+const char* ignitActivate(const char* id) {
   if(!id)return "invalid_arguments";
   const bool base=!strcmp(id,"digital");
-  const auto* package=base?nullptr:miniappFind(id);
+  const auto* package=base?nullptr:ignitFind(id);
   if(!base&&!package)return "unknown_package";
   const auto previous=settingsGet();
   if(base||package->kind!=1) {
@@ -17,7 +17,7 @@ const char* miniappActivate(const char* id) {
     if(!settingsApply(next))return "storage_error";
   }
   if(base||package->kind!=0) {
-    if(const char* error=miniappThemeUse(base?"":id)) {
+    if(const char* error=ignitThemeUse(base?"":id)) {
       settingsApply(previous);return error;
     }
   }
@@ -27,15 +27,15 @@ const char* miniappActivate(const char* id) {
   }
   flintEventEmit(FLINT_EVT_FORCE_REDRAW);return nullptr;
 }
-const char* miniappDelete(const char* id) {
+const char* ignitDelete(const char* id) {
   if(!id)return "invalid_arguments";
   if(!strcmp(id,"digital"))return "protected_package";
-  if(!miniappFind(id))return "unknown_package";
+  if(!ignitFind(id))return "unknown_package";
   char theme[25]{};cfgFsReadFile("/cfg/theme.cfg",theme,sizeof(theme));
   if(!strcmp(settingsGet().activeFace,id)||!strcmp(theme,id))
-    if(const char* error=miniappActivate("digital"))return error;
-  if(const char* error=miniappRemove(id))return error;
+    if(const char* error=ignitActivate("digital"))return error;
+  if(const char* error=ignitRemove(id))return error;
   flintEventEmit(FLINT_EVT_FORCE_REDRAW);return nullptr;
 }
 
-uint32_t miniappFreeRam(){return flintFreeHeap();}
+uint32_t ignitFreeRam(){return flintFreeHeap();}

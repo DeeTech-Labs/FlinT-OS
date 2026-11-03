@@ -246,10 +246,10 @@ Desktop's standalone copy and refresh both renderer identities. Desktop's packag
 test rejects divergent sources or a stale identity.
 
 
-## Miniapps v1
+## Ignits v1
 
-Firmware advertising `miniapps_v1` supports bounded face/theme/bundle packages.
-See [MINIAPPS.md](MINIAPPS.md) for the file schema, limits and `MINIS`,
-`MINIINSTALL`, `MINIREMOVE`, `MINITHEME` commands. These commands require a trusted
+Firmware advertising `ignits_v1` supports bounded face/theme/bundle packages.
+See [IGNITS.md](IGNITS.md) for the file schema, limits and `IGNITS`,
+`IGNITINSTALL`, `IGNITREMOVE`, `IGNITTHEME` commands. These commands require a trusted
 transport. `FACES` now returns compact `{id,name,version}` entries including
-installed package faces; themes are listed by `MINIS`.
+installed package faces; themes are listed by `IGNITS`.

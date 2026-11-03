@@ -45,4 +45,4 @@ streams from LittleFS only if oversized or malloc fails (logged). Icons decode
 to an RGB565 scratch then one `pushImage`. Keep dirty/clip paths; do not expand
 full present to compensate for slow draws.
 
-Downloaded miniapps use the separate writable `storage` partition. Ordinary firmware/resource flashing does not rewrite it.
+Downloaded ignits use the separate writable `storage` partition. Ordinary firmware/resource flashing does not rewrite it.

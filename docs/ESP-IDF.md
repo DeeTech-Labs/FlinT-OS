@@ -128,6 +128,6 @@ An S3 power profile needs hardware validation, including USB behaviour during sl
 
 The current C3 layout separates `assets` (system resources), `storage` (downloaded
 packages) and `cfg` (preferences). Ordinary `flash` writes `assets.bin` but never
-writes an empty package-store image. See [Miniapps storage](MINIAPPS.md) before
+writes an empty package-store image. See [Ignits storage](IGNITS.md) before
 provisioning an older development layout; the first layout transition requires
 clean initialization of the affected writable partitions.

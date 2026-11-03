@@ -1,16 +1,16 @@
 {
-  "schema": "flint.miniapp/1",
-  "id": "pkg.quiet-face",
-  "name": "Quiet Blue",
+  "schema": "flint.ignit/1",
+  "id": "pkg.amber-theme",
+  "name": "Amber",
   "version": 1,
   "target": "flint_spark",
   "api": 1,
-  "kind": "face",
-  "layout": "quiet",
+  "kind": "theme",
+  "layout": "digital",
   "theme": {
     "background": "#080c10",
     "surface": "#111c24",
-    "accent": "#c4d4e4",
+    "accent": "#ffbd69",
     "muted": "#99aabb",
     "text": "#f4f4ee",
     "selection": "#20323e"

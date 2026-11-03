@@ -1,6 +1,6 @@
-# Watch faces and miniapps
+# Watch faces and ignits
 
-User-installable faces and themes use [Flint Miniapps v1](MINIAPPS.md). Install
+User-installable faces and themes use [Flint Ignits v1](IGNITS.md). Install
 packages from the Companion Market; choose and remove them in the watch Apps menu.
 Spark ships exactly one protected built-in package, Spark Base.
 

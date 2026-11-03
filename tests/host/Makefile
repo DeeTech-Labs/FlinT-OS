@@ -10,7 +10,7 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -UNDEBUG -I$(FLINT) -I.
 
 .PHONY: all run clean
 
-all: $(BUILD)/test_miniapps $(BUILD)/test_renderer $(BUILD)/test_companion $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
+all: $(BUILD)/test_ignits $(BUILD)/test_renderer $(BUILD)/test_companion $(BUILD)/test_day_mode $(BUILD)/test_date_fmt $(BUILD)/test_ui_dirty \
 	$(BUILD)/test_settings_clamp $(BUILD)/test_fi_validate $(BUILD)/test_cfg_fs $(BUILD)/test_clock_schedule $(BUILD)/test_pc_link
 
 $(BUILD):
@@ -48,11 +48,11 @@ $(BUILD)/test_companion: test_companion.cpp $(FLINT)/companion/control.cpp | $(B
 $(BUILD)/test_renderer: test_renderer.cpp $(wildcard $(FLINT)/render/*.h) $(FLINT)/render/fonts.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ test_renderer.cpp $(FLINT)/render/fonts.cpp
 
-$(BUILD)/test_miniapps: test_miniapps.cpp $(FLINT)/companion/miniapps.cpp $(FLINT)/companion/miniapps.h $(FLINT)/render/builders.h | $(BUILD)
-	$(CXX) $(CXXFLAGS) -o $@ test_miniapps.cpp $(FLINT)/companion/miniapps.cpp
+$(BUILD)/test_ignits: test_ignits.cpp $(FLINT)/companion/ignits.cpp $(FLINT)/companion/ignits.h $(FLINT)/render/builders.h | $(BUILD)
+	$(CXX) $(CXXFLAGS) -o $@ test_ignits.cpp $(FLINT)/companion/ignits.cpp
 
 run: all
-	./$(BUILD)/test_miniapps
+	./$(BUILD)/test_ignits
 	./$(BUILD)/test_renderer
 	./$(BUILD)/test_companion
 	./$(BUILD)/test_pc_link

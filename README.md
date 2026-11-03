@@ -19,7 +19,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#docs">Docs</a> ·
-  <a href="docs/MINIAPPS.md">Miniapps</a> ·
+  <a href="docs/IGNITS.md">Ignits</a> ·
   <a href="https://github.com/DeeTech-Labs/FlinT-OS/discussions">Discussions</a>
 </p>
 
@@ -42,7 +42,7 @@ Core services stay stable — time, USB, settings, shell, assets. **Faces are pl
     <td width="50%" valign="top">
       <h3>Built-in</h3>
       <ul>
-        <li>Protected Spark Base · installable miniapps</li>
+        <li>Protected Spark Base · installable ignits</li>
         <li>Soft-clock + USB PC sync + timezone DB</li>
         <li>Offline · settings on <code>cfg</code> LittleFS</li>
         <li>Face picker · event bus · boot splash</li>
@@ -157,11 +157,12 @@ pairing limitations and the hardware validation checklist.
 
 | Doc | Contents |
 |-----|----------|
-| [`docs/MINIAPPS.md`](docs/MINIAPPS.md) | Installable watch faces, themes and combined packages |
+| [`docs/NAMING.md`](docs/NAMING.md) | Flint names and Ignit terminology |
+| [`docs/IGNITS.md`](docs/IGNITS.md) | Installable watch faces, themes and combined packages |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Spark scope, hardware revisions, milestones and acceptance criteria (RU) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Dependencies, Face contract, dirty events |
 | [`docs/MODULES.md`](docs/MODULES.md) | What each directory owns |
-| [`docs/FACES.md`](docs/FACES.md) | Native face contract and Miniapp entry point |
+| [`docs/FACES.md`](docs/FACES.md) | Native face contract and Ignit entry point |
 | [`docs/ESP-IDF.md`](docs/ESP-IDF.md) | Build / flash / monitor cheatsheet |
 | [`assets/README.md`](assets/README.md) | LittleFS icon pack |
 | [`components/flint/board/README.md`](components/flint/board/README.md) | Board profiles |

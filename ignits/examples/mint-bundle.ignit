@@ -1,16 +1,16 @@
 {
-  "schema": "flint.miniapp/1",
-  "id": "pkg.amber-theme",
-  "name": "Amber",
+  "schema": "flint.ignit/1",
+  "id": "pkg.mint-bundle",
+  "name": "Mint",
   "version": 1,
   "target": "flint_spark",
   "api": 1,
-  "kind": "theme",
-  "layout": "digital",
+  "kind": "bundle",
+  "layout": "blocks",
   "theme": {
     "background": "#080c10",
     "surface": "#111c24",
-    "accent": "#ffbd69",
+    "accent": "#77ddbb",
     "muted": "#99aabb",
     "text": "#f4f4ee",
     "selection": "#20323e"

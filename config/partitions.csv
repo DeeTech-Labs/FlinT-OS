@@ -1,7 +1,7 @@
 # FlinT OS — ESP32-C3 4MB (lean app + LittleFS asset storage + cfg)
 # Dual OTA ~1.25MB/slot for firmware only.
 # Protected system icons live in assets (LittleFS, flashed with firmware).
-# Downloaded miniapps/themes/images live in storage (LittleFS, runtime R/W).
+# Downloaded ignits/themes/images live in storage (LittleFS, runtime R/W).
 # UI prefs + soft clock epoch live in cfg (LittleFS), runtime R/W.
 # Name,   Type, SubType, Offset,  Size, Flags
 nvs,      data, nvs,     0x9000,  0x5000,

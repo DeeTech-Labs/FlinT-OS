@@ -12,7 +12,7 @@ What exists under `components/flint/` today. Paths are from that component root.
 | `display/` | LovyanGFX HAL, shared fonts, icon draw, UI tokens (design space from board) |
 | `assets/` | Mount `storage` LittleFS; blit from `core.flintpack` |
 | `sdk/` | Public Face SDK headers (`flint_face_sdk.h`, resources) |
-| `faces/` | `Face` API, registry, glances, built-in faces (protected Spark Base and installed miniapp faces) |
+| `faces/` | `Face` API, registry, glances, built-in faces (protected Spark Base and installed ignit faces) |
 | `day_mode/` | Hour→mode (`day_mode_hour.*`), profiles (`day_mode_profile.*`), palettes/wash |
 | `i18n/` | Language packs / `flintTr` |
 | `usb/` | PC connection, UTC sync protocol, status LED |

@@ -2,7 +2,7 @@
 #include "render/watch_display.h"
 #include "companion/action_input.h"
 #include "ble/ble_link.h"
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 #include "usb/pc_data.h"
 #include "settings/settings.h"
 #include "storage/package_storage.h"
@@ -105,36 +105,36 @@ void companionExecute(const PcCommand& command, char* response, size_t capacity,
     if (!settingsApply(next)) { result(command, response, capacity, nullptr, "storage_error"); return; }
     flintEventEmit(FLINT_EVT_SETTINGS);
     settingsJson(json, sizeof(json));
-  } else if (!strcmp(command.operation, "MINIINSTALL")) {
-    const char* error = miniappInstall(command.payload);
+  } else if (!strcmp(command.operation, "IGNITINSTALL")) {
+    const char* error = ignitInstall(command.payload);
     if (error) { result(command,response,capacity,nullptr,error); return; }
-    miniappThemeRestore();
+    ignitThemeRestore();
     FaceRegistry::setActiveId(settingsGet().activeFace);
     uiFaceActivateCurrent();
     flintEventEmit(FLINT_EVT_FORCE_REDRAW);
     strcpy(json,"{\"installed\":true}");
-  } else if (!strcmp(command.operation, "MINIREMOVE")) {
-    const char* error = miniappDelete(command.payload);
+  } else if (!strcmp(command.operation, "IGNITREMOVE")) {
+    const char* error = ignitDelete(command.payload);
     if (error) { result(command,response,capacity,nullptr,error); return; }
     strcpy(json,"{\"removed\":true}");
-  } else if (!strcmp(command.operation, "MINITHEME")) {
-    const char* error=miniappThemeUse(command.payload);
+  } else if (!strcmp(command.operation, "IGNITTHEME")) {
+    const char* error=ignitThemeUse(command.payload);
     if(error) { result(command,response,capacity,nullptr,error);return; }
     flintEventEmit(FLINT_EVT_FORCE_REDRAW);
     strcpy(json,"{\"applied\":true}");
-  } else if (!strcmp(command.operation, "MINIUSE")) {
-    const char* error=miniappActivate(command.payload);
+  } else if (!strcmp(command.operation, "IGNITUSE")) {
+    const char* error=ignitActivate(command.payload);
     if(error){result(command,response,capacity,nullptr,error);return;}
     strcpy(json,"{\"applied\":true}");
-  } else if (!strcmp(command.operation, "MINISTORAGE")) {
+  } else if (!strcmp(command.operation, "IGNITSTORAGE")) {
     PackageStorageInfo storage;
     if(!packageStorageInfo(storage)){result(command,response,capacity,nullptr,"storage_unavailable");return;}
     snprintf(json,sizeof(json),"{\"partition\":\"storage\",\"total\":%u,\"used\":%u,\"free\":%u,\"reserved\":%u,\"write_budget\":%u,\"capacity\":%d,\"installed\":%d,\"free_ram\":%u,\"ram_reserve\":%u}",
-        unsigned(storage.total),unsigned(storage.used),unsigned(storage.free),unsigned(MiniappStorageReserve),unsigned(MiniappAtomicWriteBudget),MiniappSlots,miniappsCount(),unsigned(miniappFreeRam()),unsigned(MiniappRamReserve));
-  } else if (!strcmp(command.operation, "MINIS")) {
+        unsigned(storage.total),unsigned(storage.used),unsigned(storage.free),unsigned(IgnitStorageReserve),unsigned(IgnitAtomicWriteBudget),IgnitSlots,ignitsCount(),unsigned(ignitFreeRam()),unsigned(IgnitRamReserve));
+  } else if (!strcmp(command.operation, "IGNITS")) {
     PcJsonWriter writer(json,sizeof(json));writer.raw("[{\"id\":\"digital\",\"name\":\"Spark Base\",\"version\":3,\"kind\":2,\"protected\":true}");
-    for(int i=0;i<miniappsCount();++i) {
-      const auto* p=miniappAt(i);writer.raw(",");
+    for(int i=0;i<ignitsCount();++i) {
+      const auto* p=ignitAt(i);writer.raw(",");
       writer.raw("{\"id\":");writer.text(p->id);
       writer.raw(",\"name\":");writer.text(p->name);
       writer.raw(",\"version\":");writer.number(p->version);
@@ -155,7 +155,7 @@ void companionExecute(const PcCommand& command, char* response, size_t capacity,
     writer.raw("]");
     if (!writer.finish()) { result(command, response, capacity, nullptr, "overflow"); return; }
   } else if (!strcmp(command.operation, "FACE")) {
-    const char* error=miniappActivate(command.payload);
+    const char* error=ignitActivate(command.payload);
     if(error){result(command,response,capacity,nullptr,error);return;}
     settingsJson(json,sizeof(json));
   } else if (!strcmp(command.operation, "TIMEZONES")) {

@@ -1,14 +1,14 @@
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 #include "render/watch_faces.h"
 #include "render/watch_display.h"
 #include "sdk/flint_face_sdk.h"
 namespace {
-class MiniappFace : public Face {
-  MiniappDefinition definition_;
+class IgnitFace : public Face {
+  IgnitDefinition definition_;
   FaceInfo metadata_;
  public:
-  explicit MiniappFace(const MiniappDefinition& p) : definition_(p),
-      metadata_{definition_.id,definition_.name,"Miniapp",p.version,1} {}
+  explicit IgnitFace(const IgnitDefinition& p) : definition_(p),
+      metadata_{definition_.id,definition_.name,"Ignit",p.version,1} {}
   const FaceInfo& info() const override { return metadata_; }
   void onForceRedraw(const FaceContext& ctx) override { paint(ctx); }
   void onTick(const FaceContext& ctx) override {
@@ -34,4 +34,4 @@ class MiniappFace : public Face {
   }
 };
 }
-Face* createMiniappFace(const MiniappDefinition& definition) { return new MiniappFace(definition); }
+Face* createIgnitFace(const IgnitDefinition& definition) { return new IgnitFace(definition); }

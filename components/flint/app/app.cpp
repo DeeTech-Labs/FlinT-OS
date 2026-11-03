@@ -1,7 +1,7 @@
 #include "app.h"
 #include "render/watch_display.h"
 #include "faces/FaceRegistry.h"
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 #include <cstring>
 #include "ble/ble_link.h"
 #include "anim/anim.h"

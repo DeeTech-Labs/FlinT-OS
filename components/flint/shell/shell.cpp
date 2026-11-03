@@ -8,7 +8,7 @@
 #include "event/event.h"
 #include "faces/FaceRegistry.h"
 #include "settings/settings.h"
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 #include "shell/shell_picker.h"
 #include "shell/shell_settings.h"
 #include "ui/ui.h"
@@ -94,8 +94,8 @@ static void goTo(ShellState next) {
 void shellBegin() {
   shellConsoleInit();
   settingsLoad();
-  miniappsBegin();
-  miniappThemeRestore();
+  ignitsBegin();
+  ignitThemeRestore();
   if (!displayHasCanvas()) {
     LOGE("shell", "no canvas — shell idle");
     return;

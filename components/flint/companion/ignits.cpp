@@ -1,11 +1,11 @@
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 #include "settings/cfg_fs.h"
 #include "storage/package_storage.h"
 #include "render/builders.h"
 #include <cstdio>
 #include <cstring>
 namespace {
-MiniappDefinition installed[MiniappSlots];
+IgnitDefinition installed[IgnitSlots];
 char activeTheme[25]{};
 bool number(const char* s, unsigned& value, unsigned max, unsigned base = 10) {
   if (!s || !*s) return false;
@@ -18,9 +18,9 @@ bool number(const char* s, unsigned& value, unsigned max, unsigned base = 10) {
   }
   return true;
 }
-void pathFor(int slot, char* path, size_t n) { snprintf(path, n, "/storage/packages/mini%d.app", slot); }
+void pathFor(int slot, char* path, size_t n) { snprintf(path, n, "/storage/packages/ignit%d.ignit", slot); }
 }
-bool miniappParse(const char* wire, MiniappDefinition& out) {
+bool ignitParse(const char* wire, IgnitDefinition& out) {
   if (!wire || strlen(wire) >= 256) return false;
   char buffer[256]; strcpy(buffer, wire);
   char* parts[12]{}; char* save = nullptr; int count = 0;
@@ -32,7 +32,7 @@ bool miniappParse(const char* wire, MiniappDefinition& out) {
       strlen(parts[1]) < 5 || strlen(parts[1]) > 24) return false;
   for (const char* p = parts[1]; *p; ++p)
     if (!((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '.' || *p == '-')) return false;
-  MiniappDefinition next;
+  IgnitDefinition next;
   strcpy(next.id, parts[1]);
   const size_t nameLength = strlen(parts[2]);
   if (!nameLength || nameLength % 2 || nameLength > 48) return false;
@@ -70,47 +70,47 @@ bool miniappParse(const char* wire, MiniappDefinition& out) {
   out = next;
   return true;
 }
-void miniappsBegin() {
+void ignitsBegin() {
   for (auto& item : installed) item = {};
-  for (int i = 0; i < MiniappSlots; ++i) {
+  for (int i = 0; i < IgnitSlots; ++i) {
     char path[32], text[256]; pathFor(i,path,sizeof(path));
-    MiniappDefinition next;
-    if (packageStorageReadFile(path,text,sizeof(text)) >= 0 && miniappParse(text,next) && !miniappFind(next.id)) installed[i] = next;
+    IgnitDefinition next;
+    if (packageStorageReadFile(path,text,sizeof(text)) >= 0 && ignitParse(text,next) && !ignitFind(next.id)) installed[i] = next;
   }
 }
-int miniappsCount() { int n=0; for (const auto& p:installed) if (*p.id) ++n; return n; }
-const MiniappDefinition* miniappAt(int index) {
+int ignitsCount() { int n=0; for (const auto& p:installed) if (*p.id) ++n; return n; }
+const IgnitDefinition* ignitAt(int index) {
   if (index < 0) return nullptr;
   for (const auto& p:installed) if (*p.id && index-- == 0) return &p;
   return nullptr;
 }
-const MiniappDefinition* miniappFind(const char* id) {
+const IgnitDefinition* ignitFind(const char* id) {
   if (!id) return nullptr;
   for (const auto& p:installed) if (*p.id && !strcmp(id,p.id)) return &p;
   return nullptr;
 }
-const char* miniappInstall(const char* wire) {
-  MiniappDefinition next;
-  if (!miniappParse(wire,next)) return "invalid_package";
+const char* ignitInstall(const char* wire) {
+  IgnitDefinition next;
+  if (!ignitParse(wire,next)) return "invalid_package";
   int slot = -1;
-  for (int i=0;i<MiniappSlots;++i) if (!strcmp(installed[i].id,next.id)) { slot=i; break; }
-  if (slot < 0) for(int i=0;i<MiniappSlots;++i) if (!*installed[i].id) { slot=i; break; }
+  for (int i=0;i<IgnitSlots;++i) if (!strcmp(installed[i].id,next.id)) { slot=i; break; }
+  if (slot < 0) for(int i=0;i<IgnitSlots;++i) if (!*installed[i].id) { slot=i; break; }
   if (slot < 0) return "package_storage_full";
   if (*installed[slot].id && next.kind != installed[slot].kind) return "package_kind_changed";
   if (*installed[slot].id && next.version < installed[slot].version) return "package_downgrade";
-  if(miniappFreeRam()<MiniappRamReserve)return "insufficient_ram";
+  if(ignitFreeRam()<IgnitRamReserve)return "insufficient_ram";
   PackageStorageInfo storage;
   if(!packageStorageInfo(storage))return "storage_unavailable";
-  if(storage.free < MiniappStorageReserve + MiniappAtomicWriteBudget + strlen(wire))return "insufficient_storage";
+  if(storage.free < IgnitStorageReserve + IgnitAtomicWriteBudget + strlen(wire))return "insufficient_storage";
   char path[32]; pathFor(slot,path,sizeof(path));
   if (!packageStorageWriteAtomic(path,wire,strlen(wire))) return "storage_error";
   installed[slot] = next;
   return nullptr;
 }
-const char* miniappRemove(const char* id) {
+const char* ignitRemove(const char* id) {
   if(!id)return "invalid_arguments";
   if(!strcmp(id,"digital"))return "protected_package";
-  for (int i=0;i<MiniappSlots;++i) if (*installed[i].id && !strcmp(installed[i].id,id)) {
+  for (int i=0;i<IgnitSlots;++i) if (*installed[i].id && !strcmp(installed[i].id,id)) {
     char path[32];pathFor(i,path,sizeof(path));
     if (!packageStorageRemove(path)) return "storage_error";
     installed[i]={};return nullptr;
@@ -119,7 +119,7 @@ const char* miniappRemove(const char* id) {
 }
 
 namespace {
-void applyTheme(const MiniappDefinition* p) {
+void applyTheme(const IgnitDefinition* p) {
   FlintRender::ThemeColors colors;
   if (p) colors = {FlintRender::rgb24(p->colors[0]), FlintRender::rgb24(p->colors[1]),
       FlintRender::rgb24(p->colors[2]), FlintRender::rgb24(p->colors[3]),
@@ -127,20 +127,20 @@ void applyTheme(const MiniappDefinition* p) {
   FlintRender::setTheme(colors);
 }
 }
-const char* miniappThemeUse(const char* id) {
+const char* ignitThemeUse(const char* id) {
   if (!id) return "invalid_arguments";
-  const auto* p = *id ? miniappFind(id) : nullptr;
+  const auto* p = *id ? ignitFind(id) : nullptr;
   if (*id && (!p || p->kind == 0)) return "unknown_theme";
   if (!cfgFsWriteAtomic("/cfg/theme.cfg",id,strlen(id))) return "storage_error";
   strcpy(activeTheme,id);applyTheme(p);return nullptr;
 }
-void miniappThemeRestore() {
+void ignitThemeRestore() {
   char id[25]{};
   cfgFsReadFile("/cfg/theme.cfg",id,sizeof(id));
-  const auto* p = miniappFind(id);
+  const auto* p = ignitFind(id);
   const bool valid=p && p->kind!=0;
   strcpy(activeTheme,valid?id:"");
   applyTheme(valid?p:nullptr);
 }
 
-const char* miniappActiveTheme(){return activeTheme;}
+const char* ignitActiveTheme(){return activeTheme;}

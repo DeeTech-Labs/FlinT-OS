@@ -50,11 +50,11 @@ Clock edits from the settings overlay emit `MINUTE` / `TIME_VALID` as appropriat
 | Store | Role |
 |-------|------|
 | `assets` LittleFS | Protected system asset pack (`core.flintpack`) |
-| `storage` LittleFS | Installed miniapps and package resources |
+| `storage` LittleFS | Installed ignits and package resources |
 | `cfg` LittleFS | UI prefs (`ui.cfg`) + soft clock (`time.cfg`) |
 | ESP-IDF NVS | BLE keys and system state; no UI/clock migration |
 
 System resources are loaded from the `assets` LittleFS partition (`/assets`).
-Downloadable miniapp descriptors live in `storage` (`/storage/packages`).
+Downloadable ignit descriptors live in `storage` (`/storage/packages`).
 Only preferences, selected IDs and the soft clock live in `cfg` (`/cfg`).
 Old NVS UI/epoch migration paths are removed during active development.

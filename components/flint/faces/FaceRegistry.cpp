@@ -1,8 +1,8 @@
 #include "faces/FaceRegistry.h"
 #include "config/config.h"
-#include "companion/miniapps.h"
+#include "companion/ignits.h"
 
-Face* createMiniappFace(const MiniappDefinition& definition);
+Face* createIgnitFace(const IgnitDefinition& definition);
 #include "config/debug.h"
 
 #include <string.h>
@@ -50,7 +50,7 @@ bool add(FaceFactory factory, const FaceInfo& info) {
 
 int count() {
   int count = gFactoryCount;
-  for (int i=0;i<miniappsCount();++i) if (miniappAt(i)->kind != 1) ++count;
+  for (int i=0;i<ignitsCount();++i) if (ignitAt(i)->kind != 1) ++count;
   return count;
 }
 
@@ -58,12 +58,12 @@ const FaceInfo* infoAt(int index) {
   if (index < 0) return nullptr;
   if (index < gFactoryCount) return &gEntries[index].info;
   index -= gFactoryCount;
-  static FaceInfo metadata[MiniappSlots];
-  for (int i=0;i<miniappsCount();++i) {
-    const auto* p = miniappAt(i);
+  static FaceInfo metadata[IgnitSlots];
+  for (int i=0;i<ignitsCount();++i) {
+    const auto* p = ignitAt(i);
     if (p->kind == 1) continue;
     if (index-- == 0) {
-      metadata[i] = {p->id,p->name,"Miniapp",p->version,1};
+      metadata[i] = {p->id,p->name,"Ignit",p->version,1};
       return &metadata[i];
     }
   }
@@ -71,7 +71,7 @@ const FaceInfo* infoAt(int index) {
 }
 
 Face* createById(const char* id) {
-  if (const auto* p = miniappFind(id)) return p->kind != 1 ? createMiniappFace(*p) : nullptr;
+  if (const auto* p = ignitFind(id)) return p->kind != 1 ? createIgnitFace(*p) : nullptr;
   if (!id) {
     return nullptr;
   }

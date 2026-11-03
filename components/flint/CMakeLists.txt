@@ -18,9 +18,9 @@ set(FLINT_SRCS
     render/fonts.cpp
     storage/fs_io.cpp
     storage/package_storage.cpp
-    companion/miniapp_runtime.cpp
-    companion/miniapps.cpp
-    faces/face_miniapp.cpp
+    companion/ignit_runtime.cpp
+    companion/ignits.cpp
+    faces/face_ignit.cpp
     companion/control.cpp
     anim/anim.cpp
     ble/ble_link.cpp

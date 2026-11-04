@@ -10,6 +10,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
+              with:
+                  submodules: recursive
             - run: python3 -m pip install Pillow
             - run: cmake -S platform -B /tmp/flint-platform -DCMAKE_BUILD_TYPE=Debug
             - run: cmake --build /tmp/flint-platform --parallel 2
@@ -18,14 +20,16 @@ jobs:
             - run: |
                     python3 platform/tools/generate_registry.py
                     python3 platform/tools/build_system.py
-                    git diff --exit-code -- platform/include/flint/registry.h platform/factory
+                    git -C platform diff --exit-code -- include/flint/registry.h include/flint/services.h factory examples
     firmware:
         runs-on: ubuntu-latest
         container: espressif/idf:v6.0.2
         steps:
             - uses: actions/checkout@v5
+              with:
+                  submodules: recursive
             - name: Compile S3 firmware locally
-                shell: bash
-                run: |
+              shell: bash
+              run: |
                     . /opt/esp/idf/export.sh
                     idf.py -DIDF_TARGET=esp32s3 build

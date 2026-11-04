@@ -14,6 +14,7 @@
 #include <unistd.h>
 static std::unique_ptr<flint::Core> core;
 static flint::FrameParser usbParser;
+static uint64_t maxTickUs{}, maxFrameUs{};
 static flint::Session usbSession{true, false, 1};
 
 static bool mount(const char *name, const char *path, bool readOnly = false) {
@@ -73,6 +74,17 @@ void appSetup(bool trustReady) {
     platform.memory = {
         uint32_t(internal > 32768 ? std::min<size_t>(internal - 32768, 48 * 1024) : 0),
         uint32_t(external), 4096};
+    platform.diagnostics = [] {
+        flint::Values values;
+        values["internal_free_bytes"] = std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        values["internal_largest_bytes"] = std::to_string(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        values["internal_minimum_bytes"] = std::to_string(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        values["psram_free_bytes"] = std::to_string(heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        values["main_stack_watermark_bytes"] = std::to_string(uxTaskGetStackHighWaterMark(nullptr));
+        values["max_tick_us"] = std::to_string(maxTickUs);
+        values["max_frame_us"] = std::to_string(maxFrameUs);
+        return values;
+    };
     platform.monotonic = [] { return uint64_t(esp_timer_get_time() / 1000); };
     platform.free_storage = [] {
         size_t total = 0, used = 0;
@@ -117,10 +129,15 @@ void appLoop() {
     }
     attached = connected;
     bleLinkMaintain();
-    if (core->tick()) {
+    const auto tickStart = esp_timer_get_time();
+    const bool dirty = core->tick();
+    maxTickUs = std::max(maxTickUs, uint64_t(esp_timer_get_time() - tickStart));
+    if (dirty) {
+        const auto frameStart = esp_timer_get_time();
         FlintRender::Scene scene;
         if (core->scene(scene) == flint::Error::ok)
             displayScene(*core, scene);
+        maxFrameUs = std::max(maxFrameUs, uint64_t(esp_timer_get_time() - frameStart));
     }
     vTaskDelay(pdMS_TO_TICKS(2));
 }

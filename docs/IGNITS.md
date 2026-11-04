@@ -18,4 +18,4 @@ Flare uses resumable binary blocks, a complete-file digest, staging validation a
 
 ## Runtime and limits
 
-Declarative screens support shared fonts, package glyph atlases, images, localized text and permitted data bindings. Wasm and executable background components return `not_supported` until an engine is validated. The complete [platform contract](../platform/README.md) defines binary layouts, security and resource limits.
+Declarative screens support shared fonts, package glyph atlases, images, localized text and permitted data bindings. Lua is the application language. The bounded runtime runs in SDK/simulator builds and in the physically validated Spark firmware configuration. Background services are unsupported. The complete [platform contract](../platform/README.md) defines binary layouts, security and resource limits.

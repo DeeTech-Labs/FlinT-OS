@@ -120,7 +120,7 @@ flint_os/
 ├── platform/             # shared Core, Runtime, SDK, compiler and tests
 │   ├── system/           # source factory Ignite projects
 │   └── factory/          # compiled factory packages
-├── tools/                # device selection and shared-source export
+├── tools/                # device selection and firmware tooling
 └── brand/                # marketing logo
 ```
 
@@ -144,7 +144,7 @@ USB and BLE share the binary Companion contract. See the
 | [`tools/README.md`](tools/README.md) | Local development tools |
 | [`CHANGELOG.md`](CHANGELOG.md) | Release history (Keep a Changelog) |
 
-Public API, Face SDK, package format and protocol versions remain **1** during active development. Wasm and executable background services are not advertised pending runtime validation. Physical-device checks are separate from the local test suite.
+Public API, Face SDK, package format and protocol versions remain **1** during active development. Bounded Lua execution is enabled and physically validated on Spark; background services are not supported. Physical-device checks are separate from the local test suite.
 
 ---
 
@@ -173,3 +173,7 @@ Thanks to everyone who has contributed to FlinT OS:
 <p align="center">
   <sub>FlinT OS · DeeTech Labs · Apache 2.0 · ESP‑IDF</sub>
 </p>
+
+The shared runtime and SDK are the `platform/` Git submodule of
+[Flint IgniteSDK](https://github.com/DeeTech-Labs/Flint-IgniteSDK).
+Run `git submodule update --init --recursive` before building a fresh checkout.

@@ -16,7 +16,7 @@ Preserve the QML design system while moving application behavior to the new devi
 
 ## Executable applications
 
-Wasm engine selection and executable background services remain conditional on resource, latency and failure-isolation measurements. Unsupported runtimes must not be advertised as working capabilities.
+Lua is the only application language. Its bounded runtime is enabled for the validated Spark profile; repeat resource, latency and failure-recovery measurements for other boards or new native APIs. Background services remain unsupported.
 
 ## Hardware validation
 

@@ -20,7 +20,7 @@ CONFIG_ESP_CONSOLE_UART_DEFAULT=n
 
 # USB launch nests Core, package validation and scene decoding on the main task.
 # The measured call chain exceeds 8 KiB; keep headroom for filesystem/BLE calls.
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=32768
 # Preserve the 2 ms yield after processing input.
 CONFIG_FREERTOS_HZ=1000
 
@@ -45,3 +45,6 @@ CONFIG_BT_NIMBLE_NVS_PERSIST=y
 
 # Read-only factory packages and writable application storage.
 CONFIG_LITTLEFS_MAX_PARTITIONS=2
+
+# Bounded Lua engine; source and limits are supplied by IgniteSDK.
+CONFIG_FLINT_LUA_RUNTIME=y

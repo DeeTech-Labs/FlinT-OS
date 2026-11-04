@@ -1,0 +1,7 @@
+menu "FlinT applications"
+    config FLINT_LUA_RUNTIME
+        bool "Enable the bounded Ignite Lua runtime"
+        default n
+        help
+            Uses the Lua source selection and limits from the pinned IgniteSDK.
+endmenu

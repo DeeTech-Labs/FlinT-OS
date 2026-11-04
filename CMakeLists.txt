@@ -1,5 +1,8 @@
 # FlinT OS — ESP-IDF project
 cmake_minimum_required(VERSION 3.16)
+if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/platform/include/flint/contracts.h")
+    message(FATAL_ERROR "Initialize IgniteSDK: git submodule update --init --recursive")
+endif()
 
 # Build defaults live under config/ (not the project root).
 set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_LIST_DIR}/config/sdkconfig.defaults")

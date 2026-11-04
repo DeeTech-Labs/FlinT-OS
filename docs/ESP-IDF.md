@@ -9,12 +9,23 @@ python3 tools/select_device.py --build
 
 With an activated SDK, `idf.py set-target esp32s3` followed by `idf.py build` also works. Use a separate build directory/configuration to preserve unrelated local builds.
 
-The main task uses a 16 KiB stack. USB application launch nests Core dispatch, package validation and scene decoding; the measured stack usage reached 8736 bytes during clock/settings switching, exceeding the former 8 KiB allocation. Keep the stack in internal RAM; available PSRAM does not increase a task’s configured stack.
+The main task uses a 32 KiB internal stack. The shared Lua configuration limits
+nested C calls to 40. Physical tests, including excessive parser nesting, left
+17808 bytes of free main-task stack at the observed worst point. PSRAM does not
+increase a task's stack. Spark defaults enable `CONFIG_FLINT_LUA_RUNTIME`; the
+source list and limits come directly from the pinned SDK.
 
 The firmware image includes a read-only `factory` LittleFS image compiled from system Ignite sources. `storage` is mounted separately for user packages, settings and grants. Non-erased corrupt storage is not automatically formatted. USB is reserved for binary Companion frames; logs do not interleave its data stream.
 
-The 4 MiB partition map reserves two 1024 KiB application slots, 192 KiB factory storage, 1728 KiB writable storage, NVS and a coredump partition. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM; PSRAM is separate volatile memory. A 661376-byte firmware image leaves 387200 bytes of headroom in each application slot.
+The 4 MiB partition map reserves two 1024 KiB application slots, 192 KiB factory storage, 1728 KiB writable storage, NVS and a coredump partition. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM; PSRAM is separate volatile memory. The Lua-enabled image remains within each 1 MiB slot with approximately 30% headroom; the validation report records the exact image size.
 
 This map changes the previous `ota_1`, `factory` and `storage` offsets. Back up and migrate existing user storage before flashing; write the new partition table and factory image as well as the firmware. Application-only OTA does not update the partition map.
 
-No `flash`, serial monitor, BLE scan or physical connection is part of local validation.
+Host tests never flash or connect to a device. Explicit hardware validation (ESP-IDF Python environment or pyserial required) is:
+
+```sh
+python tools/test_lua_device.py --port /dev/ttyACM0 --report /tmp/spark-lua.json
+```
+
+This command installs/removes only `test.lua-*` fixtures and launches factory clock;
+it does not flash firmware or erase Flash. See [hardware results](validation/spark-lua-2026-11-04.json).

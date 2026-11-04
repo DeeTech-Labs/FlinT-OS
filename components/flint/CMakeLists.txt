@@ -7,12 +7,20 @@ if(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
     message(FATAL_ERROR "Binary Companion requires CONFIG_ESP_CONSOLE_NONE=y; use the current sdkconfig.defaults")
 endif()
 set(PLATFORM "${FLINT_COMPONENT_DIR}/../../platform")
+if(CONFIG_FLINT_LUA_RUNTIME)
+    include("${PLATFORM}/cmake/LuaSources.cmake")
+endif()
 idf_component_register(
-    SRCS core/system.cpp display/display.cpp ble/ble_link.cpp
-        "${PLATFORM}/src/manifest.cpp" "${PLATFORM}/src/storage.cpp" "${PLATFORM}/src/runtime.cpp"
+    SRCS ${FLINT_LUA_CORE} core/system.cpp display/display.cpp ble/ble_link.cpp
+        "${PLATFORM}/src/lua_app.cpp" "${PLATFORM}/src/manifest.cpp" "${PLATFORM}/src/storage.cpp" "${PLATFORM}/src/runtime.cpp"
         "${PLATFORM}/src/resources.cpp" "${PLATFORM}/src/core.cpp" "${PLATFORM}/src/fonts.cpp"
     INCLUDE_DIRS "." "${PLATFORM}/include"
     REQUIRES esp_app_format bt esp_partition nvs_flash esp_timer esp_driver_gpio freertos heap log esp_driver_usb_serial_jtag LovyanGFX joltwallet__littlefs
 )
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-misleading-indentation)
+
+if(CONFIG_FLINT_LUA_RUNTIME)
+    target_include_directories(${COMPONENT_LIB} PRIVATE "${FLINT_LUA_SOURCE_ROOT}")
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC ${FLINT_LUA_DEFINITIONS})
+endif()

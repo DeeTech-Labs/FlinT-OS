@@ -1,0 +1,95 @@
+{
+    "device": {
+        "protocol": 1,
+        "revision": 539365637,
+        "build": "ed775b7aaeb7ed19d6ecf0294af046974157fdcff7c735c506bdabe30ab12e77",
+        "profile": "flint_spark_s3_supermini",
+        "capabilities": 127
+    },
+    "baseline": {
+        "internal_free_bytes": 212667,
+        "internal_largest_bytes": 131072,
+        "internal_minimum_bytes": 206663,
+        "last_logic_error": 0,
+        "lua_peak_bytes": 0,
+        "lua_used_bytes": 0,
+        "main_stack_watermark_bytes": 23984,
+        "max_frame_us": 46065,
+        "max_tick_us": 44,
+        "psram_free_bytes": 1959796
+    },
+    "game": {
+        "internal_free_bytes": 202351,
+        "internal_largest_bytes": 120832,
+        "internal_minimum_bytes": 194911,
+        "last_logic_error": 0,
+        "lua_peak_bytes": 8091,
+        "lua_used_bytes": 7132,
+        "main_stack_watermark_bytes": 22848,
+        "max_frame_us": 46065,
+        "max_tick_us": 653,
+        "psram_free_bytes": 1959796
+    },
+    "warmed_clock": {
+        "internal_free_bytes": 210691,
+        "internal_largest_bytes": 124928,
+        "internal_minimum_bytes": 194911,
+        "last_logic_error": 0,
+        "lua_peak_bytes": 0,
+        "lua_used_bytes": 0,
+        "main_stack_watermark_bytes": 22848,
+        "max_frame_us": 46065,
+        "max_tick_us": 653,
+        "psram_free_bytes": 1959796
+    },
+    "after_30_switches": {
+        "internal_free_bytes": 210687,
+        "internal_largest_bytes": 126976,
+        "internal_minimum_bytes": 194883,
+        "last_logic_error": 0,
+        "lua_peak_bytes": 0,
+        "lua_used_bytes": 0,
+        "main_stack_watermark_bytes": 22624,
+        "max_frame_us": 46065,
+        "max_tick_us": 653,
+        "psram_free_bytes": 1959796
+    },
+    "recovery": {
+        "loop": {
+            "passed": true,
+            "error": 15
+        },
+        "memory": {
+            "passed": true,
+            "error": 10
+        },
+        "forbidden": {
+            "passed": true,
+            "error": 1
+        },
+        "parse": true,
+        "init-loop": true
+    },
+    "final": {
+        "internal_free_bytes": 210659,
+        "internal_largest_bytes": 131072,
+        "internal_minimum_bytes": 190719,
+        "last_logic_error": 15,
+        "lua_peak_bytes": 0,
+        "lua_used_bytes": 0,
+        "main_stack_watermark_bytes": 17808,
+        "max_frame_us": 46065,
+        "max_tick_us": 581465,
+        "psram_free_bytes": 1959796
+    },
+    "passed": true,
+    "firmware_bytes": 734896,
+    "firmware_image_sha256": "2216b57660be4eeb3df5fdcdd4389216cf23afac9d711e574066cbc9f0e90c65",
+    "sdk_runtime_commit": "fe1f89f21faa28c8d7f3cefbd3cf5f65075e5f4d",
+    "notes": [
+        "Single connected Spark S3, 4 MiB Flash and 2 MiB PSRAM; display and BLE initialized.",
+        "Timing maxima are cumulative since boot and include native filesystem recovery, not only Lua execution.",
+        "User input hardware and battery life are outside this validation; synthetic input is tested on host.",
+        "All test.lua-* fixtures removed after success; factory clock remains active."
+    ]
+}

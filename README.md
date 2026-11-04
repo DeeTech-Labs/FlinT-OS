@@ -19,7 +19,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#docs">Docs</a> ·
-  <a href="docs/IGNITS.md">Ignits</a> ·
+  <a href="docs/IGNITS.md">Ignite</a> ·
   <a href="https://github.com/DeeTech-Labs/FlinT-OS/discussions">Discussions</a>
 </p>
 
@@ -27,7 +27,7 @@
 
 ## Website
 
-The shared website for Spark, FlinT OS and Desktop is maintained in
+The shared website for Spark, FlinT OS and Flare is maintained in
 [FlinT-Web](https://github.com/DeeTech-Labs/FlinT-Web) and published at
 [flint.deetech.ru](https://flint.deetech.ru/).
 
@@ -72,7 +72,7 @@ idf.py build
 idf.py -p /dev/ttyACM0 flash
 ```
 
-Time synchronization and package management are available through **FlinT Desktop**.
+Time synchronization and package management are available through **Flint Flare**.
 USB and BLE use the same binary Companion v1 contract; there is no serial-command fallback.
 
 Optional: `idf.py -DFLINT_DEVICE=flint_spark_s3_supermini build` · board guide: [`components/flint/board/README.md`](components/flint/board/README.md)
@@ -80,7 +80,7 @@ Optional: `idf.py -DFLINT_DEVICE=flint_spark_s3_supermini build` · board guide:
 <details>
 <summary><b>Application controls</b></summary>
 
-Use Desktop's Ignite Hub to install, open and remove user packages, select clock/theme/language providers, and grant or revoke application access. Factory components cannot be removed by user packages. Recovery remains available independently of the active application.
+Use Flare's Ignite Hub to install, open and remove user packages, select clock/theme/language providers, and grant or revoke application access. Factory components cannot be removed by user packages. Recovery remains available independently of the active application.
 
 Factory packages are provisioned on the read-only `factory` volume. User packages, settings and consent records live in writable `storage`. New applications do not require a firmware source change or reflash.
 
@@ -101,7 +101,7 @@ Default device revision: `flint_spark_s3_supermini`. Display: GMT028-class **ST7
 | VCC / LED | 3.3V |
 | GND | GND |
 
-Spark uses an ESP32-S3 Super Mini. The supplied chip marking does not establish Flash or PSRAM capacity. The 4 MiB partition table is a provisional build baseline; the onboard LED remains disabled until its configuration is verified.
+Spark uses an ESP32-S3 Super Mini. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM. The Flash map provides two 1 MiB firmware slots, 192 KiB factory storage and 1728 KiB user storage; PSRAM is separate volatile memory. See [`config/README.md`](config/README.md) for partition migration requirements. The onboard LED remains disabled until its configuration is verified.
 
 Hardware is fixed per model/revision under `components/flint/board/models/`. Select a supported revision with `-DFLINT_DEVICE=…`.
 

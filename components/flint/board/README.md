@@ -14,9 +14,9 @@ Development wiring selected for ST7789 240×280 (landscape UI 280×240):
 - Status LED: disabled (onboard LED configuration is unverified)
 - Native USB: GPIO19/20, not assigned to the display
 
-GPIO0/3/45/46 (strapping), GPIO19/20 (USB) and memory pins are not used by the display. Wiring has not been tested on a device.
+GPIO0/3/45/46 (strapping), GPIO19/20 (USB) and memory pins are not used by the display. Display wiring still requires visual confirmation on the device.
 
-The supplied chip marking `esp32s3 112026` does not establish Flash or PSRAM capacity. Default build uses a provisional 4 MiB Flash layout and no PSRAM dependency. Confirm actual capacity before flashing or enabling PSRAM.
+The connected development unit was identified on 2026-11-04 as ESP32-S3 revision v0.2, with 4 MiB embedded XMC Flash and 2 MiB embedded AP_3v3 PSRAM. Defaults use the 4 MiB partition layout and enable Quad PSRAM at 40 MHz with a boot memory test. Other boards sold under the same name may differ.
 
 ```sh
 python3 tools/select_device.py --list

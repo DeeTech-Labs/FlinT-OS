@@ -62,5 +62,5 @@ void displayRecovery(const char *message) {
     panel.setCursor(12, 90);
     panel.print(message);
     panel.setCursor(12, 130);
-    panel.print("Connect FlinT Desktop");
+    panel.print("Connect Flint Flare");
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the canonical portable runtime into the independently buildable Desktop repo."""
+"""Export the canonical portable runtime into the independently buildable Flare repo."""
 
 import argparse
 import shutil
@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "platform"
-TARGET = ROOT.parent / "flint_desktop/platform"
+TARGET = ROOT.parent / "flint_flare/platform"
 
 
 def inventory(root):

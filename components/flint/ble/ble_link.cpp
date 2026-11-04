@@ -110,7 +110,7 @@ int gapEvent(ble_gap_event *event, void *) {
         if (event->passkey.params.action == BLE_SM_IOACT_NUMCMP && windowOpen()) {
             pendingConnection = event->passkey.conn_handle;
             pendingCode = event->passkey.params.numcmp;
-            ESP_LOGW("ble", "Compare Desktop code: %06lu. Confirm locally in FlinT Desktop: %06lu",
+            ESP_LOGW("ble", "Compare Flare code: %06lu. Confirm locally in Flint Flare: %06lu",
                 static_cast<unsigned long>(event->passkey.params.numcmp),
                 static_cast<unsigned long>(event->passkey.params.numcmp));
         } else {

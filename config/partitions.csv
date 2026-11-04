@@ -1,9 +1,13 @@
-# Provisional 4 MiB Flash baseline, ESP32-S3. Validate physical capacity before flashing.
+# Verified 4 MiB Flash, ESP32-S3 Super Mini (2026-11-04).
+# 2 MiB PSRAM is volatile RAM and is not part of this partition map.
+# Two 1 MiB OTA slots; 192 KiB factory; 1728 KiB writable storage.
+# Migration: ota_1, factory and storage offsets changed; back up and migrate
+# existing storage before flashing this map. An app-only OTA cannot apply it.
 # Name, Type, SubType, Offset, Size, Flags
 nvs,data,nvs,0x9000,0x5000,
 otadata,data,ota,0xe000,0x2000,
-ota_0,app,ota_0,0x10000,0x140000,
-ota_1,app,ota_1,0x150000,0x140000,
-factory,data,littlefs,0x290000,0x30000,
-storage,data,littlefs,0x2c0000,0x130000,
+ota_0,app,ota_0,0x10000,0x100000,
+ota_1,app,ota_1,0x110000,0x100000,
+factory,data,littlefs,0x210000,0x30000,
+storage,data,littlefs,0x240000,0x1b0000,
 coredump,data,coredump,0x3f0000,0x10000,

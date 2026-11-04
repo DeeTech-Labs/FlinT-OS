@@ -29,7 +29,7 @@ python3 platform/tools/build_system.py
 python3 tools/sync_platform.py
 ```
 
-Edit the canonical OS implementation rather than the exported Desktop copy. Hardware sources remain under `components/flint/board/models/`.
+Edit the canonical OS implementation rather than the exported Flare copy. Hardware sources remain under `components/flint/board/models/`.
 
 ## Host tests
 

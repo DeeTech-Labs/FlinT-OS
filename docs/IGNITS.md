@@ -10,11 +10,11 @@ python3 platform/tools/compile_ignite.py \
     platform/examples/pc-monitor/project.json /tmp/pc-monitor.ignit
 ```
 
-A project declares its ID, publisher, component sections, memory budgets and permission scopes. Its UI, resources and manifest are compiled on the computer. New packages are installed through Desktop without changing firmware source.
+A project declares its ID, publisher, component sections, memory budgets and permission scopes. Its UI, resources and manifest are compiled on the computer. New packages are installed through Flare without changing firmware source.
 
 ## Installation and updates
 
-Desktop uses resumable binary blocks, a complete-file digest, staging validation and an atomic registry commit. The previous version remains available for rollback. There are no fixed installation slots. User packages cannot replace protected factory identities or inherit additional consent on update.
+Flare uses resumable binary blocks, a complete-file digest, staging validation and an atomic registry commit. The previous version remains available for rollback. There are no fixed installation slots. User packages cannot replace protected factory identities or inherit additional consent on update.
 
 ## Runtime and limits
 

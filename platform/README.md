@@ -1,14 +1,14 @@
 # FlinT Platform v1
 
-The shared C++20 platform used by FlinT OS, Desktop Preview and the local simulator. Public OS API, Face SDK, Ignite format and Companion protocol versions remain **1**. Development contract revision and build identity are checked separately; incompatible binaries must never be accepted merely because both report v1.
+The shared C++20 platform used by FlinT OS, Flare Preview and the local simulator. Public OS API, Face SDK, Ignite format and Companion protocol versions remain **1**. Development contract revision and build identity are checked separately; incompatible binaries must never be accepted merely because both report v1.
 
-The canonical source lives in the OS repository. `tools/sync_platform.py` exports this entire directory into the independently buildable Desktop repository. `--check` detects drift. Edit the canonical source, regenerate the factory packages and registries, then export. There is one implementation of each contract, renderer and package engine, distributed to both applications.
+The canonical source lives in the OS repository. `tools/sync_platform.py` exports this entire directory into the independently buildable Flare repository. `--check` detects drift. Edit the canonical source, regenerate the factory packages and registries, then export. There is one implementation of each contract, renderer and package engine, distributed to both applications.
 
 ## Architecture
 
 The ESP-IDF layer owns hardware, native USB, authenticated NimBLE, mounting and recovery. Portable Core owns package transactions, consent, time, component selection, event scheduling and application lifecycle. Runtime reads compiled UI and individual resources through indexed file access. Factory packages and user packages use the same manifest, validator and Runtime. Core selects factory components by role metadata; it contains no built-in watchface layouts or application-name switch statements.
 
-Desktop preserves its QML shell, visual theme, icons, fonts, effects and localization. Its service layer consists of PlatformClient (device/transport lifecycle), IgniteHub (packages and consent), Studio (project compilation), Preview (shared renderer) and CompanionService (host policy and metrics). Its simulator runs the exact same portable Core through binary framed requests, in a disposable directory, without opening a device.
+Flare preserves its QML shell, visual theme, icons, fonts, effects and localization. Its service layer consists of PlatformClient (device/transport lifecycle), IgniteHub (packages and consent), Studio (project compilation), Preview (shared renderer) and CompanionService (host policy and metrics). Its simulator runs the exact same portable Core through binary framed requests, in a disposable directory, without opening a device.
 
 API and permission registries are generated from `spec/services.json` and `spec/permissions.json`. Services that are not implemented return `not_supported`. Listing a future permission does not advertise a working hardware or host integration.
 
@@ -32,13 +32,13 @@ Factory packages are read-only filesystem contents built with the firmware. User
 
 An interrupted install cannot become active. Startup restores a valid previous reference when the current object is invalid. Failed active updates reload the previous version. User operations cannot replace or remove factory identities. Unreferenced objects and interrupted atomic-write temporaries are collected; the current transfer is retained for resume. The production catalog visits one manifest at a time instead of retaining every inactive manifest in RAM.
 
-Recovery remains outside user packages. Desktop can restore factory role selections. The firmware can show its own recovery screen and process USB independently of the active Ignite. NVS trust keys and non-erased corrupt filesystems are never automatically wiped.
+Recovery remains outside user packages. Flare can restore factory role selections. The firmware can show its own recovery screen and process USB independently of the active Ignite. NVS trust keys and non-erased corrupt filesystems are never automatically wiped.
 
 ## Security
 
 A/P/S/U/X/R grants bind application, claimed publisher, installed content generation, exact scope, expiry, session or explicit action. Automatic access still requires a manifest declaration. Restricted rights are unavailable to ordinary user packages. Session consent ends on disconnect; upgrades do not inherit expanded or earlier-version consent. Revocation invalidates samples and queued events.
 
-CPU/RAM are available only with an active matching `companion.pc.metrics` grant scoped to `cpu,ram`, and the independent Desktop policy enabled. Samples received without watch consent are rejected. Samples expire after ten seconds, and switching apps clears them. The host collector currently supports Linux; unsupported collectors do not fabricate measurements.
+CPU/RAM are available only with an active matching `companion.pc.metrics` grant scoped to `cpu,ram`, and the independent Flare policy enabled. Samples received without watch consent are rejected. Samples expire after ten seconds, and switching apps clears them. The host collector currently supports Linux; unsupported collectors do not fabricate measurements.
 
 SHA-256 verifies integrity, not publisher authenticity. User publisher strings are never treated as signatures or privileged identity. Factory trust comes from the protected firmware-provisioned volume. No user package has access to QProcess, arbitrary shell commands, raw GPIO, another app's memory or transport internals.
 
@@ -70,7 +70,7 @@ python3 platform/tools/compile_ignite.py \
     platform/examples/pc-monitor/project.json /tmp/pc-monitor.ignit
 ```
 
-Integration tests exercise resume, duplicate chunks, integrity failures, updates, rollback, factory protection, permission checks and revocation, custom fonts/images, stale handles, repeated switching and framing. Desktop's offline smoke test loads the actual QML interface and simulator. Physical device tests are excluded.
+Integration tests exercise resume, duplicate chunks, integrity failures, updates, rollback, factory protection, permission checks and revocation, custom fonts/images, stale handles, repeated switching and framing. Flare's offline smoke test loads the actual QML interface and simulator. Physical device tests are excluded.
 
 Use four spaces, no tabs, in maintained source. `.editorconfig` and `.clang-format` capture the project style. Generated font data is not manually reformatted. `tools/build_builtin_fonts.py --font-dir /path/to/lato` regenerates the common built-in font subsets.
 

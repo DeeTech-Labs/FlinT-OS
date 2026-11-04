@@ -3,6 +3,12 @@
 CONFIG_IDF_TARGET="esp32s3"
 
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# Verified ESP32-S3 Super Mini: embedded 2 MiB quad PSRAM (3.3 V).
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_SPEED_40M=y
+CONFIG_SPIRAM_MEMTEST=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="config/partitions.csv"
 CONFIG_PARTITION_TABLE_OFFSET=0x8000
@@ -12,7 +18,9 @@ CONFIG_ESP_CONSOLE_NONE=y
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=n
 CONFIG_ESP_CONSOLE_UART_DEFAULT=n
 
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# USB launch nests Core, package validation and scene decoding on the main task.
+# The measured call chain exceeds 8 KiB; keep headroom for filesystem/BLE calls.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 # Preserve the 2 ms yield after processing input.
 CONFIG_FREERTOS_HZ=1000
 

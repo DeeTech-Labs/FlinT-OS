@@ -258,7 +258,7 @@ Values Core::bindings() {
     strftime(time, sizeof(time), "%H:%M", &tm);
     strftime(date, sizeof(date), "%d.%m.%Y", &tm);
     values["time.read"] = epoch ? time : "--:--";
-    values["time.date"] = epoch ? date : "Sync time in Desktop";
+    values["time.date"] = epoch ? date : "Sync time in Flare";
     values["system.info"] = std::string(DeviceProfile);
     for (auto &[key, value] : locale_)
         values["locale:" + key] = value;

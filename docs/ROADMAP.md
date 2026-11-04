@@ -10,9 +10,9 @@ Shared contracts, scoped consent, indexed binary packages, a protected factory v
 
 The package manager, resource manager, declarative Runtime, renderer and event scheduling serve both factory and user packages. Clock, Launcher, Settings, Theme and Locale are compiled packages. Installation, resume, updates and rollback are verified locally.
 
-## Desktop and Companion
+## Flare and Companion
 
-Preserve the QML design system while moving application behavior to the new device manager, Hub, Studio, Preview and Companion services. Desktop and the simulator share the OS platform source and binary contracts.
+Preserve the QML design system while moving application behavior to the new device manager, Hub, Studio, Preview and Companion services. Flare and the simulator share the OS platform source and binary contracts.
 
 ## Executable applications
 

@@ -1,60 +1,8 @@
-# FlinT OS architecture
+# Architecture
 
-Firmware platform for **FlinT** devices (base: **FlinT Spark**), by **DeeTech Labs**.
-Face paint contract and dirty/event wiring. Module map: [`MODULES.md`](MODULES.md). Face SDK: `components/flint/sdk/flint_face_sdk.h`.
+The maintained architecture specification lives in [FlinT Platform](../platform/README.md). The `platform/` directory is a pinned Git submodule of Flint IgniteSDK, shared with Flare. Initialize it with `git submodule update --init --recursive`. Shared implementation changes belong in that repository.
 
-## Layers
-
-```text
-fixed model / hardware revision
-  → services (time, USB, settings/cfg, day_mode)
-    → FaceContext (uiBuildContext)
-      → Face::onTick / onForceRedraw
-        → display (partial or full present)
-```
-
-Faces read `FaceContext` and draw. They must not call USB/GPIO, NVS, or settings/cfg APIs.
-
-## Day mode and waiting
-
-Time-of-day modes (`MORNING` / `DAY` / `EVENING` / `NIGHT`) come only from a **valid** local hour via `dayModeFromHour` (`day_mode_hour.*`).
-
-When `clockTimeGetLocal` fails (`!hasTime`), `uiBuildContext` sets **`DAY_MODE_WAITING`** — not a synthetic noon hour. Waiting uses a neutral profile (`showSeconds` / `showModeLabel` off for AUTO; date line already carries “Waiting for time”). `dayModeFromHour` never returns `WAITING`.
-
-## Events → dirty → paint
-
-`flintEventEmit` → `uiDirtyBridge` (`event/event.cpp`) → `uiMarkDirty` → `uiFaceTick` (`ui/ui.cpp`).
-
-| Event / source | Dirty bit(s) | Face entry |
-|----------------|--------------|------------|
-| `FLINT_EVT_SECOND` | `UI_DIRTY_SECOND` | `onTick` |
-| `FLINT_EVT_MINUTE` | `UI_DIRTY_MINUTE` | `onTick` |
-| `FLINT_EVT_USB` | `UI_DIRTY_USB` | `onTick` |
-| shell motion cadence (`uiMarkDirty`) | `UI_DIRTY_MOTION` | `onTick` (colon pulse, …) |
-| `FLINT_EVT_SETTINGS` | `UI_DIRTY_SETTINGS` | `onTick` (**soft**) |
-| `FLINT_EVT_DAY_MODE` | `UI_DIRTY_DAY_MODE` | `onForceRedraw` |
-| `FLINT_EVT_TIME_VALID` | `UI_DIRTY_TIME_VALID` \| `FORCE` | `onForceRedraw` |
-| `FLINT_EVT_FORCE_REDRAW` | `UI_DIRTY_FORCE` | `onForceRedraw` |
-
-### Prefs vs FORCE
-
-- **Prefs are soft.** After a prefs change on **`/cfg/ui.cfg`**, emit **`FLINT_EVT_SETTINGS` only**. Do **not** also emit `FLINT_EVT_FORCE_REDRAW`.
-- `uiFaceTick` routes `UI_DIRTY_SETTINGS` to **`onTick`**, not `onForceRedraw`.
-- Faces must treat `UI_DIRTY_SETTINGS` (and/or changed fields in `FaceContext`) as layout-sensitive: rebuild time layout, date line, mode label, i18n strings as needed — often a full paint **from `onTick`**.
-- Use **`FLINT_EVT_FORCE_REDRAW`** for shell transitions (enter face), explicit user force, and other “wipe the canvas” cases — not as a stand-in for prefs.
-
-Clock edits from the settings overlay emit `MINUTE` / `TIME_VALID` as appropriate; returning to the face still uses shell `FORCE` on enter.
-
-## Persistence
-
-| Store | Role |
-|-------|------|
-| `assets` LittleFS | Protected system asset pack (`core.flintpack`) |
-| `storage` LittleFS | Installed ignits and package resources |
-| `cfg` LittleFS | UI prefs (`ui.cfg`) + soft clock (`time.cfg`) |
-| ESP-IDF NVS | BLE keys and system state; no UI/clock migration |
-
-System resources are loaded from the `assets` LittleFS partition (`/assets`).
-Downloadable ignit descriptors live in `storage` (`/storage/packages`).
-Only preferences, selected IDs and the soft clock live in `cfg` (`/cfg`).
-Old NVS UI/epoch migration paths are removed during active development.
+Hardware: `components/flint/board/`, `display/`, `ble/` and `core/system.cpp`.
+Portable services: `platform/src/` and `platform/include/flint/`.
+Factory applications: `platform/system/` compiled into `platform/factory/`.
+Development contracts: `platform/spec/` and generated registries.

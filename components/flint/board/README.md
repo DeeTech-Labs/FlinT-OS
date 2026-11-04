@@ -1,70 +1,28 @@
-# FlinT Spark: модели и аппаратные ревизии
+# FlinT Spark S3 Super Mini
 
-Прошивка собирается для законченной аппаратной ревизии. Пользователь выбирает
-профиль целиком, а не процессор, дисплей, GPIO и датчики по отдельности.
-Каждая ревизия имеет собственные исходники настроек, драйвера и зависимостей.
-Каталог произвольных плат и подключаемых периферийных JSON удалён.
+Only supported profile: `flint_spark_s3_supermini`, target `esp32s3`.
+The C3 profile was removed; selecting its ID is an error.
 
-## Текущая ревизия
+Development wiring selected for ST7789 240×280 (landscape UI 280×240):
 
-Единственный доступный профиль: `flint_spark_c3_dev`.
-Модель: **FlinT Spark**, ревизия: **c3_dev**, стадия: **development**.
+- SCLK: GPIO12
+- MOSI/SDA: GPIO11
+- CS: GPIO10
+- DC: GPIO4
+- RST: GPIO5
+- MISO and software backlight control: unused
+- Status LED: disabled (onboard LED configuration is unverified)
+- Native USB: GPIO19/20, not assigned to the display
 
-- ESP32-C3 Super Mini, 4 MB flash.
-- ST7789 240×280, поворот 3, рабочая область 280×240, canvas в BSS.
-- TFT: CS 10, DC 4, RST 3, MOSI 7, SCLK 6.
-- Синий LED: GPIO8, active low. Не подключать к нему reset дисплея.
-- USB и существующая BLE-связь, время, циферблаты и настройки сохраняются.
-- Нет сенсорного ввода, пользовательских кнопок навигации, измерения заряда,
-  вибрации и программного управления подсветкой.
+GPIO0/3/45/46 (strapping), GPIO19/20 (USB) and memory pins are not used by the display. Display wiring still requires visual confirmation on the device.
 
-Возможности заданы константами в исходниках ревизии.
-Наличие BOOT на модуле не означает поддержку кнопочной навигации.
+The connected development unit was identified on 2026-11-04 as ESP32-S3 revision v0.2, with 4 MiB embedded XMC Flash and 2 MiB embedded AP_3v3 PSRAM. Defaults use the 4 MiB partition layout and enable Quad PSRAM at 40 MHz with a boot memory test. Other boards sold under the same name may differ.
 
-## Сборка
-
-Из корня FlinT OS:
-
-```bash
-python3 tools/select_device.py
+```sh
 python3 tools/select_device.py --list
-python3 tools/select_device.py --device flint_spark_c3_dev --build
+python3 tools/select_device.py --device flint_spark_s3_supermini --build
 ```
 
-Выбор ревизии: `FLINT_DEVICE` или `idf.py -DFLINT_DEVICE=flint_spark_c3_dev build`.
-По умолчанию выбирается та же ревизия C3. Генератор создаёт
-`device_config.h`, `device_display.h`, `device.cmake`; вручную их не редактируют.
-В C++ доступны `FLINT_MODEL_ID`, `FLINT_HW_REVISION`, `FLINT_HW_STAGE`
-и `FLINT_HAS_*` для аппаратных возможностей.
+Hardware sources live in `models/flint_spark/s3_supermini/`. The selector exports `device_config.h`, `device_display.h` and `device.cmake` into this directory. Generated files are ignored by git.
 
-## Следующая ревизия
-
-Waveshare ESP32-S3-Touch-LCD-1.69 — предварительный кандидат для беты **той же
-модели Flint Spark**, а не уже поддерживаемая конфигурация. Плата ещё не куплена;
-переход на S3 сейчас не выполняется. Профиль появится после проверки платы,
-разводки, дисплея и ввода. Датчики, питание и автономность нельзя считать
-готовыми только по названию платы.
-
-Новая ревизия получает отдельный стабильный ID сборки, собственный набор
-возможностей и проверенные драйверы. `flint_spark_c3_dev` обозначает ревизию C3:
-его нельзя незаметно переназначить на S3. До появления проверенной ревизии
-не добавляем её в каталог или меню выбора.
-
-## Внутреннее устройство
-
-`models/flint_spark/c3_dev/` — единственное место аппаратного описания Spark C3:
-
-- `device_config.h`: идентичность, возможности, GPIO, геометрия и частоты;
-- `display.h`: драйвер конкретного ST7789, включая отложенный DISPON;
-- `device_display.h`: подключение драйвера;
-- `device.cmake`: процессор и точные зависимости сборки.
-
-`tools/select_device.py` теперь только выбирает разрешённую ревизию и
-копирует её готовые файлы в точки подключения сборки. Он не
-синтезирует железо из настроек. Реестр `PROFILES` в этом скрипте перечисляет
-поддерживаемые ревизии. Новая ревизия требует реализации драйверов и проверки,
-а не добавления сочетания компонентов в JSON. Значения пользовательских
-настроек (язык, время, циферблат) остаются в обычной системе настроек.
-
-Для текущего ST7789 сохраняется `invert: true`; полярность проверяется на
-физическом экране отдельно от RGB565 и `rgb_order`.
+See [platform migration status](../../../platform/README.md) for what is implemented and what still needs replacing.

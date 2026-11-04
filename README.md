@@ -5,21 +5,21 @@
 <h1 align="center">FlinT OS</h1>
 
 <p align="center">
-  <b>Open firmware</b> for <b>FlinT</b> devices · pluggable faces · ESP32‑C3 / ESP‑IDF<br/>
+  <b>Open firmware</b> for <b>FlinT</b> devices · Ignite packages · ESP32‑S3 / ESP‑IDF<br/>
   by <a href="https://github.com/DeeTech-Labs">DeeTech Labs</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/DeeTech-Labs/FlinT-OS/stargazers"><img src="https://img.shields.io/github/stars/DeeTech-Labs/FlinT-OS?style=flat-square&logo=github&color=ff6a00&labelColor=111111" alt="Stars"/></a>
   <img src="https://img.shields.io/badge/status-alpha-ff6a00?style=flat-square&labelColor=111111" alt="Alpha"/>
-  <img src="https://img.shields.io/badge/SoC-ESP32--C3-a8a59c?style=flat-square&labelColor=111111" alt="ESP32-C3"/>
+  <img src="https://img.shields.io/badge/SoC-ESP32--S3-a8a59c?style=flat-square&labelColor=111111" alt="ESP32-S3"/>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-e8e4dc?style=flat-square&labelColor=111111" alt="License"/></a>
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#docs">Docs</a> ·
-  <a href="docs/IGNITS.md">Ignits</a> ·
+  <a href="docs/IGNITS.md">Ignite</a> ·
   <a href="https://github.com/DeeTech-Labs/FlinT-OS/discussions">Discussions</a>
 </p>
 
@@ -27,7 +27,7 @@
 
 ## Website
 
-The shared website for Spark, FlinT OS and Desktop is maintained in
+The shared website for Spark, FlinT OS and Flare is maintained in
 [FlinT-Web](https://github.com/DeeTech-Labs/FlinT-Web) and published at
 [flint.deetech.ru](https://flint.deetech.ru/).
 
@@ -35,17 +35,17 @@ The shared website for Spark, FlinT OS and Desktop is maintained in
 
 **FlinT OS** is the firmware platform for **FlinT** devices (base board: **FlinT Spark**), by **DeeTech Labs**.
 
-Core services stay stable — time, USB, settings, shell, assets. **Faces are plugins**: ship a new look without rewriting the clock or USB services.
+Core services provide hardware, time, storage, security and recovery. **Apps are Ignite packages**: install screens, watch faces, themes, languages and resources without changing firmware source.
 
 <table>
   <tr>
     <td width="50%" valign="top">
       <h3>Built-in</h3>
       <ul>
-        <li>Protected Spark Base · installable ignits</li>
-        <li>Soft-clock + USB PC sync + timezone DB</li>
-        <li>Offline · settings on <code>cfg</code> LittleFS</li>
-        <li>Face picker · event bus · boot splash</li>
+        <li>Protected factory components · installable Ignite packages</li>
+        <li>Core time service · USB/BLE PC synchronization</li>
+        <li>Offline · atomic package storage and persisted consent</li>
+        <li>Shared Runtime · event bus · independent recovery</li>
       </ul>
     </td>
     <td width="50%" valign="top">
@@ -53,8 +53,8 @@ Core services stay stable — time, USB, settings, shell, assets. **Faces are pl
       <ul>
         <li>ESP‑IDF · LovyanGFX (slim)</li>
         <li><code>-Os</code> · no C++ exceptions / RTTI</li>
-        <li>Dual OTA · protected assets · package storage</li>
-        <li>Input: USB serial (buttons later)</li>
+        <li>Dual application slots · protected factory volume · user storage</li>
+        <li>Binary Companion over native USB and authenticated BLE</li>
       </ul>
     </td>
   </tr>
@@ -64,66 +64,44 @@ Core services stay stable — time, USB, settings, shell, assets. **Faces are pl
 
 ## Quick start
 
-**Board:** FlinT Spark (ESP32‑C3, USB Serial/JTAG) · **ESP‑IDF** v5.x / v6.x
+**Board:** FlinT Spark (ESP32‑S3, USB Serial/JTAG) · **ESP‑IDF** 6.0.2
 
 ```bash
-idf.py set-target esp32c3
+idf.py set-target esp32s3
 idf.py build
-idf.py -p /dev/ttyACM0 flash monitor
+idf.py -p /dev/ttyACM0 flash
 ```
 
-Time sync from a connected PC (no network required):
+Time synchronization and package management are available through **Flint Flare**.
+USB and BLE use the same binary Companion v1 contract; there is no serial-command fallback.
 
-```bash
-python3 -m pip install pyserial
-python3 tools/sync_time.py                 # sync once
-python3 tools/sync_time.py --watch         # sync on connection and hourly
-```
-
-The helper must run on the PC to supply its UTC time; merely plugging in USB
-cannot reveal the PC clock. See [USB time sync](docs/USB-TIME.md).
-
-Optional: `idf.py -DFLINT_DEVICE=flint_spark_c3_dev build` · board guide: [`components/flint/board/README.md`](components/flint/board/README.md)
+Optional: `idf.py -DFLINT_DEVICE=flint_spark_s3_supermini build` · board guide: [`components/flint/board/README.md`](components/flint/board/README.md)
 
 <details>
-<summary><b>Serial controls</b></summary>
+<summary><b>Application controls</b></summary>
 
-Type in the IDF monitor (no Enter except where noted):
+Use Flare's Ignite Hub to install, open and remove user packages, select clock/theme/language providers, and grant or revoke application access. Factory components cannot be removed by user packages. Recovery remains available independently of the active application.
 
-| Key | Action |
-|:---:|--------|
-| `Enter` | Face picker / apply face / open Face row |
-| `s` | Settings |
-| `p` / `n` | Navigate |
-| `+` / `-` | Adjust selected setting |
-| `q` / `Esc` | Back to face |
-| `h` | Help in log |
-
-Settings are grouped into Display, Date and time, and Connection. `Esc` returns
-to the category list, then to the clock. The default date uses a month name;
-numeric date formats remain available. Connection is a read-only status page.
-
-Prefs and soft clock live on `cfg` LittleFS (survive asset reflash). System icons load from `assets`; installed packages live in `storage` — [`assets/README.md`](assets/README.md).
+Factory packages are provisioned on the read-only `factory` volume. User packages, settings and consent records live in writable `storage`. New applications do not require a firmware source change or reflash.
 
 </details>
 
 <details>
 <summary><b>Hardware — FlinT Spark pinout</b></summary>
 
-Default device revision: `flint_spark_c3_dev`. Display: GMT028-class **ST7789** 240×280 SPI (UI landscape 280×240).
+Default device revision: `flint_spark_s3_supermini`. Display: GMT028-class **ST7789** 240×280 SPI (UI landscape 280×240).
 
 | Signal | GPIO |
 |--------|:----:|
-| SCK | 6 |
-| MOSI (SDA) | 7 |
+| SCK | 12 |
+| MOSI (SDA) | 11 |
 | CS | 10 |
 | DC | 4 |
-| RST | 3 |
+| RST | 5 |
 | VCC / LED | 3.3V |
 | GND | GND |
 
-Spark uses an ESP32-C3 Super Mini. Its active-low blue LED is on GPIO8;
-it blinks while a USB host is connected and flashes quickly three times after PC time sync.
+Spark uses an ESP32-S3 Super Mini. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM. The Flash map provides two 1 MiB firmware slots, 192 KiB factory storage and 1728 KiB user storage; PSRAM is separate volatile memory. See [`config/README.md`](config/README.md) for partition migration requirements. The onboard LED remains disabled until its configuration is verified.
 
 Hardware is fixed per model/revision under `components/flint/board/models/`. Select a supported revision with `-DFLINT_DEVICE=…`.
 
@@ -134,14 +112,15 @@ Hardware is fixed per model/revision under `components/flint/board/models/`. Sel
 
 ```
 flint_os/
-├── main/                 # app_main only
+├── main/                 # ESP-IDF entry point
 ├── config/               # sdkconfig.defaults + partitions.csv
 ├── components/
-│   ├── flint/            # ★ product firmware
-│   └── LovyanGFX/        # slim graphics component
-├── tools/                # codegen (or ./flint_tools)
-├── assets/               # PNG → LittleFS pack
-├── community/            # face templates
+│   ├── flint/            # hardware, links and recovery integration
+│   └── LovyanGFX/        # slim hardware display component
+├── platform/             # shared Core, Runtime, SDK, compiler and tests
+│   ├── system/           # source factory Ignite projects
+│   └── factory/          # compiled factory packages
+├── tools/                # device selection and firmware tooling
 └── brand/                # marketing logo
 ```
 
@@ -151,25 +130,21 @@ flint_os/
 
 ## Docs
 
-USB and BLE share INFO, STATUS and time synchronization. See the
-[companion protocol](docs/COMPANION-PROTOCOL.md) for UUIDs, build configuration,
-pairing limitations and the hardware validation checklist.
+USB and BLE share the binary Companion contract. See the
+[companion protocol](docs/COMPANION-PROTOCOL.md) for framing, compatibility and trust.
 
 | Doc | Contents |
 |-----|----------|
-| [`docs/NAMING.md`](docs/NAMING.md) | Flint names and Ignit terminology |
-| [`docs/IGNITS.md`](docs/IGNITS.md) | Installable watch faces, themes and combined packages |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Spark scope, hardware revisions, milestones and acceptance criteria (RU) |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Dependencies, Face contract, dirty events |
-| [`docs/MODULES.md`](docs/MODULES.md) | What each directory owns |
-| [`docs/FACES.md`](docs/FACES.md) | Native face contract and Ignit entry point |
-| [`docs/ESP-IDF.md`](docs/ESP-IDF.md) | Build / flash / monitor cheatsheet |
-| [`assets/README.md`](assets/README.md) | LittleFS icon pack |
-| [`components/flint/board/README.md`](components/flint/board/README.md) | Board profiles |
-| [`tools/README.md`](tools/README.md) | Codegen tools |
+| [`platform/README.md`](platform/README.md) | Shared platform contracts, security, formats and current limits |
+| [`docs/IGNITS.md`](docs/IGNITS.md) | Binary packages and project compilation |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Migration milestones and hardware validation |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Core, Runtime, hardware and application boundaries |
+| [`docs/ESP-IDF.md`](docs/ESP-IDF.md) | Build and target configuration |
+| [`components/flint/board/README.md`](components/flint/board/README.md) | Board profile and wiring |
+| [`tools/README.md`](tools/README.md) | Local development tools |
 | [`CHANGELOG.md`](CHANGELOG.md) | Release history (Keep a Changelog) |
 
-Face SDK: `components/flint/sdk/flint_face_sdk.h`
+Public API, Face SDK, package format and protocol versions remain **1** during active development. Bounded Lua execution is enabled and physically validated on Spark; background services are not supported. Physical-device checks are separate from the local test suite.
 
 ---
 
@@ -198,3 +173,7 @@ Thanks to everyone who has contributed to FlinT OS:
 <p align="center">
   <sub>FlinT OS · DeeTech Labs · Apache 2.0 · ESP‑IDF</sub>
 </p>
+
+The shared runtime and SDK are the `platform/` Git submodule of
+[Flint IgniteSDK](https://github.com/DeeTech-Labs/Flint-IgniteSDK).
+Run `git submodule update --init --recursive` before building a fresh checkout.

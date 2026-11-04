@@ -1,14 +1,13 @@
-# FlinT OS — ESP32-C3 4MB (lean app + LittleFS asset storage + cfg)
-# Dual OTA ~1.25MB/slot for firmware only.
-# Protected system icons live in assets (LittleFS, flashed with firmware).
-# Downloaded ignits/themes/images live in storage (LittleFS, runtime R/W).
-# UI prefs + soft clock epoch live in cfg (LittleFS), runtime R/W.
-# Name,   Type, SubType, Offset,  Size, Flags
-nvs,      data, nvs,     0x9000,  0x5000,
-otadata,  data, ota,     0xe000,  0x2000,
-ota_0,    app,  ota_0,   0x10000, 0x140000,
-ota_1,    app,  ota_1,   0x150000,0x140000,
-assets,   data, littlefs,0x290000,0x20000,
-storage,  data, littlefs,0x2B0000,0x130000,
-cfg,      data, littlefs,0x3E0000,0x10000,
-coredump, data, coredump,0x3F0000,0x10000,
+# Verified 4 MiB Flash, ESP32-S3 Super Mini (2026-11-04).
+# 2 MiB PSRAM is volatile RAM and is not part of this partition map.
+# Two 1 MiB OTA slots; 192 KiB factory; 1728 KiB writable storage.
+# Migration: ota_1, factory and storage offsets changed; back up and migrate
+# existing storage before flashing this map. An app-only OTA cannot apply it.
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,0x9000,0x5000,
+otadata,data,ota,0xe000,0x2000,
+ota_0,app,ota_0,0x10000,0x100000,
+ota_1,app,ota_1,0x110000,0x100000,
+factory,data,littlefs,0x210000,0x30000,
+storage,data,littlefs,0x240000,0x1b0000,
+coredump,data,coredump,0x3f0000,0x10000,

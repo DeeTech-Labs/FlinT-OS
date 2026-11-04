@@ -10,8 +10,8 @@ python3 tools/select_device.py --build
 With an activated SDK, `idf.py set-target esp32s3` followed by `idf.py build` also works. Use a separate build directory/configuration to preserve unrelated local builds.
 
 The main task uses a 32 KiB internal stack. The shared Lua configuration limits
-nested C calls to 40. Physical tests, including excessive parser nesting, left
-17808 bytes of free main-task stack at the observed worst point. PSRAM does not
+nested C calls to 40. The stack covers parser, callback, package-validation and filesystem call chains;
+measure its headroom when changing these paths. PSRAM does not
 increase a task's stack. Spark defaults enable `CONFIG_FLINT_LUA_RUNTIME`; the
 source list and limits come directly from the pinned SDK.
 
@@ -28,4 +28,4 @@ python tools/test_lua_device.py --port /dev/ttyACM0 --report /tmp/spark-lua.json
 ```
 
 This command installs/removes only `test.lua-*` fixtures and launches factory clock;
-it does not flash firmware or erase Flash. See [hardware results](validation/spark-lua-2026-11-04.json).
+it does not flash firmware or erase Flash. Detailed reports are temporary diagnostics, not repository documents.

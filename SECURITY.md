@@ -1,19 +1,15 @@
-# Security Policy
+[English translation](docs/en/SECURITY.md)
 
-## Supported versions
+# Безопасность FlinT OS
 
-FlinT OS is in **alpha**. Security fixes target the latest `main` branch.
+Проект находится в альфа-стадии. Исправления безопасности направляются в актуальную ветку `main`.
 
-## Reporting a vulnerability
+## Сообщить об уязвимости
 
-**Do not** open a public issue for security-sensitive reports.
+Не публикуйте чувствительные сведения в открытом issue. Используйте **Security → Report a vulnerability** в репозитории. Если приватная отправка недоступна, свяжитесь с сопровождающими через [DeeTech Labs](https://github.com/DeeTech-Labs).
 
-1. **GitHub private vulnerability reporting** — **Security → Report a vulnerability** on this repository.
-2. If that is unavailable, contact maintainers via the [DeeTech Labs](https://github.com/DeeTech-Labs) org on GitHub.
+Укажите версию или коммит FlinT OS, версии ОС/Qt или ESP-IDF, профиль платы и версию прошивки, влияние, шаги воспроизведения и при необходимости минимальный пример. Перед передачей удалите секреты, персональные данные и идентификаторы из логов и захватов.
 
-Include: FlinT OS commit/version, ESP-IDF version, board profile (e.g. FlinT Spark / `flint_spark`), impact, and reproduction steps. Share a minimal proof-of-concept only if needed.
+## Область проверки
 
-## Scope notes
-
-- Never commit `components/flint/config/secrets.h` or real credentials.
-- Pure physical-access issues without a software bug may be out of scope; ask privately if unsure.
+Никогда не добавляйте `components/flint/config/secrets.h` и реальные учётные данные. Проблемы только физического доступа без программной ошибки могут быть вне области; уточняйте приватно.

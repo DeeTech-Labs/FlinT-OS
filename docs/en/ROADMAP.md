@@ -1,3 +1,5 @@
+[Русский оригинал](../ru/ROADMAP.md)
+
 # FlinT Platform roadmap
 
 The November 2026 architecture replaces native face registration and fixed-slot packages with a shared package platform. The target is ESP32-S3 Super Mini; C3 support is removed. All public contract versions remain 1 during development.

@@ -1,3 +1,5 @@
+[Русский оригинал](../ru/CONFIGURATION.md)
+
 # Firmware configuration
 
 `sdkconfig.defaults` selects ESP32-S3, binary native USB, authenticated NimBLE and LittleFS. `partitions.csv` targets the verified 4 MiB Flash: two 1024 KiB application slots, 192 KiB protected factory packages and 1728 KiB writable user storage. The separate 2 MiB PSRAM does not change Flash capacity.

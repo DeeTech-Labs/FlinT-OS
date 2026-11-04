@@ -1,3 +1,5 @@
+[Русский оригинал](../ru/TOOLS.md)
+
 # Local tools
 
 - `select_device.py`: select the maintained S3 profile and optionally build, flash or monitor when explicitly requested.

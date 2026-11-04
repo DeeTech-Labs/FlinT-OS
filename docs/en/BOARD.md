@@ -1,3 +1,5 @@
+[Русский оригинал](../ru/BOARD.md)
+
 # FlinT Spark S3 Super Mini
 
 Only supported profile: `flint_spark_s3_supermini`, target `esp32s3`.
@@ -25,4 +27,4 @@ python3 tools/select_device.py --device flint_spark_s3_supermini --build
 
 Hardware sources live in `models/flint_spark/s3_supermini/`. The selector exports `device_config.h`, `device_display.h` and `device.cmake` into this directory. Generated files are ignored by git.
 
-See [platform migration status](../../../platform/README.md) for what is implemented and what still needs replacing.
+See [platform migration status](../../platform/README.md) for what is implemented and what still needs replacing.

@@ -10,3 +10,10 @@ See platform/include/flint/graphics/fonts/Lato-LICENSE.txt and
 platform/tests/assets/Lato-LICENSE.txt.
 
 The hardware display component uses LovyanGFX under its upstream license.
+
+Required Notice: Copyright 2026 DeeTech Labs (https://github.com/DeeTech-Labs)
+Licensing scope and additional permissions: docs/ru/LICENSING.md
+
+Lua 5.4.9: MIT, Copyright 1994-2026 Lua.org, PUC-Rio.
+See platform/third_party/lua/lua.h and platform/third_party/lua/README.flint.
+The pinned platform has its own mixed-license scope; see platform/LICENSE.

@@ -1,6 +1,8 @@
+[Русский оригинал](../ru/COMPANION-PROTOCOL.md)
+
 # Companion protocol v1
 
-The shared [platform specification](../platform/README.md) defines binary framing and typed service methods. Definitions live under `platform/spec/`; Core, Flare and the simulator use identical codecs.
+The shared [platform specification](../../platform/README.md) defines binary framing and typed service methods. Definitions live under `platform/spec/`; Core, Flare and the simulator use identical codecs.
 
 Compatibility checks include the development contract revision, build ID and required capabilities. USB and BLE have no textual application-command fallback. BLE requires encrypted authenticated bonding, with pairing approvals restricted to a retained local USB channel.
 

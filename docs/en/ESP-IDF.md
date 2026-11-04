@@ -1,3 +1,5 @@
+[Русский оригинал](../ru/ESP-IDF.md)
+
 # ESP-IDF build
 
 Target: ESP32-S3 only. The locally verified SDK is ESP-IDF 6.0.2. Python tooling discovers the existing SDK and its managed environment.

@@ -21,7 +21,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 idf_build_set_property(MINIMAL_BUILD ON)
 
 # Device revision must exist before components/LovyanGFX and flint configure.
-set(FLINT_DEVICE "" CACHE STRING "Supported FlinT product revision (default: Spark C3)")
+set(FLINT_DEVICE "" CACHE STRING "Supported FlinT product revision (default: Spark S3)")
 # Reconfigure when the device registry or maintained hardware files change.
 file(GLOB_RECURSE _flint_device_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_LIST_DIR}/components/flint/board/models/*")

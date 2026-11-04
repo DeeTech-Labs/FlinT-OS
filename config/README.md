@@ -1,10 +1,5 @@
-# Build and partition defaults
+# Firmware configuration
 
-- `sdkconfig.defaults`: ESP-IDF defaults for the fixed product revision.
-- `partitions.csv`: ESP32-C3 4 MB layout with two 1280 KB firmware slots,
-  128 KB system `assets`, 1216 KB writable package `storage`, and 64 KB `cfg`.
-- `assets` is flashed with the firmware. `storage` and `cfg` are not flashed
-  during ordinary updates; an erased filesystem is initialized at first boot.
+`sdkconfig.defaults` selects ESP32-S3, binary native USB, authenticated NimBLE and LittleFS. `partitions.csv` is a provisional 4 MiB layout with two application slots, protected factory packages and writable user storage.
 
-Hardware sources: `components/flint/board/models/flint_spark/c3_dev/`.
-Package storage and first-time provisioning: [Ignits](../docs/IGNITS.md).
+Hardware sources: `components/flint/board/models/flint_spark/s3_supermini/`. Device selection generates the board headers before component configuration. There is no C3 profile.

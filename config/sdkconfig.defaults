@@ -1,18 +1,19 @@
-# FlinT OS defaults — ESP32-C3 + 4MB flash (compact + responsive)
+# FlinT OS defaults — ESP32-S3 + 4MB flash (compact + responsive)
 # Offline firmware: time sync over native USB Serial/JTAG.
-CONFIG_IDF_TARGET="esp32c3"
+CONFIG_IDF_TARGET="esp32s3"
 
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="config/partitions.csv"
 CONFIG_PARTITION_TABLE_OFFSET=0x8000
 
-# USB Serial/JTAG console (ESP32-C3 DevKit)
-CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+# Binary Companion owns USB Serial/JTAG; console output must not interleave frames.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=n
 CONFIG_ESP_CONSOLE_UART_DEFAULT=n
 
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
-# Keep 1000 Hz: UI uses pdMS_TO_TICKS(1..2); at 100 Hz those become 10 ms.
+# Preserve the 2 ms yield after processing input.
 CONFIG_FREERTOS_HZ=1000
 
 # Size-first compiler
@@ -20,7 +21,7 @@ CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_COMPILER_CXX_RTTI=n
 
-# Quiet IDF logs (app uses DEBUG_LEVEL / printf)
+# Quiet IDF logs; no textual protocol console.
 CONFIG_LOG_DEFAULT_LEVEL_WARN=y
 CONFIG_LOG_DEFAULT_LEVEL=2
 
@@ -34,5 +35,5 @@ CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 CONFIG_BT_NIMBLE_MAX_BONDS=3
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
 
-# cfg, protected assets, and writable package storage.
-CONFIG_LITTLEFS_MAX_PARTITIONS=3
+# Read-only factory packages and writable application storage.
+CONFIG_LITTLEFS_MAX_PARTITIONS=2

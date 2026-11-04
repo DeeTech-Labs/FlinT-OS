@@ -1,0 +1,18 @@
+{
+    "id": "system.locale-ru",
+    "name": "Русский",
+    "publisher": "deetech",
+    "version": 1,
+    "permissions": [],
+    "components": [
+        {
+            "id": "ru",
+            "type": "locale",
+            "values": {
+                "clock": "Флинт",
+                "launcher": "Приложения",
+                "settings": "Настройки"
+            }
+        }
+    ]
+}

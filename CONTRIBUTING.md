@@ -4,60 +4,43 @@ Thanks for helping improve **FlinT OS** (firmware for **FlinT** devices; base bo
 
 ## Before you start
 
-- [README](README.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), Face SDK: `components/flint/sdk/flint_face_sdk.h`
+- [README](README.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), shared SDK: [`platform/README.md`](platform/README.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - Questions → [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions); bugs/features → [Issues](https://github.com/DeeTech-Labs/FlinT-OS/issues)
 - Support routing → [SUPPORT.md](SUPPORT.md)
 
 ## Development setup
 
-1. ESP-IDF v5.x / v6.x activated.
-2. Secrets (gitignored):
+Use ESP-IDF 6.0.2, C++20 and Python 3. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
 
-   ```bash
-   cp components/flint/config/secrets.example.h components/flint/config/secrets.h
-   ```
+```bash
+python3 tools/select_device.py --build
+```
 
-3. Build for FlinT Spark:
+Use four spaces and no tabs. `.editorconfig` and `.clang-format` define the source style.
 
-   ```bash
-   idf.py set-target esp32c3
-   idf.py build
-   idf.py -p /dev/ttyACM0 flash monitor
-   ```
+## Code generation
 
-Never commit `secrets.h` or credentials.
+Factory applications are JSON projects under `platform/system/`. Regenerate their binaries and the machine-readable API/permission registries before exporting the shared implementation:
 
-## Codegen (board / i18n / assets)
+```bash
+python3 platform/tools/generate_registry.py
+python3 platform/tools/build_system.py
+python3 tools/sync_platform.py
+```
 
-Editing fixed device sources, `.po` / `.pot`, or asset PNGs **without regenerating** can leave firmware on stale generated files (`*.inc`, `device.cmake`, `core.flintpack`) — builds may succeed while hardware strings or icons are wrong.
-
-| You changed… | Run (from repo root) | Generated output (do not hand-edit) |
-|--------------|----------------------|-------------------------------------|
-| `components/flint/board/**` | `python3 tools/select_device.py` (or `--device <id>`) | `device_config.h`, `device_display.h`, `device.cmake` |
-| `components/flint/i18n/lang/**` | `python3 tools/gen_i18n_catalog.py` | `i18n_catalog.inc` |
-| `assets/**/*.png` or `sdk/resources.h` | `python3 tools/gen_asset_pack.py` | `assets/fs_root/core.flintpack` |
-
-CMake often regenerates i18n/pack when inputs change, and device selection on configure — still run the tools after local edits if you need an immediate refresh, and commit maintained hardware sources; selected device output files are ignored.
-
-Interactive picker: `./flint_tools`. Full flags and examples: [`tools/README.md`](tools/README.md).
+Edit the canonical OS implementation rather than the exported Desktop copy. Hardware sources remain under `components/flint/board/models/`.
 
 ## Host tests
 
-Pure contracts (no ESP-IDF / device). From repo root:
-
 ```bash
-# date_fmt / day-mode / dirty rules / settings clamp (explicit fail, -UNDEBUG)
-make -C tests/host run
-
-# tools/gen_* schema / id smoke (stdlib unittest; pytest also works if installed)
+cmake -S platform -B /tmp/flint-platform -DCMAKE_BUILD_TYPE=Debug
+cmake --build /tmp/flint-platform
+ctest --test-dir /tmp/flint-platform --output-on-failure
 python3 -m unittest discover -s tools/tests -v
 ```
 
-CI runs the same commands on every PR via `.github/workflows/host-tests.yml`, plus
-regen of i18n/pack with `git diff --exit-code` and a quiet device selection.
-
-Do not add on-target Unity or heavy CI matrices unless agreed separately.
+Default verification is device-independent. Hardware tests are separate and opt-in.
 
 ## Branching & PRs
 
@@ -75,18 +58,14 @@ fix(ui): Prevent mode label overlapping wifi badge
 docs: Clarify Face SDK include rules
 ```
 
-## Faces
+## Ignite applications and watch faces
 
-- Prefer new files under `components/flint/faces/` over editing core services.
-- Include only `sdk/flint_face_sdk.h` (plus allowed display/glance helpers); keep `onTick` non-blocking.
-- Register in `components/flint/faces/faces_builtin.cpp`.
-- Start from `community/face_template.cpp.example`.
-- Details: [`docs/FACES.md`](docs/FACES.md).
+Create a standalone project with the shared compiler instead of registering native faces inside Core. See [`docs/IGNITS.md`](docs/IGNITS.md) and `platform/examples/pc-monitor/`. Keep application access declared and scoped; unsupported APIs must not be advertised.
 
 ## Boards & partitions
 
 - Hardware: [`components/flint/board/README.md`](components/flint/board/README.md)
-- Flash map: `config/partitions.csv` (dual OTA + `storage` + `cfg`)
+- Flash map: `config/partitions.csv` (dual application slots + `factory` + `storage`)
 
 ## Naming
 

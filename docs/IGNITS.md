@@ -1,130 +1,21 @@
-# Flint Ignits v1
+# Ignite packages
 
-Игнит (Ignit) — устанавливаемый из Companion пакет для часов. В первой версии доступны
-три типа: `face` (циферблат), `theme` (оформление оболочки), `bundle` (оба).
-Пакет не меняет аппаратную конфигурацию модели и не требует пересборки прошивки.
+Ignite is the universal binary package format for apps, watch faces, themes, locales, resources and widgets. Factory and user components use the same validator and Runtime.
 
-## Формат и ограничения
+## Build a package
 
-Файл `.ignit` — один JSON-документ размером до 4096 байт. Архивов, скриптов,
-исполняемого кода и внешних зависимостей в v1 нет. Все поля обязательны,
-неизвестные поля отклоняются. Пример:
-
-```json
-{
-  "schema": "flint.ignit/1",
-  "id": "pkg.mint-bundle",
-  "name": "Mint",
-  "version": 1,
-  "target": "flint_spark",
-  "api": 1,
-  "kind": "bundle",
-  "layout": "blocks",
-  "theme": {
-    "background": "#080c10",
-    "surface": "#111c24",
-    "accent": "#77ddbb",
-    "muted": "#99aabb",
-    "text": "#f4f4ee",
-    "selection": "#20323e"
-  }
-}
+```bash
+python3 -m pip install Pillow
+python3 platform/tools/compile_ignite.py \
+    platform/examples/pc-monitor/project.json /tmp/pc-monitor.ignit
 ```
 
-- `id`: `pkg.` и 1–20 символов `a-z`, `0-9`, `.` или `-`.
-- `name`: непустое имя, до 24 байт UTF-8; без управляющих символов.
-- `version`: целое 1–65535; обновление по ID атомарно заменяет пакет.
-  Понижение версии и смена типа установленного пакета отклоняются.
-- `target`: сейчас только `flint_spark`; `api`: только `1`.
-- `kind`: `face`, `theme` или `bundle`.
-- `layout`: `digital`, `blocks` или `quiet`. Для `theme` поле не используется.
-- `theme`: шесть цветов RGB `#RRGGBB`. Для `face` палитра действует только внутри
-  циферблата, для `theme` — в оболочке. У `bundle` обычное применение выбирает обе части вместе.
+A project declares its ID, publisher, component sections, memory budgets and permission scopes. Its UI, resources and manifest are compiled on the computer. New packages are installed through Desktop without changing firmware source.
 
-V1 даёт выбор из трёх встроенных схем расположения с собственными цветами.
-Произвольные элементы, изображения, шрифты, интерактивные приложения и код
-не поддерживаются. Это граница первой работающей версии пакетов.
+## Installation and updates
 
-На Spark C3 доступны **три слота**. Хранятся только ограниченные описания;
-дополнительные framebuffer, VM и динамические изображения не создаются.
-Единственный встроенный пакет — **Spark Base** (`digital`, тип bundle).
-Он содержит базовое приложение часов, циферблат и палитру. Его код и исходная
-тема находятся в прошивке и не могут быть заменены/удалены API установки пакетов.
-Свежая установка не содержит дополнительных пользовательских пакетов.
+Desktop uses resumable binary blocks, a complete-file digest, staging validation and an atomic registry commit. The previous version remains available for rollback. There are no fixed installation slots. User packages cannot replace protected factory identities or inherit additional consent on update.
 
-## Установка из Desktop
+## Runtime and limits
 
-1. Подключить Spark с capability `ignits_v1` по USB или доверенному BLE.
-2. Открыть Watch faces → Market, обновить сведения о памяти и установить пакет
-   из локального каталога. Import package позволяет установить свой `.ignit`.
-3. Дождаться подтверждения часов и выбрать Use package. Bundle применяет
-   циферблат и палитру вместе; face — циферблат, theme — оформление оболочки.
-4. Restore default theme возвращает оформление оболочки к стандартному.
-
-[Примеры](../ignits/examples/) содержат циферблат, тему и bundle.
-Установленные циферблаты также появляются в выборе на часах и в общей галерее.
-Через меню «Игниты» на часах можно выбирать все типы пакетов и удалять
-дополнительные с подтверждением. Spark Base показывается как защищённый.
-На текущем C3 Dev нет физических кнопок навигации: этот же сценарий пока
-проверяется эмуляцией клавиш по USB (`Enter`, `p/n`, `d`, `Esc`). Будущая ревизия
-подключит свой ввод к этим действиям.
-Пакеты и выбранная тема сохраняются после перезапуска. При удалении активного дополнительного пакета устройство возвращается к Spark Base. Ошибка записи при установке не изменяет прежний пакет.
-
-## Контракт устройства
-
-Запросы используют существующий `@REQ <id> <operation> <payload>` и подтверждения
-`FLINT RESULT`. Все `MINI*` операции требуют доверенного транспорта.
-
-- `IGNITS`: базовый защищённый пакет (`protected:true`) и дополнительные
-  `{id,name,version,kind}`; kind 0/1/2 = face/theme/bundle.
-- `IGNITSTORAGE`: фактические total/used/free раздела `storage`, резерв, бюджет
-  атомарной записи, число слотов и свободная RAM. OTA, assets, cfg, NVS и coredump
-  не считаются местом для пакетов. Перед каждой установкой проверяются минимум
-  8 КБ RAM и свободное место `8 КБ резерв файловой системы + 8 КБ запись + размер описания`.
-  Финальное решение принимает устройство, даже если сведения Companion устарели.
-- `IGNITUSE <id>`: выбор любого типа пакета; `digital` возвращает базовое оформление.
-- `IGNITINSTALL`: `1 <id> <name_hex_utf8> <version> <kind> <layout> <six_rgb_colors>`.
-  Layout 0/1/2 = digital/blocks/quiet; цвета по порядку из примера, без `#`.
-  Строка менее 256 байт. Версия wire 1 фиксирует target и API текущего формата.
-- `IGNITREMOVE <id>`: удаление пакета.
-- `IGNITTHEME <id>`: выбор темы; пустой payload восстанавливает стандартную.
-- `FACE <id>`: выбор установленного циферблата через общий реестр.
-
-`FACES` возвращает компактные `{id,name,version}` для встроенных и установленных
-циферблатов, чтобы список помещался в ограниченный ответ C3. Тема без циферблата
-присутствует только в `IGNITS`.
-
-## Дальнейшее развитие
-
-Формат пакета отделён от магазина. Следующий этап — превью перед установкой,
-описание и автор, локальная библиотека Desktop, сетевой каталог и доставка обновлений.
-Android/iOS смогут использовать тот же документ и протокол установки.
-Подпись, издатели и правила каталога проектируются перед распространением
-сторонних пакетов. Текущий маркет — локальный каталог из трёх примеров, встроенный в Desktop;
-сетевого сервера магазина в этой реализации нет.
-
-Для дополнительных мини-приложений сначала определяется декларативный тип и
-его пределы времени, памяти и доступа к данным. Произвольный нативный код
-не становится доступным в результате установки циферблата.
-
-
-## Разделы ESP32-C3 4 MB
-
-- `ota_0` / `ota_1`: по 1280 КБ для кода прошивки, включая Spark Base.
-- `assets`: 128 КБ с 0x290000, системные ресурсы `/assets/core.flintpack`.
-- `storage`: 1216 КБ с 0x2B0000, устанавливаемые пакеты `/storage/packages/`.
-- `cfg`: 64 КБ с 0x3E0000, настройки, выбранные ID и soft clock.
-- NVS, otadata и coredump сохраняют прежнее назначение.
-
-Обычный `flash` записывает системный `assets.bin`, но не создаёт и не прошивает
-образ `storage`. Новое пустое хранилище инициализируется устройством только
-после проверки, что весь раздел стёрт. Ошибки чтения и повреждённая ФС не
-разрешают автоматическое форматирование.
-
-Переход с прежней тестовой разметки требует однократной чистой инициализации
-`storage` и `cfg`. Миграций старых пакетов из cfg нет. Последующие обычные
-обновления при этой же разметке сохраняют пакеты и настройки.
-
-Прежние встроенные Companion/Studio-экраны и отдельные команды их установки
-удалены из этой прошивки. Их функции могут возвращаться только как отдельные
-поддерживаемые типы пакетов. Старые данные и схемы не мигрируются.
+Declarative screens support shared fonts, package glyph atlases, images, localized text and permitted data bindings. Wasm and executable background components return `not_supported` until an engine is validated. The complete [platform contract](../platform/README.md) defines binary layouts, security and resource limits.

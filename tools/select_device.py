@@ -25,28 +25,34 @@ OUT_CMAKE = DEVICE_DIR / "device.cmake"
 
 # Supported product revisions. No external hardware descriptions are loaded.
 PROFILES = {
-    "flint_spark_c3_dev": {
-        "name": "FlinT Spark / C3 development",
-        "model": "flint_spark", "revision": "c3_dev",
-        "idf_target": "esp32c3", "display": "st7789_spi_240x280",
-        "directory": "models/flint_spark/c3_dev",
+    "flint_spark_s3_supermini": {
+        "name": "FlinT Spark / S3 Super Mini development",
+        "model": "flint_spark",
+        "revision": "s3_supermini",
+        "idf_target": "esp32s3",
+        "display": "st7789_spi_240x280",
+        "directory": "models/flint_spark/s3_supermini",
     },
 }
-DEFAULT_PROFILE = "flint_spark_c3_dev"
+DEFAULT_PROFILE = "flint_spark_s3_supermini"
 PROG_DESCRIPTION = "Select a fixed FlinT model/revision and build firmware"
-PROG_EPILOG = "Example: %(prog)s --device flint_spark_c3_dev --build"
+PROG_EPILOG = "Example: %(prog)s --device flint_spark_s3_supermini --build"
 
 
 def resolve_device_id(requested: str) -> str:
     selected = (requested or os.environ.get("FLINT_DEVICE") or DEFAULT_PROFILE).strip()
     if selected not in PROFILES:
-        raise SystemExit(f"unsupported product revision {selected!r}; available: {', '.join(PROFILES)}")
+        raise SystemExit(
+            f"unsupported product revision {selected!r}; available: {', '.join(PROFILES)}"
+        )
     return selected
 
 
 def cmd_list_devices(*, as_json: bool) -> int:
-    rows = [{"id": key, "default": key == DEFAULT_PROFILE, **value}
-            for key, value in PROFILES.items()]
+    rows = [
+        {"id": key, "default": key == DEFAULT_PROFILE, **value}
+        for key, value in PROFILES.items()
+    ]
     if as_json:
         print(json.dumps({"default": DEFAULT_PROFILE, "devices": rows}, indent=2))
     else:
@@ -86,9 +92,11 @@ def _espressif_idf_candidates() -> list[Path]:
     roots = [
         home / ".espressif",
         home / "esp",
-        Path(os.environ["XDG_DATA_HOME"]) / "espressif"
-        if os.environ.get("XDG_DATA_HOME")
-        else None,
+        (
+            Path(os.environ["XDG_DATA_HOME"]) / "espressif"
+            if os.environ.get("XDG_DATA_HOME")
+            else None
+        ),
     ]
     found: list[Path] = []
     for root in roots:

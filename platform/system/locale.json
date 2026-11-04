@@ -1,0 +1,19 @@
+{
+    "id": "system.locale",
+    "name": "English",
+    "publisher": "deetech",
+    "version": 1,
+    "permissions": [],
+    "components": [
+        {
+            "id": "en",
+            "type": "locale",
+            "role": "locale",
+            "values": {
+                "clock": "FlinT",
+                "launcher": "Applications",
+                "settings": "Settings"
+            }
+        }
+    ]
+}

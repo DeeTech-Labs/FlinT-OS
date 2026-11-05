@@ -6,7 +6,7 @@ Thanks for helping improve **FlinT OS** (firmware for **FlinT** devices; base bo
 
 ## Before you start
 
-- [README](../../README.md), [`docs/ARCHITECTURE.md`](ARCHITECTURE.md), shared SDK: [`platform/README.md`](../../platform/README.md)
+- [README](../../readme), [`docs/ARCHITECTURE.md`](ARCHITECTURE.md), shared SDK: [`platform/README.md`](../../platform/readme)
 - Release notes: [`CHANGELOG.md`](../../CHANGELOG.md)
 - Questions → [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions); bugs/features → [Issues](https://github.com/DeeTech-Labs/FlinT-OS/issues)
 - Support routing → [SUPPORT.md](SUPPORT.md)

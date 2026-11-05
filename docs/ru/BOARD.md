@@ -19,4 +19,4 @@ python3 tools/select_device.py --list
 python3 tools/select_device.py --device flint_spark_s3_supermini --build
 ```
 
-Исходники — `components/flint/board/models/flint_spark/s3_supermini/`. Селектор создаёт в каталоге платы `device_config.h`, `device_display.h`, `device.cmake`; сгенерированные файлы игнорируются Git. [Общая архитектура](../../platform/README.md), [карта разделов](CONFIGURATION.md).
+Исходники — `components/flint/board/models/flint_spark/s3_supermini/`. Селектор создаёт в каталоге платы `device_config.h`, `device_display.h`, `device.cmake`; сгенерированные файлы игнорируются Git. [Общая архитектура](../../platform/readme), [карта разделов](CONFIGURATION.md).

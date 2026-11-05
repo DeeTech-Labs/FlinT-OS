@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="../../readme">Русская версия</a> &nbsp; / &nbsp;
+  <a href="../../README.md">Русская версия</a> &nbsp; / &nbsp;
   <a href="https://flint.deetech.ru/">Website</a> &nbsp; / &nbsp;
   <a href="https://github.com/DeeTech-Labs">DeeTech Labs</a>
 </p>
@@ -124,7 +124,7 @@ USB and BLE share the binary Companion contract. See the
 
 | Doc | Contents |
 |-----|----------|
-| [`platform/README.md`](../../platform/readme) | Shared platform contracts, security, formats and current limits |
+| [`platform/README.md`](../../platform/README.md) | Shared platform contracts, security, formats and current limits |
 | [`docs/IGNITS.md`](IGNITS.md) | Binary packages and project compilation |
 | [`docs/ROADMAP.md`](ROADMAP.md) | Migration milestones and hardware validation |
 | [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | Core, Runtime, hardware and application boundaries |

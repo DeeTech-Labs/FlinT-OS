@@ -12,7 +12,7 @@
 
 Include board profile (FlinT Spark / `flint_spark` or custom), FlinT OS commit or version, ESP-IDF version, and serial logs (redact secrets).
 
-Docs live under [`docs/`](..) (see the Docs section in [README.md](../../readme)). Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). There is no project Wiki.
+Docs live under [`docs/`](..) (see the Docs section in [README.md](../../README.md)). Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). There is no project Wiki.
 
 ## Documentation and contribution terms
 

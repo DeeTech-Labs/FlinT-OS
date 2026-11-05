@@ -4,7 +4,7 @@
 
 ## Подготовка
 
-Начните с [README](readme), [архитектуры](docs/ru/ARCHITECTURE.md), [протокола Companion](docs/ru/COMPANION-PROTOCOL.md) и [истории изменений](CHANGELOG.md). Вопросы обсуждаются в [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions), воспроизводимые ошибки и функции — в [Issues](https://github.com/DeeTech-Labs/FlinT-OS/issues). [Маршруты поддержки](SUPPORT.md).
+Начните с [README](README.md), [архитектуры](docs/ru/ARCHITECTURE.md), [протокола Companion](docs/ru/COMPANION-PROTOCOL.md) и [истории изменений](CHANGELOG.md). Вопросы обсуждаются в [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions), воспроизводимые ошибки и функции — в [Issues](https://github.com/DeeTech-Labs/FlinT-OS/issues). [Маршруты поддержки](SUPPORT.md).
 
 Требуются ESP-IDF 6.0.2, C++20, Python 3 и Pillow для ресурсов и тестов. Сборка: `python3 tools/select_device.py --build`. Аппаратные профили — `components/flint/board/models/`; карта Flash — `config/partitions.csv`.
 

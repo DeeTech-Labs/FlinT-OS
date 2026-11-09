@@ -54,10 +54,10 @@ void coreDisconnect(flint::Session &session) {
         core->disconnect(session);
 }
 uint64_t coreRuntimeGeneration() {
-    return core && xTaskGetCurrentTaskHandle() == coreTask ? core->runtime().generation() : 0;
+    return xTaskGetCurrentTaskHandle() == coreTask && core ? core->runtime().generation() : 0;
 }
 flint::Error corePostInput(flint::InputEvent event) {
-    if (!core || xTaskGetCurrentTaskHandle() != coreTask)
+    if (xTaskGetCurrentTaskHandle() != coreTask || !core)
         return flint::Error::invalid_state;
     return core->postInput(event);
 }

@@ -3,6 +3,7 @@
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "st7789.h"
 #include <array>
 #include <cstring>
@@ -32,6 +33,7 @@ static_assert(std::is_trivially_copyable_v<FlintRender::Scene>);
 static_assert(sizeof(DisplayScratch) == sizeof(FlintRender::Scene));
 DMA_ATTR DisplayScratch scratch{.row = {}};
 bool havePrevious = false;
+uint64_t frames{}, recoveries{}, errors{}, maxRasterUs{}, maxCopyUs{}, maxSpiUs{};
 
 uint16_t *beginRows() {
     havePrevious = false;
@@ -45,6 +47,7 @@ bool check(esp_err_t error) {
     if (error == ESP_OK)
         return true;
     ESP_LOGE("display", "%s", esp_err_to_name(error));
+    ++errors;
     havePrevious = false;
     return false;
 }
@@ -116,24 +119,36 @@ void displayScene(flint::Core &core, const FlintRender::Scene &scene) {
         return;
     FlintRender::Canvas canvas(pixels.get(), Width, Height, true);
     canvas.clip = dirty;
+    const auto rasterStart = esp_timer_get_time();
     core.paint(scene, canvas);
+    maxRasterUs = std::max(maxRasterUs, uint64_t(esp_timer_get_time() - rasterStart));
+    ++frames;
     auto *dmaRow = beginRows();
+    auto spiStart = esp_timer_get_time();
     if (!check(panel.setWindow(dirty.x, dirty.y, dirty.w, dirty.h))) {
         displayRecovery("Display transfer failed");
         return;
     }
+    uint64_t spiUs = esp_timer_get_time() - spiStart, copyUs = 0;
     for (int y = dirty.y; y < dirty.y + dirty.h; ++y) {
+        const auto copyStart = esp_timer_get_time();
         std::memcpy(dmaRow, pixels.get() + y * Width + dirty.x, dirty.w * 2);
+        copyUs += esp_timer_get_time() - copyStart;
+        spiStart = esp_timer_get_time();
         if (!check(panel.writePixels({dmaRow, size_t(dirty.w)}))) {
             displayRecovery("Display transfer failed");
             return;
         }
+        spiUs += esp_timer_get_time() - spiStart;
     }
+    maxCopyUs = std::max(maxCopyUs, copyUs);
+    maxSpiUs = std::max(maxSpiUs, spiUs);
     std::construct_at(&scratch.previous, scene);
     havePrevious = true;
 }
 
 void displayRecovery(const char *message) {
+    ++recoveries;
     havePrevious = false;
     if (!panel.ready() || !check(panel.setWindow(0, 0, Width, Height)))
         return;
@@ -147,4 +162,13 @@ void displayRecovery(const char *message) {
         if (!check(panel.writePixels({dmaRow, Width})))
             return;
     }
+}
+
+void displayDiagnostics(flint::Values &values) {
+    values["display_frames"] = std::to_string(frames);
+    values["display_errors"] = std::to_string(errors);
+    values["display_recoveries"] = std::to_string(recoveries);
+    values["raster_max_us"] = std::to_string(maxRasterUs);
+    values["copy_max_us"] = std::to_string(maxCopyUs);
+    values["spi_max_us"] = std::to_string(maxSpiUs);
 }

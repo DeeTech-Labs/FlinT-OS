@@ -3,3 +3,4 @@
 void displayBegin();
 void displayScene(flint::Core &core, const FlintRender::Scene &scene);
 void displayRecovery(const char *message);
+void displayDiagnostics(flint::Values &values);

@@ -24,3 +24,6 @@ ctest --test-dir /tmp/flint-display --output-on-failure
 ```
 
 The tests compare pixels against the portable renderer and cover addressing, panel settings, dirty regions, transfer failures, resource cleanup and recovery after allocation failure. They do not verify SPI electrical behavior, physical orientation, tearing or device performance. Lua, LittleFS and package formats are unchanged.
+
+
+Demand-driven Companion uses the [shared SDK contract](../../platform/docs/en/COMPANION.md). [Diagnostics and baseline](PERFORMANCE.md).

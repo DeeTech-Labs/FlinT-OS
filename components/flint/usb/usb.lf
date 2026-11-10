@@ -1,0 +1,4 @@
+[mapping:flint_usb_connection_status]
+archive: libesp_driver_usb_serial_jtag.a
+entries:
+    usb_serial_jtag_connection_monitor:usb_serial_jtag_is_connected (noflash)

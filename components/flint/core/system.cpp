@@ -1,7 +1,6 @@
 #include "ble/ble_link.h"
 #include "core/bridge.h"
 #include "display/display.h"
-#include "driver/usb_serial_jtag.h"
 #include "esp_app_desc.h"
 #include "esp_heap_caps.h"
 #include "esp_littlefs.h"
@@ -9,14 +8,38 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "usb/usb_link.h"
 #include <cstring>
 #include <memory>
 #include <unistd.h>
 static std::unique_ptr<flint::Core> core;
-static flint::FrameParser usbParser;
 static TaskHandle_t coreTask{};
 static uint64_t maxTickUs{}, maxFrameUs{};
-static flint::Session usbSession{true, false, 1};
+struct Counters {
+    uint64_t loops{}, usbWakes{}, timedWakes{}, bleWakes{}, txWakes{}, sessionWakes{}, requests{},
+        requestErrors{}, maxRequestUs{}, maxSceneUs{};
+    size_t internalFree{}, internalLargest{}, psramFree{}, psramLargest{};
+};
+static Counters counters;
+static bool bootSnapshotReady{}, expectBleInitialization{};
+static void captureMemoryBaseline() {
+    if (bootSnapshotReady)
+        return;
+    const auto *state = bleLinkState();
+    if (expectBleInitialization &&
+        (!strcmp(state, "starting") || !strcmp(state, "host_starting") || !strcmp(state, "synced")))
+        return;
+    counters.internalFree = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    counters.internalLargest =
+        heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    counters.psramFree = heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    counters.psramLargest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    bootSnapshotReady = true;
+}
+static uint64_t nextSessionId = 1;
+uint64_t coreNewSession() {
+    return ++nextSessionId;
+}
 
 static bool mount(const char *name, const char *path, bool readOnly = false) {
     esp_vfs_littlefs_conf_t config{};
@@ -47,7 +70,13 @@ static bool mount(const char *name, const char *path, bool readOnly = false) {
     return esp_vfs_littlefs_register(&config) == ESP_OK;
 }
 flint::Frame coreRequest(const flint::Frame &frame, flint::Session &session) {
-    return core->handle(frame, session);
+    const auto start = esp_timer_get_time();
+    auto reply = core->handle(frame, session);
+    ++counters.requests;
+    if (reply.payload.size() < 2 || flint::u16(reply.payload.data()))
+        ++counters.requestErrors;
+    counters.maxRequestUs = std::max(counters.maxRequestUs, uint64_t(esp_timer_get_time() - start));
+    return reply;
 }
 void coreDisconnect(flint::Session &session) {
     if (core)
@@ -62,12 +91,12 @@ flint::Error corePostInput(flint::InputEvent event) {
     return core->postInput(event);
 }
 void appSetup(bool trustReady) {
+    expectBleInitialization = trustReady;
     coreTask = xTaskGetCurrentTaskHandle();
     displayBegin();
     bool factory = mount("factory", "/factory", true);
     bool storage = mount("storage", "/storage");
-    usb_serial_jtag_driver_config_t usb{2048, 2048};
-    usb_serial_jtag_driver_install(&usb);
+    const bool usbReady = usbLinkBegin();
     flint::Platform platform;
     const auto *description = esp_app_get_description();
     const char *hex = "0123456789abcdef";
@@ -75,7 +104,8 @@ void appSetup(bool trustReady) {
         platform.build_id += hex[byte >> 4];
         platform.build_id += hex[byte & 15];
     }
-    platform.capabilities |= flint::CapUsb;
+    if (usbReady)
+        platform.capabilities |= flint::CapUsb;
     if (trustReady) {
         platform.capabilities |= flint::CapBle;
     }
@@ -86,13 +116,40 @@ void appSetup(bool trustReady) {
         uint32_t(external), 4096};
     platform.diagnostics = [] {
         flint::Values values;
-        values["internal_free_bytes"] = std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-        values["internal_largest_bytes"] = std::to_string(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-        values["internal_minimum_bytes"] = std::to_string(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-        values["psram_free_bytes"] = std::to_string(heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        values["internal_free_bytes"] =
+            std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        values["internal_largest_bytes"] =
+            std::to_string(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        values["internal_minimum_bytes"] =
+            std::to_string(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        values["psram_free_bytes"] =
+            std::to_string(heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        values["psram_largest_bytes"] =
+            std::to_string(heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        values["psram_minimum_bytes"] =
+            std::to_string(heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
         values["main_stack_watermark_bytes"] = std::to_string(uxTaskGetStackHighWaterMark(nullptr));
         values["max_tick_us"] = std::to_string(maxTickUs);
         values["max_frame_us"] = std::to_string(maxFrameUs);
+        values["max_scene_us"] = std::to_string(counters.maxSceneUs);
+        values["max_request_us"] = std::to_string(counters.maxRequestUs);
+        values["requests"] = std::to_string(counters.requests);
+        values["request_errors"] = std::to_string(counters.requestErrors);
+        values["loop_count"] = std::to_string(counters.loops);
+        values["usb_rx_wakes"] = std::to_string(counters.usbWakes);
+        values["usb_read_empty_wakes"] = std::to_string(counters.timedWakes);
+        values["ble_wakes"] = std::to_string(counters.bleWakes);
+        values["usb_tx_wakes"] = std::to_string(counters.txWakes);
+        values["usb_session_wakes"] = std::to_string(counters.sessionWakes);
+        usbLinkDiagnostics(values);
+        values["boot_internal_free_bytes"] = std::to_string(counters.internalFree);
+        values["boot_snapshot_ready"] = bootSnapshotReady ? "1" : "0";
+        values["ble_state"] = bleLinkState();
+        values["boot_internal_largest_bytes"] = std::to_string(counters.internalLargest);
+        values["boot_psram_free_bytes"] = std::to_string(counters.psramFree);
+        values["boot_psram_largest_bytes"] = std::to_string(counters.psramLargest);
+        displayDiagnostics(values);
+        bleLinkDiagnostics(values);
         return values;
     };
     // The selected Spark profile has no battery sensor. Never synthesize telemetry.
@@ -100,6 +157,7 @@ void appSetup(bool trustReady) {
         return flint::Error::not_supported;
     };
     platform.monotonic = [] { return uint64_t(esp_timer_get_time() / 1000); };
+    platform.microseconds = [] { return uint64_t(esp_timer_get_time()); };
     platform.free_storage = [] {
         size_t total = 0, used = 0;
         return esp_littlefs_info("storage", &total, &used) == ESP_OK && used <= total
@@ -119,47 +177,59 @@ void appSetup(bool trustReady) {
     if (trustReady) {
         bleLinkBegin();
     }
+    captureMemoryBaseline();
+    coreWake(CoreWakeWork);
+}
+void coreWake(uint32_t reason) {
+    if (coreTask)
+        xTaskNotify(coreTask, reason, eSetBits);
+}
+bool coreTakeCompanionEvent(const flint::Session &session, flint::Frame &event) {
+    return core && core->takeCompanionEvent(session, event);
+}
+uint64_t coreCompanionNextWake(const flint::Session &session) {
+    return core ? core->companionNextWake(session) : UINT64_MAX;
 }
 void appLoop() {
-    uint8_t bytes[256];
     const auto at = core->platform().monotonic();
-    const auto deadline = core->nextWake();
-    // USB traffic wakes the read immediately. BLE maintenance retains its existing 20 ms bound;
-    // application timers can request an earlier wake without a permanent 2 ms polling loop.
-    const auto waitMs = deadline <= at ? 0 : std::min<uint64_t>(20, deadline - at);
-    const auto waitTicks = pdMS_TO_TICKS(waitMs);
-    auto count = usb_serial_jtag_read_bytes(bytes, sizeof(bytes), waitTicks);
-    if (count > 0)
-        usbParser.feed({bytes, size_t(count)}, [](flint::Frame frame) {
-            auto bytes = flint::encodeFrame(coreRequest(frame, usbSession));
-            size_t offset = 0;
-            while (offset < bytes.size()) {
-                auto sent = usb_serial_jtag_write_bytes(
-                    bytes.data() + offset, bytes.size() - offset, pdMS_TO_TICKS(100));
-                if (sent <= 0)
-                    break;
-                offset += sent;
-            }
-        });
-    static bool attached = false;
-    bool connected = usb_serial_jtag_is_connected();
-    if (attached && !connected) {
-        coreDisconnect(usbSession);
-        usbParser.reset();
+    const auto deadline = std::min({core->nextWake(), bleLinkNextWake(), usbLinkNextWake()});
+    TickType_t waitTicks = portMAX_DELAY;
+    if (deadline != UINT64_MAX) {
+        const auto delay = deadline <= at ? 0 : deadline - at;
+        waitTicks = TickType_t(std::min<uint64_t>(
+            (delay + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS, portMAX_DELAY - 1));
     }
-    attached = connected;
+    uint32_t reason = 0;
+    xTaskNotifyWait(0, UINT32_MAX, &reason, waitTicks);
+    ++counters.loops;
+    if (reason & CoreWakeUsbRx)
+        ++counters.usbWakes;
+    if (reason & CoreWakeUsbTx)
+        ++counters.txWakes;
+    if (reason & CoreWakeUsbSession)
+        ++counters.sessionWakes;
+    if (reason & CoreWakeBle)
+        ++counters.bleWakes;
+    if (!reason)
+        ++counters.timedWakes;
+    usbLinkMaintain();
     bleLinkMaintain();
+    captureMemoryBaseline();
     const auto tickStart = esp_timer_get_time();
     const bool dirty = core->tick();
     maxTickUs = std::max(maxTickUs, uint64_t(esp_timer_get_time() - tickStart));
     if (dirty) {
         const auto frameStart = esp_timer_get_time();
         FlintRender::Scene scene;
-        if (core->scene(scene) == flint::Error::ok)
+        const auto sceneStart = esp_timer_get_time();
+        const auto error = core->scene(scene);
+        counters.maxSceneUs =
+            std::max(counters.maxSceneUs, uint64_t(esp_timer_get_time() - sceneStart));
+        if (error == flint::Error::ok)
             displayScene(*core, scene);
         maxFrameUs = std::max(maxFrameUs, uint64_t(esp_timer_get_time() - frameStart));
     }
-    // A zero-time read or sustained USB traffic must still let lower-priority tasks run.
-    if (!waitTicks || count > 0)
+    // Sustained work must still let lower-priority tasks run.
+    if (reason)
         vTaskDelay(1);
 }

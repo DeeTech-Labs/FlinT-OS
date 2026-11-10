@@ -22,11 +22,11 @@ struct PixelDeleter {
 };
 std::unique_ptr<uint16_t, PixelDeleter> pixels;
 // The old scene is consumed before any transfer starts. Reuse its storage for
-// the DMA row, then reconstruct the scene only after the complete frame succeeds.
+// the DMA stripe, then reconstruct the scene only after the complete frame succeeds.
 // This stays internal and available to recovery even without a framebuffer.
 union DisplayScratch {
     FlintRender::Scene previous;
-    std::array<uint16_t, FLINT_FB_MAX_W> row;
+    std::array<uint16_t, flint::display::St7789::MaxTransferPixels> row;
 };
 static_assert(Width <= FLINT_FB_MAX_W);
 static_assert(std::is_trivially_copyable_v<FlintRender::Scene>);
@@ -40,7 +40,8 @@ uint16_t *beginRows() {
     havePrevious = false;
     // Default initialization intentionally leaves the row uninitialized. Every
     // transmitted pixel is filled or copied before use; no heap allocation occurs.
-    auto *row = ::new (static_cast<void *>(&scratch.row)) std::array<uint16_t, FLINT_FB_MAX_W>;
+    auto *row = ::new (static_cast<void *>(&scratch.row))
+        std::array<uint16_t, flint::display::St7789::MaxTransferPixels>;
     return row->data();
 }
 
@@ -131,17 +132,25 @@ void displayScene(flint::Core &core, const FlintRender::Scene &scene) {
         return;
     }
     uint64_t spiUs = esp_timer_get_time() - spiStart, copyUs = 0;
-    for (int y = dirty.y; y < dirty.y + dirty.h; ++y) {
+    for (int y = dirty.y; y < dirty.y + dirty.h;) {
         const auto copyStart = esp_timer_get_time();
-        std::memcpy(dmaRow, pixels.get() + y * Width + dirty.x, dirty.w * 2);
+        const auto rows =
+            std::min<int>(flint::display::St7789::TransferRows, dirty.y + dirty.h - y);
+        if (dirty.x == 0 && dirty.w == Width)
+            std::memcpy(dmaRow, pixels.get() + y * Width, rows * dirty.w * 2);
+        else
+            for (int row = 0; row < rows; ++row)
+                std::memcpy(dmaRow + row * dirty.w, pixels.get() + (y + row) * Width + dirty.x,
+                    dirty.w * 2);
         copyUs += esp_timer_get_time() - copyStart;
         spiStart = esp_timer_get_time();
-        if (!check(panel.writePixels({dmaRow, size_t(dirty.w)}))) {
+        if (!check(panel.writePixels({dmaRow, size_t(dirty.w * rows)}))) {
             displayRecovery("Display transfer failed");
             return;
         }
         spiUs += esp_timer_get_time() - spiStart;
-        transferredPixels += dirty.w;
+        transferredPixels += dirty.w * rows;
+        y += rows;
         ++pixelTransfers;
     }
     totalCopyUs += copyUs;

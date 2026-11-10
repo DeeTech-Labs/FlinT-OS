@@ -64,7 +64,7 @@ void driverTests() {
         CHECK(panel.setWindow(0, 0, 1, 1) == ESP_ERR_INVALID_STATE);
         CHECK(panel.begin() == ESP_OK);
         CHECK(s.busConfig.mosi_io_num == 11 && s.busConfig.sclk_io_num == 12);
-        CHECK(s.busConfig.miso_io_num == -1 && s.busConfig.max_transfer_sz == 560);
+        CHECK(s.busConfig.miso_io_num == -1 && s.busConfig.max_transfer_sz == 1120);
         CHECK(s.deviceConfig.spics_io_num == 10 && s.deviceConfig.clock_speed_hz == 80000000);
         CHECK(s.deviceConfig.flags == (SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_3WIRE));
         CHECK(s.delays == (std::vector<unsigned>{8, 64, 130}));
@@ -97,6 +97,9 @@ void driverTests() {
         CHECK(panel.setWindow(1, 1, INT_MAX, 1) == ESP_ERR_INVALID_ARG);
         CHECK(panel.setWindow(279, 239, 2, 1) == ESP_ERR_INVALID_ARG);
         CHECK(panel.setWindow(279, 239, 1, 2) == ESP_ERR_INVALID_ARG);
+        CHECK(panel.setWindow(0, 0, 280, 240) == ESP_OK);
+        alignas(4) const uint16_t oversized[flint::display::St7789::MaxTransferPixels + 1]{};
+        CHECK(panel.writePixels(oversized) == ESP_ERR_INVALID_ARG);
         CHECK(panel.setWindow(0, 0, 1, 1) == ESP_OK);
         CHECK(panel.writePixels({}) == ESP_ERR_INVALID_ARG);
         alignas(4) const uint16_t tooMany[2]{};
@@ -154,6 +157,7 @@ void displayTests() {
     CHECK(s.gram == expected);
     CHECK(s.allocations == allocations);
     CHECK(s.pixelBytes == 280 * 240 * 2);
+    CHECK(s.transfers.size() == 5 + 120); // Two-row synchronous stripes.
     clearTransfers();
     displayScene(core, scene);
     CHECK(s.transfers.empty());
@@ -164,7 +168,8 @@ void displayTests() {
     clearTransfers();
     displayScene(core, scene);
     CHECK(s.gram == expected && s.gram != old);
-    CHECK(s.pixelBytes == 13 * 9 * 2); // union of old and new odd-width rectangles
+    CHECK(s.pixelBytes == 13 * 9 * 2);  // union of old and new odd-width rectangles
+    CHECK(s.transfers.size() == 5 + 5); // Four pairs plus the final odd row.
     CHECK(commandData(0x2a).bytes == (std::vector<uint8_t>{0, 37, 0, 49}));
     clearTransfers();
     displayRecovery("Test error");
@@ -284,7 +289,7 @@ esp_err_t spi_device_transmit(spi_device_handle_t, spi_transaction_t *transactio
         ? transaction->tx_data
         : static_cast<const uint8_t *>(transaction->tx_buffer);
     const auto size = transaction->length / 8;
-    CHECK(size && size <= 560 && transaction->length % 8 == 0);
+    CHECK(size && size <= size_t(s.busConfig.max_transfer_sz) && transaction->length % 8 == 0);
     s.transfers.push_back({s.dc, {bytes, bytes + size}});
     if (!s.dc) {
         CHECK(size == 1);

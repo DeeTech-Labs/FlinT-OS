@@ -61,3 +61,18 @@ Package admissibility uses the stable profile limit of 48 KiB internal and insta
 The USB RX ring is bounded to 4160 bytes: one MaxPayload=4096 frame including framing plus an empty deferred commit/close. The increase from 2048 is justified by observed burst loss during Lua/display work: IDF silently drops RX when its ring overflows. The client keeps at most one normal request plus one empty `install_commit`; unlimited pipelining is unsupported. Transfer/parsing remains bounded to 256 bytes per pass.
 
 The IDF SOF monitor can briefly report absence after delayed Flash/tick callbacks. OS confirms 20 ms of continuous absence using the IRAM clock, not a count of delayed ticks. Confirmed absence closes the session and clears driver buffers; hello and session_close separate logical clients immediately. `usb_sof_glitches` counts suppressed brief absences and `usb_rx_capacity_bytes` reports ring capacity. The public IDF driver does not expose a direct ring-drop counter.
+
+## Display: controlled stripe comparison
+
+On Spark, SDK b318eaa, 80 MHz SPI, BLE advertising, 20 launcher/clock alternations (40 full 280×240 frames, 2688000 pixels), single rows were compared with two-row stripes:
+
+| Per frame | 1 row | 2 rows |
+|---|---:|---:|
+| Pixel transfers | 240 | 120 |
+| SPI | 27.037 ms | 20.429 ms |
+| Copy | 10.609 ms | 10.551 ms |
+| Paint | 20.606 ms | 20.613 ms |
+
+SPI time fell by 24.4%; the sum of these three measurements fell about 11.4%. This is a controlled comparison, not a comparison against unknown baseline firmware history. Neither run showed display errors or USB session resets. Differences in `display_pixels`, `display_transfers`, `copy_total_us`, and `spi_total_us` reproduce the comparison; SDK supplies `paint_total_us`. Counters cover displayScene, excluding initial fill/recovery.
+
+The 1120-byte DMA stripe uses the existing union with the previous Scene; static_assert preserves total scratch size. The driver accepts at most two rows and completes transfer synchronously before buffer reuse. Odd final rows and clipping are checked by GRAM comparison with the SDK renderer, SPI faults by host recovery tests. The full framebuffer remains; no unmeasured glyph caches or dirty-region sets were introduced. Physical tearing/orientation still need visual validation.

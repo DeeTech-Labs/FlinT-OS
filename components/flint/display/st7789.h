@@ -1,5 +1,6 @@
 #pragma once
 
+#include "board/device_config.h"
 #include "driver/spi_master.h"
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +12,8 @@ namespace flint::display {
 // reuse their DMA-capable, wire-order RGB565 buffer immediately after writePixels.
 class St7789 {
 public:
+    static constexpr size_t TransferRows = 2;
+    static constexpr size_t MaxTransferPixels = FLINT_FB_MAX_W * TransferRows;
     St7789() = default;
     ~St7789();
     St7789(const St7789 &) = delete;

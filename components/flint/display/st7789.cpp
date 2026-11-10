@@ -88,7 +88,7 @@ esp_err_t St7789::begin() {
     bus.sclk_io_num = FLINT_TFT_SCLK;
     bus.quadwp_io_num = -1;
     bus.quadhd_io_num = -1;
-    bus.max_transfer_sz = FLINT_FB_MAX_W * sizeof(uint16_t);
+    bus.max_transfer_sz = MaxTransferPixels * sizeof(uint16_t);
     error = spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO);
     if (error != ESP_OK)
         return error;
@@ -153,7 +153,7 @@ esp_err_t St7789::setWindow(int x, int y, int width, int height) {
 esp_err_t St7789::writePixels(std::span<const uint16_t> pixels) {
     if (!ready_ || !remainingPixels_)
         return ESP_ERR_INVALID_STATE;
-    if (pixels.empty() || pixels.size() > remainingPixels_ || pixels.size() > FLINT_FB_MAX_W)
+    if (pixels.empty() || pixels.size() > remainingPixels_ || pixels.size() > MaxTransferPixels)
         return ESP_ERR_INVALID_ARG;
     const auto error = transfer(true, pixels.data(), pixels.size_bytes());
     if (error == ESP_OK)

@@ -1,4 +1,5 @@
 #include "ble/ble_link.h"
+#include "ble/peer_address.h"
 #include "sdkconfig.h"
 #if CONFIG_BT_NIMBLE_ENABLED
 #if CONFIG_BT_NIMBLE_MAX_BONDS < 1
@@ -413,13 +414,13 @@ void startTransition(bool enabled) {
     }
 }
 } // namespace
-flint::Error bleLinkCheckEnabled(bool enabled) {
+flint::Error bleLinkCheckEnabled(bool enabled, uint32_t applicationReserve) {
     if (!enabled || initialized || workerBusy)
         return flint::Error::ok;
     const auto free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     const auto largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    return free >=
-                CONFIG_FLINT_INTERNAL_MEMORY_RESERVE + CONFIG_FLINT_BLE_START_MEMORY_REQUIREMENT &&
+    return free >= CONFIG_FLINT_INTERNAL_MEMORY_RESERVE +
+                    CONFIG_FLINT_BLE_START_MEMORY_REQUIREMENT + applicationReserve &&
             largest >= 16 * 1024
         ? flint::Error::ok
         : flint::Error::resource_exhausted;
@@ -470,24 +471,12 @@ bool bleLinkPairingCommand(const char *payload, char *json, size_t capacity) {
             ble_sm_inject_io(handle, &io);
         }
     } else if (!strncmp(payload, "revoke=", 7)) {
-        if (strlen(payload + 7) != 14 || (payload[7] != '0' && payload[7] != '1') ||
-            payload[8] != ':')
-            return false;
-        for (int i = 9; i < 21; ++i)
-            if (!((payload[i] >= '0' && payload[i] <= '9') ||
-                    (payload[i] >= 'a' && payload[i] <= 'f') ||
-                    (payload[i] >= 'A' && payload[i] <= 'F')))
-                return false;
-        unsigned type, bytes[6];
-        int used = 0;
-        if (sscanf(payload + 7, "%u:%2x%2x%2x%2x%2x%2x%n", &type, &bytes[0], &bytes[1], &bytes[2],
-                &bytes[3], &bytes[4], &bytes[5], &used) != 7 ||
-            payload[7 + used] || type > 1)
+        flint::ble::PeerAddress parsed;
+        if (!flint::ble::parsePeerAddress(payload + 7, parsed))
             return false;
         ble_addr_t peer{};
-        peer.type = type;
-        for (int i = 0; i < 6; ++i)
-            peer.val[i] = bytes[i];
+        peer.type = parsed.type;
+        std::copy(parsed.bytes.begin(), parsed.bytes.end(), peer.val);
         // Invalidate queued work before ending the connection and revoking keys.
         subscribed = false;
         ++generation;
@@ -528,7 +517,8 @@ void bleLinkMaintain() {
                 ++generation;
                 responseGeneration = generation;
             }
-            if (desired && bleLinkCheckEnabled(true) != flint::Error::ok) {
+            if (desired &&
+                bleLinkCheckEnabled(true, coreApplicationReserve()) != flint::Error::ok) {
                 transitionAttempted = true;
                 state = "memory_failed";
                 lifecycleError = ESP_ERR_NO_MEM;
@@ -668,7 +658,7 @@ int bleLinkLastEncryptionStatus() {
     return -1;
 }
 void bleLinkBegin() {}
-flint::Error bleLinkCheckEnabled(bool) {
+flint::Error bleLinkCheckEnabled(bool, uint32_t) {
     return flint::Error::not_supported;
 }
 void bleLinkSetEnabled(bool) {}

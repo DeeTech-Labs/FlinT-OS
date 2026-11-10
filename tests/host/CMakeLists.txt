@@ -21,3 +21,8 @@ target_compile_definitions(usb_tests PRIVATE FLINT_USB_TEST_CLOCK)
 target_include_directories(usb_tests PRIVATE idf ../../components/flint)
 target_link_libraries(usb_tests PRIVATE Flint::Platform)
 add_test(NAME usb_transport COMMAND usb_tests)
+
+add_executable(ble_address_tests ble_address.cpp)
+target_include_directories(ble_address_tests PRIVATE ../../components/flint)
+target_compile_features(ble_address_tests PRIVATE cxx_std_20)
+add_test(NAME ble_peer_address COMMAND ble_address_tests)

@@ -18,6 +18,10 @@ idf_component_register(
     LDFRAGMENTS usb/usb.lf
     REQUIRES esp_app_format bt esp_partition nvs_flash esp_timer esp_driver_gpio freertos heap log esp_driver_usb_serial_jtag joltwallet__littlefs ${FLINT_DEVICE_IDF_REQUIRES}
 )
+if(NOT CONFIG_ESP_TIMER_IN_IRAM)
+    message(FATAL_ERROR "USB session observer runs during Flash writes: CONFIG_ESP_TIMER_IN_IRAM=y is required")
+endif()
+
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-misleading-indentation)
 

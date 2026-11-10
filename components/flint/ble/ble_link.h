@@ -2,7 +2,7 @@
 #include <flint/runtime.h>
 #include <stddef.h>
 void bleLinkBegin();
-flint::Error bleLinkCheckEnabled(bool enabled);
+flint::Error bleLinkCheckEnabled(bool enabled, uint32_t applicationReserve = 0);
 void bleLinkSetEnabled(bool enabled);
 const char *bleLinkState();
 void bleLinkMaintain();

@@ -102,6 +102,15 @@ void coreDisconnect(flint::Session &session) {
 uint64_t coreRuntimeGeneration() {
     return xTaskGetCurrentTaskHandle() == coreTask && core ? core->runtime().generation() : 0;
 }
+uint32_t coreApplicationReserve() {
+    if (xTaskGetCurrentTaskHandle() != coreTask || !core ||
+        core->runtime().state() == flint::State::empty)
+        return 0;
+    const auto &runtime = core->runtime();
+    const auto used = runtime.logicUsed() + runtime.nativeHeapEstimate();
+    const auto declared = runtime.manifest().budget.internal_bytes;
+    return used < declared ? uint32_t(declared - used) : 0;
+}
 flint::Error corePostInput(flint::InputEvent event) {
     if (xTaskGetCurrentTaskHandle() != coreTask || !core)
         return flint::Error::invalid_state;
@@ -128,7 +137,9 @@ void appSetup(bool trustReady) {
         platform.capabilities |= flint::CapUsb;
     if (trustReady && BleSupported) {
         platform.capabilities |= flint::CapBle | flint::CapBlePolicy;
-        platform.ble_check = bleLinkCheckEnabled;
+        platform.ble_check = [](bool enabled) {
+            return bleLinkCheckEnabled(enabled, coreApplicationReserve());
+        };
         platform.ble_apply = bleLinkSetEnabled;
     }
     // Stable profile limits determine package admissibility, never the current free heap.
@@ -144,8 +155,6 @@ void appSetup(bool trustReady) {
         const auto startupReserve = !bootSnapshotReady && expectBleInitialization ? 32768 : 0;
         auto internal = budget(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT,
             CONFIG_FLINT_INTERNAL_MEMORY_RESERVE + startupReserve);
-        if (bootSnapshotReady)
-            internal = std::min<uint32_t>(internal, counters.internalLargest);
         return flint::MemoryBudget{std::min<uint32_t>(internal, 48 * 1024),
             budget(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, CONFIG_FLINT_PSRAM_MEMORY_RESERVE), 4096};
     };
@@ -202,6 +211,8 @@ void appSetup(bool trustReady) {
             : 0;
     };
     platform.pairing = [](std::string_view action) {
+        if (action.find('\0') != std::string_view::npos)
+            return flint::Bytes{};
         char buffer[768];
         std::string text(action);
         if (!bleLinkPairingCommand(text.c_str(), buffer, sizeof(buffer)))

@@ -16,4 +16,5 @@ uint64_t coreCompanionNextWake(const flint::Session &session);
 // Device input adapters call these only from the application task, never from ISR/BLE callbacks.
 // Drivers crossing tasks must queue their own bounded input records with the captured generation.
 uint64_t coreRuntimeGeneration();
+uint32_t coreApplicationReserve();
 flint::Error corePostInput(flint::InputEvent event);

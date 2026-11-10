@@ -201,6 +201,7 @@ void usbLinkDiagnostics(flint::Values &values) {
     values["usb_tx_errors"] = std::to_string(txErrors);
     values["usb_disconnects"] = std::to_string(disconnects);
     values["usb_sof_glitches"] = std::to_string(connectionState().glitches);
+    values["usb_parser_capacity_bytes"] = std::to_string(parser.bufferCapacity());
     values["usb_rx_capacity_bytes"] = std::to_string(((flint::MaxPayload + 40 + 63) / 64) * 64);
     values["usb_init_error"] = std::to_string(initError);
 }

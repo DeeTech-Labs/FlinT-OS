@@ -57,3 +57,7 @@ validation before integration.
 ## RAM preflight
 
 Package admissibility uses the stable profile limit of 48 KiB internal and installed PSRAM capacity. Launch checks current free/largest values separately: `CONFIG_FLINT_INTERNAL_MEMORY_RESERVE` (32 KiB default) protects DMA, transport and recovery; `CONFIG_FLINT_PSRAM_MEMORY_RESERVE` defaults to 8 KiB. Asynchronous BLE startup retains another 32 KiB. After the mandatory-service baseline, the internal budget is also bounded by the baseline largest block. PSRAM never increases the internal budget. Reserves are conservative and still require full hardware stress validation; BLE pools and stacks have not been reduced.
+
+The USB RX ring is bounded to 4160 bytes: one MaxPayload=4096 frame including framing plus an empty deferred commit/close. The increase from 2048 is justified by observed burst loss during Lua/display work: IDF silently drops RX when its ring overflows. The client keeps at most one normal request plus one empty `install_commit`; unlimited pipelining is unsupported. Transfer/parsing remains bounded to 256 bytes per pass.
+
+The IDF SOF monitor can briefly report absence after delayed Flash/tick callbacks. OS confirms 20 ms of continuous absence using the IRAM clock, not a count of delayed ticks. Confirmed absence closes the session and clears driver buffers; hello and session_close separate logical clients immediately. `usb_sof_glitches` counts suppressed brief absences and `usb_rx_capacity_bytes` reports ring capacity. The public IDF driver does not expose a direct ring-drop counter.

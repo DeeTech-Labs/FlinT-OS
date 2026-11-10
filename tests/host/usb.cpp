@@ -12,10 +12,12 @@
         if (!(x))                                                                                  \
             throw std::runtime_error(#x);                                                          \
     } while (false)
+int64_t usbTestClock = 0;
 namespace {
 bool connected = true, backpressure = false;
 unsigned requests{}, disconnects{}, installs{}, uninstalls{}, wakes{};
 uint64_t sessionId{}, lastSession{};
+size_t rxCapacity{};
 std::deque<uint8_t> incoming;
 flint::Bytes outgoing;
 void (*tickHook)(){};
@@ -26,6 +28,7 @@ uint64_t asyncSession{};
 std::optional<flint::Frame> deferred;
 void feed(const flint::Frame &frame) {
     const auto bytes = flint::encodeFrame(frame);
+    CHECK(incoming.size() + bytes.size() <= rxCapacity);
     incoming.insert(incoming.end(), bytes.begin(), bytes.end());
     int ignored = 0;
     if (callback)
@@ -48,7 +51,10 @@ bool usb_serial_jtag_is_connected() {
     return connected;
 }
 esp_err_t usb_serial_jtag_driver_install(usb_serial_jtag_driver_config_t *config) {
-    CHECK(config->rx_buffer_size == 2048 && config->tx_buffer_size == 2048);
+    CHECK(config->rx_buffer_size >= flint::MaxPayload + 40 &&
+        config->rx_buffer_size < flint::MaxPayload + 104);
+    CHECK(config->tx_buffer_size == 2048);
+    rxCapacity = config->rx_buffer_size;
     ++installs;
     return ESP_OK;
 }
@@ -155,7 +161,22 @@ int main() {
         usbLinkMaintain();
         CHECK(outgoing.size() == 256);
         const auto previousSession = lastSession;
+        // Delayed tick callbacks during Flash activity must not look like unplug.
         connected = false;
+        for (unsigned i = 0; i < 100; ++i)
+            tickHook(); // No elapsed microseconds.
+        usbLinkMaintain();
+        CHECK(disconnects == 0);
+        connected = true;
+        tickHook();
+        CHECK(disconnects == 0);
+        connected = false;
+        tickHook();
+        usbTestClock += 19999;
+        tickHook();
+        usbLinkMaintain();
+        CHECK(disconnects == 0);
+        ++usbTestClock;
         tickHook();
         usbLinkMaintain();
         CHECK(disconnects == 1 && uninstalls == 1);
@@ -184,6 +205,19 @@ int main() {
         parser.reset();
         parser.feed(outgoing, [&](flint::Frame frame) { frames.push_back(std::move(frame)); });
         CHECK(frames.size() == 1 && frames[0].id == 9 && frames[0].reply);
+        // The owner cannot drain while painting. A maximum normal frame and
+        // empty deferred commit must fit the driver together without dropping bytes.
+        outgoing.clear();
+        const auto previousRequests = requests;
+        feed({flint::Method::install_commit, 10, false, {}});
+        feed({flint::Method::info, 11, false, flint::Bytes(flint::MaxPayload, 7)});
+        for (unsigned i = 0; i < 30; ++i)
+            usbLinkMaintain();
+        CHECK(requests == previousRequests + 2 && incoming.empty());
+        frames.clear();
+        parser.reset();
+        parser.feed(outgoing, [&](flint::Frame frame) { frames.push_back(std::move(frame)); });
+        CHECK(frames.size() == 1 && frames[0].id == 11);
         puts("USB bounded RX/TX, whole frames, backpressure, wakeups and disconnect: passed");
         return 0;
     } catch (const std::exception &error) {

@@ -3,6 +3,7 @@
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_select.h"
 #include "esp_attr.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -15,14 +16,17 @@ bool ready{};
 bool driverReady{};
 portMUX_TYPE connectionLock = portMUX_INITIALIZER_UNLOCKED;
 bool connected{};
-uint32_t connectionGeneration{};
+uint32_t connectionGeneration{}, sofGlitches{};
+bool disconnectPending{};
+int64_t disconnectSince{};
 struct ConnectionState {
     bool connected;
     uint32_t generation;
+    uint32_t glitches;
 };
 ConnectionState connectionState() {
     portENTER_CRITICAL(&connectionLock);
-    const ConnectionState result{connected, connectionGeneration};
+    const ConnectionState result{connected, connectionGeneration, sofGlitches};
     portEXIT_CRITICAL(&connectionLock);
     return result;
 }
@@ -44,11 +48,27 @@ void IRAM_ATTR notifyFromIsr(uint32_t reason, int *woken) {
 void IRAM_ATTR notification(usj_select_notif_t event, int *woken) {
     notifyFromIsr(event == USJ_SELECT_READ_NOTIF ? CoreWakeUsbRx : CoreWakeUsbTx, woken);
 }
-// IDF already tracks SOF in its CPU0 tick hook. Observe only changes; never wake
-// the Core on an unchanged tick. The tiny status accessor is mapped to IRAM.
+// The IDF SOF monitor can briefly report absence after delayed Flash/tick work.
+// Require 20 ms of continuous absence on the IRAM microsecond clock, rather than
+// counting delayed tick callbacks. Logical session_close/hello still act immediately.
 void IRAM_ATTR connectionTick() {
-    const bool current = usb_serial_jtag_is_connected();
+    const bool raw = usb_serial_jtag_is_connected();
     portENTER_CRITICAL_ISR(&connectionLock);
+    bool current = connected;
+    if (raw) {
+        if (disconnectPending && connected)
+            ++sofGlitches;
+        disconnectPending = false;
+        current = true;
+    } else if (connected) {
+        const auto at = esp_timer_get_time();
+        if (!disconnectPending) {
+            disconnectPending = true;
+            disconnectSince = at;
+        }
+        if (at - disconnectSince >= 20000)
+            current = false;
+    }
     const bool changed = current != connected;
     if (changed) {
         connected = current;
@@ -63,7 +83,10 @@ void IRAM_ATTR connectionTick() {
     }
 }
 bool installDriver() {
-    usb_serial_jtag_driver_config_t config{2048, 2048};
+    // IDF drops RX bytes when its ring is full. Hold one maximum frame plus the
+    // empty deferred commit/close request while the owner is painting/writing Flash.
+    constexpr size_t RxCapacity = ((flint::MaxPayload + 40 + 63) / 64) * 64;
+    usb_serial_jtag_driver_config_t config{2048, RxCapacity};
     initError = usb_serial_jtag_driver_install(&config);
     driverReady = initError == ESP_OK;
     if (driverReady)
@@ -177,6 +200,8 @@ void usbLinkDiagnostics(flint::Values &values) {
     values["usb_tx_bytes"] = std::to_string(txBytes);
     values["usb_tx_errors"] = std::to_string(txErrors);
     values["usb_disconnects"] = std::to_string(disconnects);
+    values["usb_sof_glitches"] = std::to_string(connectionState().glitches);
+    values["usb_rx_capacity_bytes"] = std::to_string(((flint::MaxPayload + 40 + 63) / 64) * 64);
     values["usb_init_error"] = std::to_string(initError);
 }
 uint64_t usbLinkNextWake() {

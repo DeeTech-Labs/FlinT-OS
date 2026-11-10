@@ -2,6 +2,8 @@
 #include <flint/runtime.h>
 #include <stddef.h>
 void bleLinkBegin();
+flint::Error bleLinkCheckEnabled(bool enabled);
+void bleLinkSetEnabled(bool enabled);
 const char *bleLinkState();
 void bleLinkMaintain();
 uint64_t bleLinkNextWake();

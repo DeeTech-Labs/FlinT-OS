@@ -8,10 +8,16 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "sdkconfig.h"
 #include "usb/usb_link.h"
 #include <cstring>
 #include <memory>
 #include <unistd.h>
+#if CONFIG_BT_NIMBLE_ENABLED
+static constexpr bool BleSupported = true;
+#else
+static constexpr bool BleSupported = false;
+#endif
 static std::unique_ptr<flint::Core> core;
 static TaskHandle_t coreTask{};
 static uint64_t maxTickUs{}, maxFrameUs{};
@@ -27,7 +33,8 @@ static void captureMemoryBaseline() {
         return;
     const auto *state = bleLinkState();
     if (expectBleInitialization &&
-        (!strcmp(state, "starting") || !strcmp(state, "host_starting") || !strcmp(state, "synced")))
+        (!strcmp(state, "starting") || !strcmp(state, "host_starting") ||
+            !strcmp(state, "synced") || !strcmp(state, "stopping")))
         return;
     counters.internalFree = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     counters.internalLargest =
@@ -101,7 +108,7 @@ flint::Error corePostInput(flint::InputEvent event) {
     return core->postInput(event);
 }
 void appSetup(bool trustReady) {
-    expectBleInitialization = trustReady;
+    expectBleInitialization = trustReady && BleSupported;
     coreTask = xTaskGetCurrentTaskHandle();
     displayBegin();
     bool factory = mount("factory", "/factory", true);
@@ -109,6 +116,8 @@ void appSetup(bool trustReady) {
     const bool usbReady = usbLinkBegin();
     flint::Platform platform;
     platform.require_factory = true;
+    // esp_littlefs rejects rename/unlink while a VFS file descriptor is open.
+    platform.rename_open_files = false;
     const auto *description = esp_app_get_description();
     const char *hex = "0123456789abcdef";
     for (auto byte : description->app_elf_sha256) {
@@ -117,8 +126,10 @@ void appSetup(bool trustReady) {
     }
     if (usbReady)
         platform.capabilities |= flint::CapUsb;
-    if (trustReady) {
-        platform.capabilities |= flint::CapBle;
+    if (trustReady && BleSupported) {
+        platform.capabilities |= flint::CapBle | flint::CapBlePolicy;
+        platform.ble_check = bleLinkCheckEnabled;
+        platform.ble_apply = bleLinkSetEnabled;
     }
     // Stable profile limits determine package admissibility, never the current free heap.
     platform.memory = {
@@ -200,9 +211,7 @@ void appSetup(bool trustReady) {
     core = std::make_unique<flint::Core>("/storage/packages", "/factory", platform);
     if (!storage || !factory || core->begin() != flint::Error::ok)
         displayRecovery("Storage or factory packages unavailable");
-    if (trustReady) {
-        bleLinkBegin();
-    }
+    bleLinkMaintain();
     captureMemoryBaseline();
     coreWake(CoreWakeWork);
 }

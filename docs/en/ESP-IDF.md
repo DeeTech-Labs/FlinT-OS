@@ -36,7 +36,7 @@ it does not flash firmware or erase Flash. Detailed reports are temporary diagno
 
 SDK is pinned to `c686975f71be708a9600a7d2f160a9dfe900679e` (local SDK branch `application-api-1`). Publish that SDK commit to its origin before distributing the parent commit. Rebuild firmware; package/Companion formats and Flash partitions are unchanged. CONFIG_FLINT_LUA_RUNTIME enables CapAppApi (128); new projects use app_api: 1.
 
-The main loop limits blocking USB waits by Core::nextWake() and the existing 20 ms BLE maintenance bound. USB messages wake the read; sustained traffic or zero waits yield one FreeRTOS tick after processing. No latency or power improvement is claimed.
+The main loop waits for USB/BLE notifications and the nearest Core/transport deadline; periodic 20 ms BLE maintenance is removed. RX/TX work is bounded per pass and package verification continues in Core::tick. Sustained work yields one FreeRTOS tick. See [PERFORMANCE.md](PERFORMANCE.md) for measurements and limitations.
 
 corePostInput(InputEvent) and coreRuntimeGeneration() in core/bridge.h are application-task-only. Drivers capture generation when obtaining input; ISR/other-task producers must use their own bounded queue drained by the application task. Runtime enforces queue limits and input.focused. The selected Spark profile has no buttons, touch or battery sensor: physical input remains unavailable and power returns not_supported. No hardware signals or measurements are synthesized.
 

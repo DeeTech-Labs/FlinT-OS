@@ -6,6 +6,7 @@
     "FlinT BLE requires CONFIG_BT_NIMBLE_MAX_BONDS >= 1 for NimBLE security capacity checks, for persistent authenticated pairing"
 #endif
 #include "core/bridge.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -47,7 +48,12 @@ struct Request {
     uint16_t connection;
     uint32_t generation;
 };
-std::atomic<const char *> state{"starting"};
+std::atomic<const char *> state{"disabled"};
+std::atomic<bool> desired{false}, initialized{false}, workerBusy{false}, stopping{false};
+std::atomic<TaskHandle_t> workerHandle{nullptr};
+std::atomic<int> lifecycleError{0};
+bool transitionAttempted{};
+uint64_t shutdownAfter{};
 std::atomic<int> lastDisconnectReason{0};
 std::atomic<int> lastEncryptionStatus{-1};
 QueueHandle_t requests;
@@ -58,10 +64,14 @@ std::atomic<uint32_t> generation{0};
 std::atomic<bool> subscribed{false};
 std::atomic<uint32_t> rxBytes{0}, txBytes{0}, queueOverflows{0}, txErrors{0};
 std::atomic<TaskHandle_t> hostHandle{nullptr};
-std::atomic<uint32_t> hostStackWatermark{0}, queuePeak{0};
+std::atomic<uint32_t> hostStackWatermark{0}, workerStackWatermark{0}, queuePeak{0};
 void captureHostStack() {
-    if (hostHandle.load() == xTaskGetCurrentTaskHandle())
-        hostStackWatermark = uxTaskGetStackHighWaterMark(nullptr);
+    if (hostHandle.load() == xTaskGetCurrentTaskHandle()) {
+        const auto watermark = uxTaskGetStackHighWaterMark(nullptr);
+        const auto previous = hostStackWatermark.load();
+        if (!previous || watermark < previous)
+            hostStackWatermark = watermark;
+    }
 }
 std::atomic<uint32_t> pairingStarted{0};
 std::atomic<bool> pairingOpen{false};
@@ -167,6 +177,10 @@ int gapEvent(ble_gap_event *event, void *) {
     return 0;
 }
 void advertise() {
+    if (stopping || !desired) {
+        coreWake(CoreWakeBle);
+        return;
+    }
     ble_hs_adv_fields fields{};
     fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
     fields.uuids128 = const_cast<ble_uuid128_t *>(&serviceUuid);
@@ -223,6 +237,8 @@ void synced() {
     advertise();
 }
 int access(uint16_t handle, uint16_t, ble_gatt_access_ctxt *ctxt, void *) {
+    if (stopping || !desired)
+        return BLE_ATT_ERR_UNLIKELY;
     if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR)
         return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
     if (!trusted(handle))
@@ -269,7 +285,10 @@ void hostTask(void *) {
     nimble_port_run();
     captureHostStack();
     hostHandle = nullptr;
-    nimble_port_freertos_deinit();
+    // The lifecycle worker deletes the suspended host via the vendor API after stop().
+    if (const auto worker = workerHandle.load())
+        xTaskNotifyGive(worker);
+    vTaskSuspend(nullptr);
 }
 } // namespace
 const char *bleLinkState() {
@@ -281,7 +300,8 @@ int bleLinkLastDisconnectReason() {
 int bleLinkLastEncryptionStatus() {
     return lastEncryptionStatus.load();
 }
-void bleLinkBegin() {
+static void startStack() {
+    state = "starting";
     // Do not erase NVS automatically: it may contain other product data.
     if (nvs_flash_init() != ESP_OK) {
         state = "nvs_failed";
@@ -301,6 +321,7 @@ void bleLinkBegin() {
         requests = nullptr;
         return;
     }
+    initialized = true;
     ble_svc_gap_init();
     ble_svc_gatt_init();
     ble_svc_gap_device_name_set("FlinT Spark");
@@ -321,6 +342,7 @@ void bleLinkBegin() {
         state = "gatt_failed";
         ESP_LOGE("ble", "GATT setup failed: count=%d services=%d", countError, serviceError);
         nimble_port_deinit();
+        initialized = false;
         vQueueDelete(requests);
         requests = nullptr;
         return;
@@ -340,8 +362,79 @@ void bleLinkBegin() {
     state = "host_starting";
     nimble_port_freertos_init(hostTask);
 }
+namespace {
+void lifecycleTask(void *argument) {
+    workerHandle = xTaskGetCurrentTaskHandle();
+    if (argument) {
+        startStack();
+    } else {
+        // Both calls may wait on vendor host work. Only this temporary hardware task blocks.
+        lifecycleError = nimble_port_stop();
+        if (!lifecycleError) {
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+            nimble_port_freertos_deinit();
+            lifecycleError = nimble_port_deinit();
+            if (!lifecycleError) {
+                initialized = false;
+                if (requests) {
+                    vQueueDelete(requests);
+                    requests = nullptr;
+                }
+                parser.reset();
+                connection = BLE_HS_CONN_HANDLE_NONE;
+                state = "disabled";
+            } else
+                state = "deinitialization_failed";
+        } else
+            state = "stop_failed";
+    }
+    const auto watermark = uxTaskGetStackHighWaterMark(nullptr);
+    const auto previous = workerStackWatermark.load();
+    if (!previous || watermark < previous)
+        workerStackWatermark = watermark;
+    workerHandle = nullptr;
+    workerBusy = false;
+    coreWake(CoreWakeBle);
+    vTaskDelete(nullptr);
+}
+void startTransition(bool enabled) {
+    transitionAttempted = true;
+    workerBusy = true;
+    state = enabled ? "starting" : "stopping";
+    stopping = !enabled;
+    lifecycleError = 0;
+    if (xTaskCreate(lifecycleTask, "ble_policy", 4096,
+            enabled ? reinterpret_cast<void *>(1) : nullptr, tskIDLE_PRIORITY + 1,
+            nullptr) != pdPASS) {
+        workerBusy = false;
+        state = "worker_failed";
+        lifecycleError = ESP_ERR_NO_MEM;
+        coreWake(CoreWakeBle);
+    }
+}
+} // namespace
+flint::Error bleLinkCheckEnabled(bool enabled) {
+    if (!enabled || initialized || workerBusy)
+        return flint::Error::ok;
+    const auto free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    const auto largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    return free >=
+                CONFIG_FLINT_INTERNAL_MEMORY_RESERVE + CONFIG_FLINT_BLE_START_MEMORY_REQUIREMENT &&
+            largest >= 16 * 1024
+        ? flint::Error::ok
+        : flint::Error::resource_exhausted;
+}
+void bleLinkSetEnabled(bool enabled) {
+    desired = enabled;
+    transitionAttempted = false;
+    shutdownAfter = uint64_t(esp_timer_get_time() / 1000) + 2000;
+    coreWake(CoreWakeBle);
+}
+void bleLinkBegin() {
+    bleLinkSetEnabled(true);
+}
 bool bleLinkPairingCommand(const char *payload, char *json, size_t capacity) {
-    if (!requests)
+    if (workerBusy || stopping || !desired || !requests)
         return false;
     if (!strcmp(payload, "open")) {
         pairingStarted = nowMs();
@@ -414,7 +507,38 @@ bool bleLinkPairingCommand(const char *payload, char *json, size_t capacity) {
     return written >= 0 && size_t(written) < capacity;
 }
 void bleLinkMaintain() {
-    if (!requests)
+    if (workerBusy)
+        return;
+    if (!transitionAttempted && desired != initialized) {
+        if (!desired && connection != BLE_HS_CONN_HANDLE_NONE && (!response.empty() || inFlight) &&
+            uint64_t(esp_timer_get_time() / 1000) < shutdownAfter) {
+            // Let the accepted settings reply finish, bounded even for a silent peer.
+        } else {
+            if (!desired) {
+                coreDisconnect(session);
+                session = {false, false, coreNewSession()};
+                response.clear();
+                offset = 0;
+                retryAt = UINT64_MAX;
+                subscribed = false;
+                inFlight = false;
+                pairingOpen = false;
+                pendingCode = -1;
+                pendingConnection = BLE_HS_CONN_HANDLE_NONE;
+                ++generation;
+                responseGeneration = generation;
+            }
+            if (desired && bleLinkCheckEnabled(true) != flint::Error::ok) {
+                transitionAttempted = true;
+                state = "memory_failed";
+                lifecycleError = ESP_ERR_NO_MEM;
+                return;
+            }
+            startTransition(desired);
+            return;
+        }
+    }
+    if (!requests || !initialized)
         return;
     if (pairingOpen && !windowOpen()) {
         char ignored[64];
@@ -497,6 +621,13 @@ void bleLinkMaintain() {
     }
 }
 uint64_t bleLinkNextWake() {
+    if (workerBusy)
+        return UINT64_MAX;
+    if (!transitionAttempted && desired != initialized) {
+        if (desired || connection == BLE_HS_CONN_HANDLE_NONE || (response.empty() && !inFlight))
+            return 0;
+        return std::min(retryAt, shutdownAfter);
+    }
     auto next = retryAt;
     if (response.empty() && subscribed && session.authenticated)
         next = coreReplyReady(session) ? 0 : std::min(next, coreCompanionNextWake(session));
@@ -508,12 +639,17 @@ uint64_t bleLinkNextWake() {
     return next;
 }
 void bleLinkDiagnostics(flint::Values &values) {
+    values["ble_policy_enabled"] = desired ? "1" : "0";
+    values["ble_transition_active"] = workerBusy ? "1" : "0";
+    values["ble_worker_watermark_bytes"] = std::to_string(workerStackWatermark.load());
+    values["ble_lifecycle_error"] = std::to_string(lifecycleError.load());
     values["ble_rx_bytes"] = std::to_string(rxBytes.load());
     values["ble_tx_bytes"] = std::to_string(txBytes.load());
     values["ble_tx_errors"] = std::to_string(txErrors.load());
     values["ble_queue_overflows"] = std::to_string(queueOverflows.load());
     values["ble_queue_peak"] = std::to_string(queuePeak.load());
-    values["ble_queue_depth"] = std::to_string(requests ? uxQueueMessagesWaiting(requests) : 0);
+    values["ble_queue_depth"] =
+        std::to_string(!workerBusy && requests ? uxQueueMessagesWaiting(requests) : 0);
     if (hostStackWatermark)
         values["ble_stack_watermark_bytes"] = std::to_string(hostStackWatermark.load());
 }
@@ -532,6 +668,10 @@ int bleLinkLastEncryptionStatus() {
     return -1;
 }
 void bleLinkBegin() {}
+flint::Error bleLinkCheckEnabled(bool) {
+    return flint::Error::not_supported;
+}
+void bleLinkSetEnabled(bool) {}
 void bleLinkMaintain() {}
 bool bleLinkPairingCommand(const char *, char *, size_t) {
     return false;

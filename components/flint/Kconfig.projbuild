@@ -10,6 +10,10 @@ menu "FlinT applications"
         default 32768
         help
             Excluded from every application launch preflight. PSRAM never replaces it.
+    config FLINT_BLE_START_MEMORY_REQUIREMENT
+        int "Additional free internal RAM required for BLE startup (bytes)"
+        range 32768 131072
+        default 65536
     config FLINT_PSRAM_MEMORY_RESERVE
         int "PSRAM reserve for shared services (bytes)"
         range 0 262144

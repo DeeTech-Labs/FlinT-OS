@@ -107,3 +107,45 @@ Map-анализ: fonts.cpp около 78844 байт; Lua VM около 14929 �
 Encrypted BLE, повторное сопряжение и сохранность существующего bond после deinit/start будут проверены пользователем на другом ноутбуке с Bluetooth; задача и контекст вынесены в TODO корня экосистемы. На текущем ПК Bluetooth-адаптер не обнаружен. Проверки Linux-сборки/BlueZ, визуальных tearing/ориентации, отключения питания во время commit/checkpoint и реальной неисправности PSRAM здесь не выполнены. Host SPI faults и модель RAM без PSRAM их не заменяют.
 
 Проверены SDK CTest 14/14 с Lua и 8/8 без Lua; Flare CTest 17/17 (включая desktop_offline, preview_application_api, companion_sessions), OS pinned SDK 14/14, host 3/3, tooling unittest 2/2, firmware ESP-IDF 6.1 с PSRAM и без неё. Отдельная сборка Qt Creator с Qt 6.12/MinGW 13 также собрана и прошла 17/17. Общие форматы пакетов и ContractRevision не менялись, persistent BLE key по умолчанию включён; миграции разделов нет. Успех этих проверок не означает завершения перечисленных аппаратных проверок.
+
+
+## Публикация продолжаемой установки
+
+Закреплённый SDK делит публикацию install_commit на owner-thread шаги: проверка
+proof, запись previous ref, перенос объекта и атомарная замена current ref.
+Полный GC больше не выполняется в конце commit: до публикации он проходит по
+одной записи каталога/паре ссылок за шаг с ограниченной памятью. Активный Runtime
+продолжает работать до активации и сохраняется при ошибке durable publication.
+Отзыв permissions выполняется отдельным шагом и не пишет grants.bin, если enabled
+разрешений для пакета нет. Epoch checkpoint откладывается до окончания install.
+
+Disconnect до публикации отменяет проверку с сохранением resume; после её начала
+owner завершает публикацию и отбрасывает ответ отключённой сессии. После reconnect
+обязательно перечитать каталог. install_publishing показывает эту границу,
+install_publish_{count,total_us,max_us} отделяют время публикации от validation/GC.
+Одна операция LittleFS/Flash остаётся синхронной; это не hard real-time гарантия.
+
+Повторная проверка после разделения публикации (SDK a68abd4): образ 734096 байт,
+build ID 2c324d3e0c8b2c0bf055ab8b110f092fa0bf6d9eb2a5e9b283c506aa28131724.
+Два прогона пакета 717395 байт: commit 3,59/4,04 с, по 82 info плюс сцены,
+Lua продолжал работу. Наблюдаемый максимум install_step 84,6–101,4 мс,
+install_publish 53,5–67,6 мс; максимальная задержка info 111,5/139,3 мс.
+USB disconnects=0, diagnostics_truncated=0, тестовые пакеты удалены.
+Исторические 625 мс выше относятся к прежней цепочке финализации; состояние
+Flash различается между прогонами, поэтому это не гарантированный коэффициент
+ускорения и не worst-case deadline. Largest block после прогрева требует
+отдельной нагрузочной BLE-проверки.
+
+Повторяемый аппаратный USB-тест включён в tools/check_install_responsiveness.py:
+`python tools/check_install_responsiveness.py --port <порт> --output <новый.json>`.
+Требуются pyserial и зависимости compiler tools закреплённого SDK; тест меняет
+устройство, временно ставит test.flint.installcheck, проверяет cancel/resume,
+измеряет latency и восстанавливает прежнее приложение/удаляет пакет. Flare
+должен освободить порт. Существующий JSON не перезаписывается. Это hardware-only
+проверка, она не входит в автоматический CTest без устройства.
+
+Третий прогон того же теста во время параллельной host/firmware сборки также
+прошёл: commit 5,385 с, 96 info плюс сцены, максимум info 285,8 мс,
+install_step 200,6 мс и install_publish 200,6 мс. Lua работал, USB disconnects=0,
+diagnostics_truncated=0, cleanup завершён. Полные JSON всех трёх прогонов
+сохранены; более медленный результат не исключается из оценки задержек.

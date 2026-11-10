@@ -98,3 +98,45 @@ Current was not measured: no current meter/sensor is available. `ble_enabled` be
 The user will test encrypted BLE, repeated pairing and existing-bond retention after deinit/start on another Bluetooth-equipped laptop. The ecosystem-root TODO contains the task and handoff context. No Bluetooth adapter was detected on this PC. Linux/BlueZ builds, physical tearing/orientation, power cuts during commit/checkpoint, and physical PSRAM faults were not verified here. Host SPI faults and a no-PSRAM configuration do not substitute for them.
 
 Verified: SDK CTest 14/14 with Lua and 8/8 without Lua; Flare CTest 17/17 including desktop_offline, preview_application_api and companion_sessions; OS pinned SDK 14/14, host 3/3, tooling unittest 2/2; ESP-IDF 6.1 firmware with and without PSRAM. The separate Qt Creator Qt 6.12/MinGW 13 build also compiled and passed 17/17. Package formats and ContractRevision are unchanged, persistent BLE defaults to enabled, and there is no partition migration. These results do not complete the hardware checks listed above.
+
+
+## Resumable installation publication
+
+The pinned SDK divides install_commit publication into owner-thread stages: proof
+check, previous reference write, object move and atomic current reference replace.
+Full GC no longer runs at commit completion: before publication it handles one
+directory entry/reference pair per step with bounded memory. The active Runtime
+continues until activation and survives durable publication failure. Permission
+revocation is a separate step and skips grants.bin writes when no enabled grant
+matches the package. Epoch checkpointing waits until installation finishes.
+
+Disconnect before publication cancels validation while retaining resume; after it
+starts the owner finishes publication and discards the disconnected session reply.
+Reconnect must inspect the catalog. install_publishing exposes this boundary;
+install_publish_{count,total_us,max_us} separate publication from validation/GC.
+An individual LittleFS/Flash operation remains synchronous, without a hard
+real-time guarantee.
+
+Repeated validation after splitting publication (SDK a68abd4): image 734096 bytes,
+build ID 2c324d3e0c8b2c0bf055ab8b110f092fa0bf6d9eb2a5e9b283c506aa28131724.
+Two 717395-byte package runs took 3.59/4.04 s, each serving 82 info requests plus
+scenes while Lua continued. Observed install_step maximum was 84.6–101.4 ms,
+install_publish 53.5–67.6 ms, and maximum info latency 111.5/139.3 ms.
+USB disconnects=0, diagnostics_truncated=0; test packages were removed.
+The historical 625 ms above belongs to the previous finalization chain. Flash
+state differs between runs, so this is neither a guaranteed speedup factor nor
+a worst-case deadline. Warmed-up largest blocks still need encrypted BLE stress.
+
+A repeatable hardware USB test is included in tools/check_install_responsiveness.py:
+`python tools/check_install_responsiveness.py --port <port> --output <new.json>`.
+It requires pyserial and the pinned SDK compiler tool dependencies, modifies the
+device, installs temporary test.flint.installcheck, checks cancel/resume, measures
+latency, restores the previous application and removes the test package. Close
+Flare first to release the port. Existing JSON files are not overwritten. This
+hardware-only check is excluded from unattended CTest without a device.
+
+A third run during parallel host/firmware builds also passed: commit 5.385 s,
+96 info requests plus scenes, maximum info latency 285.8 ms, install_step 200.6 ms
+and install_publish 200.6 ms. Lua continued, USB disconnects=0,
+diagnostics_truncated=0 and cleanup completed. All three JSON results are kept;
+the slower run is included when assessing latency.

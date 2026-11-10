@@ -13,7 +13,7 @@ Thanks for helping improve **FlinT OS** (firmware for **FlinT** devices; base bo
 
 ## Development setup
 
-Use ESP-IDF 6.0.2, C++20 and Python 3. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
+Use ESP-IDF 6.1.0, C++20 and Python 3. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
 
 ```bash
 python3 tools/select_device.py --build

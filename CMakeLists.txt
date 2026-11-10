@@ -1,6 +1,7 @@
 # FlinT OS — ESP-IDF project
 cmake_minimum_required(VERSION 3.16)
-if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/platform/include/flint/contracts.h")
+set(FLINT_PLATFORM_DIR "${CMAKE_CURRENT_LIST_DIR}/platform" CACHE PATH "IgniteSDK checkout (defaults to the pinned submodule)")
+if(NOT EXISTS "${FLINT_PLATFORM_DIR}/include/flint/contracts.h")
     message(FATAL_ERROR "Initialize IgniteSDK: git submodule update --init --recursive")
 endif()
 
@@ -23,7 +24,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 # Must be set after including project.cmake, before project().
 idf_build_set_property(MINIMAL_BUILD ON)
 
-# Device revision must exist before components/LovyanGFX and flint configure.
+# Device revision must exist before the flint component configures.
 set(FLINT_DEVICE "" CACHE STRING "Supported FlinT product revision (default: Spark S3)")
 # Reconfigure when the device registry or maintained hardware files change.
 file(GLOB_RECURSE _flint_device_sources CONFIGURE_DEPENDS
@@ -51,6 +52,12 @@ message(STATUS "FlinT OS device: ${FLINT_DEVICE_GEN_OUT}")
 message(STATUS "FlinT OS version: ${PROJECT_VER}")
 
 project(flint_os)
+
+# Keep SPI validation/error returns and IRAM handlers; omit detailed check-macro
+# messages to reduce IRAM code. FlinT still logs propagated errors. Scope this
+# policy to SPI; assertions and other ESP-IDF components keep their diagnostics.
+idf_component_get_property(_flint_spi_lib esp_driver_spi COMPONENT_LIB)
+target_compile_definitions(${_flint_spi_lib} PRIVATE CONFIG_COMPILER_OPTIMIZATION_CHECKS_SILENT=1)
 
 # i18n + asset pack: regenerate only when inputs change (see cmake/flint_codegen.cmake).
 # Device selection stays configure-time (needed before component CMake).

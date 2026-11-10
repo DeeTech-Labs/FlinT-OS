@@ -8,6 +8,14 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 ## [Unreleased]
 
+### Changed
+
+- Require ESP-IDF 6.1.0 or newer; pin the firmware CI build to 6.1.0.
+
+- Replace LovyanGFX with a board-specific ST7789 driver using ESP-IDF SPI Master and synchronous DMA completion. Preserve RGB565 rendering, dirty regions, panel settings and deferred display enable; render recovery with built-in SDK glyphs and a static scanline buffer.
+- Share display scene-cache and DMA scanline storage while preserving dirty-region rendering and framebuffer-independent recovery.
+- Reduce SPI validation code in IRAM by omitting detailed ESP-IDF check-macro messages only in `esp_driver_spi`; retain argument checks, error returns, assertions and FlinT error handling.
+
 ### Added
 - Protocol v1 correlated settings/face commands with validation and atomic persistence.
 - Persistent Studio face with configurable colors, text placement and 16x16 icon.

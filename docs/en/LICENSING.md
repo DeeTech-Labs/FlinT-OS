@@ -6,7 +6,7 @@ Working-tree transition date: 5 November 2026. Own-code rights holder: DeeTech L
 
 Own code and technical documentation: PolyForm Noncommercial 1.0.0 (unmodified text in `LICENSE`). OS own code also receives the community exception. The `platform/` submodule has its own mixed IgniteSDK license; the parent license does not override it. The independent Ignite development permission covers necessary SDK and Flare tools for paid applications.
 
-Third-party libraries, Lua (MIT), LovyanGFX, Qt and Lato fonts (OFL-1.1) retain their licenses and notices; see NOTICE and dependency files. Git author names do not establish copyright assignment. The four repositories currently list one author, deexsed; that is not proof that third-party rights are absent.
+Third-party libraries, Lua (MIT), Qt and Lato fonts (OFL-1.1) retain their licenses and notices; see NOTICE and dependency files. Git author names do not establish copyright assignment. The four repositories currently list one author, deexsed; that is not proof that third-party rights are absent.
 
 PolyForm and Apache texts remain unmodified legal originals. Own additional permissions have authoritative Russian originals and English translations. Standalone licensing documentation uses Apache-2.0 except for operative permissions and original license texts.
 

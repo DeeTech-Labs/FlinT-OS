@@ -7,3 +7,7 @@
 The new map moves `ota_1`, `factory` and `storage`. Before applying it to an existing device, back up and migrate user storage and provision the new factory image. Do not apply it as an application-only OTA update.
 
 Hardware sources: `components/flint/board/models/flint_spark/s3_supermini/`. Device selection generates the board headers before component configuration. There is no C3 profile.
+
+## BLE policy
+
+`ble_enabled` is persisted separately from Companion and defaults to enabled. Restore access over USB after disabling it. `CONFIG_FLINT_BLE_START_MEMORY_REQUIREMENT` reserves 64 KiB internal beyond the common reserve for startup. See [ARCHITECTURE.md](ARCHITECTURE.md#ble-availability) for lifecycle, worker, diagnostics and failures.

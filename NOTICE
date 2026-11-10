@@ -9,8 +9,6 @@ Lato by Łukasz Dziedzic, licensed under SIL Open Font License 1.1.
 See platform/include/flint/graphics/fonts/Lato-LICENSE.txt and
 platform/tests/assets/Lato-LICENSE.txt.
 
-The hardware display component uses LovyanGFX under its upstream license.
-
 Required Notice: Copyright 2026 DeeTech Labs (https://github.com/DeeTech-Labs)
 Licensing scope and additional permissions: docs/ru/LICENSING.md
 

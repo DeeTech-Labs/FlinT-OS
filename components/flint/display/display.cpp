@@ -34,6 +34,7 @@ static_assert(sizeof(DisplayScratch) == sizeof(FlintRender::Scene));
 DMA_ATTR DisplayScratch scratch{.row = {}};
 bool havePrevious = false;
 uint64_t frames{}, recoveries{}, errors{}, maxRasterUs{}, maxCopyUs{}, maxSpiUs{};
+uint64_t totalCopyUs{}, totalSpiUs{}, transferredPixels{}, pixelTransfers{};
 
 uint16_t *beginRows() {
     havePrevious = false;
@@ -140,7 +141,11 @@ void displayScene(flint::Core &core, const FlintRender::Scene &scene) {
             return;
         }
         spiUs += esp_timer_get_time() - spiStart;
+        transferredPixels += dirty.w;
+        ++pixelTransfers;
     }
+    totalCopyUs += copyUs;
+    totalSpiUs += spiUs;
     maxCopyUs = std::max(maxCopyUs, copyUs);
     maxSpiUs = std::max(maxSpiUs, spiUs);
     std::construct_at(&scratch.previous, scene);
@@ -171,4 +176,8 @@ void displayDiagnostics(flint::Values &values) {
     values["raster_max_us"] = std::to_string(maxRasterUs);
     values["copy_max_us"] = std::to_string(maxCopyUs);
     values["spi_max_us"] = std::to_string(maxSpiUs);
+    values["copy_total_us"] = std::to_string(totalCopyUs);
+    values["spi_total_us"] = std::to_string(totalSpiUs);
+    values["display_pixels"] = std::to_string(transferredPixels);
+    values["display_transfers"] = std::to_string(pixelTransfers);
 }

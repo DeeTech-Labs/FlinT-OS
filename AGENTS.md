@@ -24,12 +24,12 @@ Do not assume that existing implementations are correct. Inspect the actual sour
 
 - Language: C++20
 - Firmware framework: ESP-IDF
-- Development/CI version: ESP-IDF 6.0.2 (`.github/workflows/host-tests.yml`)
+- Required development/CI version: ESP-IDF 6.1.0 (`.github/workflows/host-tests.yml`)
 - Target MCU: ESP32-S3
 - Build system: CMake / ESP-IDF
 - Application runtime: sandboxed Lua
 - Transport: USB and BLE
-- Graphics: LovyanGFX
+- Graphics: IgniteSDK rasterizer and a board-specific ST7789 driver over ESP-IDF
 - Shared platform: Flint IgniteSDK Git submodule
 
 Do not introduce ESP32-C3 compatibility or legacy platform support unless explicitly requested.
@@ -39,8 +39,7 @@ Do not introduce ESP32-C3 compatibility or legacy platform support unless explic
 - `main/` — ESP-IDF application entry point.
 - `components/flint/` — firmware-specific components, hardware adapters, transport, and recovery.
 - `components/flint/board/models/` — hardware models and board revisions.
-- `components/LovyanGFX/` — slim ESP-IDF integration for LovyanGFX.
-- `third_party/LovyanGFX/` — upstream graphics sources, fetched at the revision specified by `components/LovyanGFX/CMakeLists.txt` when absent.
+- `components/flint/display/` — ST7789 driver and display/recovery integration.
 - `platform/` — pinned IgniteSDK Git submodule.
 - `config/` — firmware configuration and partition definitions.
 - `tools/` — device selection, building, resource tooling, and tests.
@@ -354,7 +353,7 @@ idf.py -DIDF_TARGET=esp32s3 build
 
 Use `idf.py set-target esp32s3` only when intentionally changing the configured target: it resets configuration/build state. Do not run it as routine validation of an existing S3 checkout.
 
-Python 3 and Pillow are needed for resource generation. A clean firmware configure may need network access for LovyanGFX and managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
+Python 3 and Pillow are needed for resource generation. A clean firmware configure may need network access for managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
 
 ### IgniteSDK Host Tests
 

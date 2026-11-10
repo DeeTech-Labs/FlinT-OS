@@ -1,5 +1,4 @@
 #pragma once
-#include "LgfxBoard.h"
 #include <flint/core.h>
 void displayBegin();
 void displayScene(flint::Core &core, const FlintRender::Scene &scene);

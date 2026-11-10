@@ -1,6 +1,6 @@
-## FlinT OS application dependencies (LovyanGFX is local slim component)
+## FlinT OS application dependencies (ST7789 uses ESP-IDF SPI Master)
 dependencies:
   idf:
-    version: ">=5.0"
+    version: ">=6.1.0"
   joltwallet/littlefs:
     version: "^1.20.0"

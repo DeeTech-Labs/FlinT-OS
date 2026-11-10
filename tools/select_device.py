@@ -18,7 +18,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVICE_DIR = ROOT / "components" / "flint" / "board"
-LGFX_SRC = ROOT / "third_party" / "LovyanGFX" / "src" / "lgfx" / "v1"
 OUT_INC = DEVICE_DIR / "device_config.h"
 OUT_IMPL = DEVICE_DIR / "device_display.h"
 OUT_CMAKE = DEVICE_DIR / "device.cmake"
@@ -102,7 +101,7 @@ def _espressif_idf_candidates() -> list[Path]:
     for root in roots:
         if root is None or not root.is_dir():
             continue
-        # ~/.espressif/v6.0.2/esp-idf
+        # ~/.espressif/v6.1.0/esp-idf
         for idf_py in sorted(root.glob("v*/esp-idf/tools/idf.py"), reverse=True):
             found.append(idf_py.parent.parent)
         # ~/esp/esp-idf or ~/.espressif/esp-idf

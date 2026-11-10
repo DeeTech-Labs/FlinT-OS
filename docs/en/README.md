@@ -40,7 +40,7 @@ Core services provide hardware, time, storage, security and recovery. **Apps are
     <td width="50%" valign="top">
       <h3>Stack</h3>
       <ul>
-        <li>ESP‑IDF · LovyanGFX (slim)</li>
+        <li>ESP‑IDF · native ST7789 SPI driver</li>
         <li><code>-Os</code> · no C++ exceptions / RTTI</li>
         <li>Dual application slots · protected factory volume · user storage</li>
         <li>Binary Companion over native USB and authenticated BLE</li>
@@ -53,7 +53,7 @@ Core services provide hardware, time, storage, security and recovery. **Apps are
 
 ## Quick start
 
-**Board:** FlinT Spark (ESP32‑S3, USB Serial/JTAG) · **ESP‑IDF** 6.0.2
+**Board:** FlinT Spark (ESP32‑S3, USB Serial/JTAG) · **ESP‑IDF** 6.1.0
 
 ```bash
 idf.py set-target esp32s3
@@ -104,8 +104,7 @@ flint_os/
 ├── main/                 # ESP-IDF entry point
 ├── config/               # sdkconfig.defaults + partitions.csv
 ├── components/
-│   ├── flint/            # hardware, links and recovery integration
-│   └── LovyanGFX/        # slim hardware display component
+│   └── flint/            # hardware, native ST7789 driver, links and recovery
 ├── platform/             # shared Core, Runtime, SDK, compiler and tests
 │   ├── system/           # source factory Ignite projects
 │   └── factory/          # compiled factory packages

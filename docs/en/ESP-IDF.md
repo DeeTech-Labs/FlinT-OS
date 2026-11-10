@@ -2,7 +2,7 @@
 
 # ESP-IDF build
 
-Target: ESP32-S3 only. The locally verified SDK is ESP-IDF 6.0.2. Python tooling discovers the existing SDK and its managed environment.
+Target: ESP32-S3 only. The required SDK is ESP-IDF 6.1.0. Python tooling discovers the existing SDK and its managed environment.
 
 ```sh
 python3 tools/select_device.py --list

@@ -17,13 +17,16 @@ jobs:
             - run: cmake --build /tmp/flint-platform --parallel 2
             - run: ctest --test-dir /tmp/flint-platform --output-on-failure
             - run: python3 -m unittest discover -s tools/tests -v
+            - run: cmake -S tests/host -B /tmp/flint-display -DCMAKE_BUILD_TYPE=Debug
+            - run: cmake --build /tmp/flint-display --parallel 2
+            - run: ctest --test-dir /tmp/flint-display --output-on-failure
             - run: |
                     python3 platform/tools/generate_registry.py
                     python3 platform/tools/build_system.py
                     git -C platform diff --exit-code -- include/flint/registry.h include/flint/services.h factory examples
     firmware:
         runs-on: ubuntu-latest
-        container: espressif/idf:v6.0.2
+        container: espressif/idf:v6.1.0
         steps:
             - uses: actions/checkout@v5
               with:

@@ -23,7 +23,6 @@ inline constexpr const char *FLINT_LAYOUT = "280x240_landscape";
 #define FLINT_DISPLAY_IMPL_spark_s3_display 1
 #define FLINT_PANEL_KIND_ST7789 1
 #define FLINT_HAS_TOUCH 0
-#define FLINT_PANEL_DEFER_DISPON 1
 
 inline constexpr int FLINT_STATUS_LED_GPIO = -1;
 inline constexpr bool FLINT_STATUS_LED_ACTIVE_LOW = true;
@@ -45,9 +44,7 @@ inline constexpr int FLINT_PANEL_OFFSET_Y = 20;
 inline constexpr bool FLINT_PANEL_INVERT = true;
 inline constexpr bool FLINT_PANEL_RGB_ORDER = false;
 inline constexpr bool FLINT_SPI_3WIRE = true;
-inline constexpr bool FLINT_PANEL_READABLE = false;
 inline constexpr uint32_t FLINT_SPI_FREQ_WRITE = 80000000u;
-inline constexpr uint32_t FLINT_SPI_FREQ_READ = 16000000u;
 
 inline constexpr int FLINT_FB_MAX_W = 280;
 inline constexpr int FLINT_FB_MAX_H = 240;

@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.21)
+project(FlintDisplayTests LANGUAGES C CXX)
+enable_testing()
+set(FLINT_PLATFORM_TESTS OFF CACHE BOOL "" FORCE)
+set(FLINT_SDK_TOOLS OFF CACHE BOOL "" FORCE)
+add_subdirectory(../../platform platform)
+add_executable(display_tests display.cpp
+    ../../components/flint/display/st7789.cpp
+    ../../components/flint/display/display.cpp)
+target_include_directories(display_tests PRIVATE idf ../../components/flint)
+target_link_libraries(display_tests PRIVATE Flint::Platform)
+if(MSVC)
+    target_compile_options(display_tests PRIVATE /W4)
+else()
+    target_compile_options(display_tests PRIVATE -Wall -Wextra -Werror)
+endif()
+add_test(NAME st7789_display COMMAND display_tests)

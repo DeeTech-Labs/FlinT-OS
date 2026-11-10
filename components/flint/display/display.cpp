@@ -1,66 +1,150 @@
 #include "display.h"
+#include "board/device_config.h"
+#include "esp_attr.h"
 #include "esp_heap_caps.h"
+#include "esp_log.h"
+#include "st7789.h"
+#include <array>
 #include <cstring>
-static LGFX panel;
-static uint16_t *pixels;
-static uint16_t *dmaRow;
-static FlintRender::Scene previous;
-static bool havePrevious = false;
+#include <memory>
+#include <new>
+#include <type_traits>
+
+namespace {
+constexpr uint16_t Background = 0x0842, RecoveryColor = 0xf800;
+constexpr int Width = FLINT_DESIGN_W, Height = FLINT_DESIGN_H;
+flint::display::St7789 panel;
+struct PixelDeleter {
+    void operator()(uint16_t *buffer) const {
+        heap_caps_free(buffer);
+    }
+};
+std::unique_ptr<uint16_t, PixelDeleter> pixels;
+// The old scene is consumed before any transfer starts. Reuse its storage for
+// the DMA row, then reconstruct the scene only after the complete frame succeeds.
+// This stays internal and available to recovery even without a framebuffer.
+union DisplayScratch {
+    FlintRender::Scene previous;
+    std::array<uint16_t, FLINT_FB_MAX_W> row;
+};
+static_assert(Width <= FLINT_FB_MAX_W);
+static_assert(std::is_trivially_copyable_v<FlintRender::Scene>);
+static_assert(sizeof(DisplayScratch) == sizeof(FlintRender::Scene));
+DMA_ATTR DisplayScratch scratch{.row = {}};
+bool havePrevious = false;
+
+uint16_t *beginRows() {
+    havePrevious = false;
+    // Default initialization intentionally leaves the row uninitialized. Every
+    // transmitted pixel is filled or copied before use; no heap allocation occurs.
+    auto *row = ::new (static_cast<void *>(&scratch.row)) std::array<uint16_t, FLINT_FB_MAX_W>;
+    return row->data();
+}
+
+bool check(esp_err_t error) {
+    if (error == ESP_OK)
+        return true;
+    ESP_LOGE("display", "%s", esp_err_to_name(error));
+    havePrevious = false;
+    return false;
+}
+
+bool fillBackground() {
+    auto *dmaRow = beginRows();
+    std::fill_n(dmaRow, Width, FlintRender::swap(Background));
+    if (!check(panel.setWindow(0, 0, Width, Height)))
+        return false;
+    for (int y = 0; y < Height; ++y)
+        if (!check(panel.writePixels({dmaRow, Width})))
+            return false;
+    return true;
+}
+
+// Built-in SDK glyphs live in flash; no package, Core, or full framebuffer is needed.
+void recoveryTextRow(FlintRender::Canvas &row, int y, const char *text, int top) {
+    const auto *font = FlintRender::fontData(FlintRender::Body);
+    const int ascent = FlintRender::be32(font + 16);
+    const int lineHeight = ascent + FlintRender::be32(font + 20);
+    int x = 12, baseline = top + ascent;
+    const auto *bytes = reinterpret_cast<const uint8_t *>(text);
+    const size_t length = std::strlen(text);
+    for (size_t cursor = 0; cursor < length && baseline - ascent < Height;) {
+        const size_t start = cursor;
+        const auto cp = FlintRender::nextCodepoint(bytes, length, cursor);
+        if (cp == '\n') {
+            x = 0;
+            baseline += lineHeight;
+            continue;
+        }
+        const auto glyph = FlintRender::glyph(FlintRender::Body, cp);
+        if (x + glyph.advance > Width) {
+            x = 0;
+            baseline += lineHeight;
+        }
+        row.label(x, baseline - y, bytes + start, cursor - start, RecoveryColor, FlintRender::Body,
+            false);
+        x += glyph.advance;
+    }
+}
+} // namespace
+
 void displayBegin() {
-    panel.init();
-    panel.setRotation(FLINT_TFT_ROTATION);
-    panel.setColorDepth(16);
-    panel.fillScreen(0x0842);
-#if FLINT_PANEL_DEFER_DISPON
-    panel.startWrite();
-    panel.writeCommand(0x29);
-    panel.endWrite();
-#endif
+    havePrevious = false;
+    pixels.reset();
+    if (!check(panel.begin()) || !fillBackground() || !check(panel.displayOn()))
+        return;
     // Prefer PSRAM when present. DMA staging always remains internal.
-    pixels = static_cast<uint16_t *>(
-        heap_caps_malloc(280 * 240 * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    pixels.reset(static_cast<uint16_t *>(
+        heap_caps_malloc(Width * Height * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)));
     if (!pixels)
-        pixels = static_cast<uint16_t *>(
-            heap_caps_malloc(280 * 240 * 2, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-    dmaRow =
-        static_cast<uint16_t *>(heap_caps_malloc(280 * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
-    if (!pixels || !dmaRow)
+        pixels.reset(static_cast<uint16_t *>(
+            heap_caps_malloc(Width * Height * 2, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
+    if (!pixels)
         displayRecovery("Framebuffer unavailable");
 }
+
 void displayScene(flint::Core &core, const FlintRender::Scene &scene) {
-    if (scene.width != 280 || scene.height != 240) {
+    if (scene.width != Width || scene.height != Height) {
         displayRecovery("Unsupported canvas size");
         return;
     }
-    if (!pixels || !dmaRow)
+    if (!pixels || !panel.ready())
         return;
-    auto dirty =
-        havePrevious ? FlintRender::dirty(previous, scene) : FlintRender::Bounds{0, 0, 280, 240};
+    const auto dirty = havePrevious ? FlintRender::dirty(scratch.previous, scene)
+                                    : FlintRender::Bounds{0, 0, Width, Height};
     if (dirty.w <= 0 || dirty.h <= 0)
         return;
-    FlintRender::Canvas canvas(pixels, 280, 240, true);
+    FlintRender::Canvas canvas(pixels.get(), Width, Height, true);
     canvas.clip = dirty;
     core.paint(scene, canvas);
-    panel.startWrite();
-    panel.setWindow(dirty.x, dirty.y, dirty.x + dirty.w - 1, dirty.y + dirty.h - 1);
-    for (int y = dirty.y; y < dirty.y + dirty.h; ++y) {
-        memcpy(dmaRow, pixels + y * 280 + dirty.x, dirty.w * 2);
-        panel.writePixelsDMA(dmaRow, dirty.w);
-        panel.waitDMA();
+    auto *dmaRow = beginRows();
+    if (!check(panel.setWindow(dirty.x, dirty.y, dirty.w, dirty.h))) {
+        displayRecovery("Display transfer failed");
+        return;
     }
-    panel.endWrite();
-    previous = scene;
+    for (int y = dirty.y; y < dirty.y + dirty.h; ++y) {
+        std::memcpy(dmaRow, pixels.get() + y * Width + dirty.x, dirty.w * 2);
+        if (!check(panel.writePixels({dmaRow, size_t(dirty.w)}))) {
+            displayRecovery("Display transfer failed");
+            return;
+        }
+    }
+    std::construct_at(&scratch.previous, scene);
     havePrevious = true;
 }
+
 void displayRecovery(const char *message) {
     havePrevious = false;
-    panel.fillScreen(0x0842);
-    panel.setTextColor(0xf800);
-    panel.setFont(&lgfx::v1::fonts::Font2);
-    panel.setCursor(12, 50);
-    panel.print("FlinT recovery");
-    panel.setCursor(12, 90);
-    panel.print(message);
-    panel.setCursor(12, 130);
-    panel.print("Connect Flint Flare");
+    if (!panel.ready() || !check(panel.setWindow(0, 0, Width, Height)))
+        return;
+    auto *dmaRow = beginRows();
+    for (int y = 0; y < Height; ++y) {
+        std::fill_n(dmaRow, Width, FlintRender::swap(Background));
+        FlintRender::Canvas row(dmaRow, Width, 1, true);
+        recoveryTextRow(row, y, "FlinT recovery", 50);
+        recoveryTextRow(row, y, message ? message : "", 90);
+        recoveryTextRow(row, y, "Connect Flint Flare", 130);
+        if (!check(panel.writePixels({dmaRow, Width})))
+            return;
+    }
 }

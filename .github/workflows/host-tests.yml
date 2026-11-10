@@ -26,7 +26,7 @@ jobs:
                     git -C platform diff --exit-code -- include/flint/registry.h include/flint/services.h factory examples
     firmware:
         runs-on: ubuntu-latest
-        container: espressif/idf:v6.1.0
+        container: espressif/idf:v6.1
         steps:
             - uses: actions/checkout@v5
               with:

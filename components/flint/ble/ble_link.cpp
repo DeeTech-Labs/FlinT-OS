@@ -435,6 +435,13 @@ void bleLinkMaintain() {
         offset = 0;
     }
     static Request request;
+    if (response.empty()) {
+        flint::Frame reply;
+        if (coreTakeReply(session, reply)) {
+            response = flint::encodeFrame(reply);
+            offset = 0;
+        }
+    }
     if (response.empty() && xQueueReceive(requests, &request, 0) == pdTRUE) {
         if (request.connection == connection && request.generation == generation && subscribed &&
             trusted(request.connection)) {
@@ -450,8 +457,8 @@ void bleLinkMaintain() {
                 flint::Writer error;
                 error.n(uint16_t(flint::Error::permission_denied), 2);
                 response = flint::encodeFrame({frame.method, frame.id, true, error.data});
-            } else
-                response = flint::encodeFrame(coreRequest(frame, session));
+            } else if (auto reply = coreRequest(frame, session))
+                response = flint::encodeFrame(*reply);
             offset = 0;
         }
     }
@@ -492,7 +499,7 @@ void bleLinkMaintain() {
 uint64_t bleLinkNextWake() {
     auto next = retryAt;
     if (response.empty() && subscribed && session.authenticated)
-        next = std::min(next, coreCompanionNextWake(session));
+        next = coreReplyReady(session) ? 0 : std::min(next, coreCompanionNextWake(session));
     if (pairingOpen) {
         const auto elapsed = uint32_t(nowMs() - pairingStarted.load());
         const auto remaining = elapsed >= 60000 ? 0 : 60000 - elapsed;

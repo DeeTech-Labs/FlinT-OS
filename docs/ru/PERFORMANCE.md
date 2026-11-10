@@ -55,8 +55,9 @@ USB RX/TX обслуживает аппаратный модуль `usb/usb_link
 BLE будит владельца при RX, indication completion и смене соединения. Постоянного
 20-мс maintenance больше нет: используются deadline pairing, повтор после ошибки
 TX и deadline готового события. Core не вызывается из USB ISR или NimBLE callback.
-Для продолжения длинного install commit требуется отдельный следующий этап:
-сам commit пока синхронный, что ограничивает отзывчивость при больших пакетах.
+Проверка install commit продолжается порциями по 4096 байт из Core::tick;
+адаптер отправляет отложенный ответ целым кадром. Файловые metadata/durable writes
+и recovery остаются синхронными; это не строгая wall-clock гарантия.
 
 По умолчанию сборка использует закреплённый `platform/`. Для явной проверки
 изменяемого SDK доступен `-DFLINT_PLATFORM_DIR=/absolute/path/to/IgniteSDK`; это

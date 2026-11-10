@@ -69,14 +69,24 @@ static bool mount(const char *name, const char *path, bool readOnly = false) {
     config.format_if_mount_failed = erased;
     return esp_vfs_littlefs_register(&config) == ESP_OK;
 }
-flint::Frame coreRequest(const flint::Frame &frame, flint::Session &session) {
+std::optional<flint::Frame> coreRequest(const flint::Frame &frame, flint::Session &session) {
     const auto start = esp_timer_get_time();
-    auto reply = core->handle(frame, session);
+    auto reply = core->process(frame, session);
     ++counters.requests;
-    if (reply.payload.size() < 2 || flint::u16(reply.payload.data()))
+    if (reply && (reply->payload.size() < 2 || flint::u16(reply->payload.data())))
         ++counters.requestErrors;
     counters.maxRequestUs = std::max(counters.maxRequestUs, uint64_t(esp_timer_get_time() - start));
     return reply;
+}
+bool coreTakeReply(const flint::Session &session, flint::Frame &reply) {
+    if (!core || !core->takeReply(session, reply))
+        return false;
+    if (reply.payload.size() < 2 || flint::u16(reply.payload.data()))
+        ++counters.requestErrors;
+    return true;
+}
+bool coreReplyReady(const flint::Session &session) {
+    return core && core->replyReady(session);
 }
 void coreDisconnect(flint::Session &session) {
     if (core)
@@ -98,6 +108,7 @@ void appSetup(bool trustReady) {
     bool storage = mount("storage", "/storage");
     const bool usbReady = usbLinkBegin();
     flint::Platform platform;
+    platform.require_factory = true;
     const auto *description = esp_app_get_description();
     const char *hex = "0123456789abcdef";
     for (auto byte : description->app_elf_sha256) {
@@ -230,6 +241,6 @@ void appLoop() {
         maxFrameUs = std::max(maxFrameUs, uint64_t(esp_timer_get_time() - frameStart));
     }
     // Sustained work must still let lower-priority tasks run.
-    if (reason)
+    if (reason || !waitTicks)
         vTaskDelay(1);
 }

@@ -116,20 +116,28 @@ void usbLinkMaintain() {
     // At most one request and 256 RX/TX bytes per pass. A partial TX frame owns
     // the channel until complete; no event or response can interleave its bytes.
     if (tx.empty()) {
+        flint::Frame reply;
+        if (coreTakeReply(session, reply))
+            tx = flint::encodeFrame(reply);
+    }
+    if (tx.empty()) {
+        bool handled = false;
         if (rxOffset == rxSize) {
             const auto count = usb_serial_jtag_read_bytes(rx.data(), rx.size(), 0);
             rxSize = count > 0 ? size_t(count) : 0;
             rxOffset = 0;
             rxBytes += rxSize;
         }
-        while (rxOffset < rxSize && tx.empty()) {
-            parser.feed(std::span(rx).subspan(rxOffset++, 1), [](flint::Frame frame) {
+        while (rxOffset < rxSize && !handled && tx.empty()) {
+            parser.feed(std::span(rx).subspan(rxOffset++, 1), [&](flint::Frame frame) {
+                handled = true;
                 // Every hello starts a new logical client, even if the cable stayed attached.
                 if (frame.method == flint::Method::hello) {
                     coreDisconnect(session);
                     session = {true, false, coreNewSession()};
                 }
-                tx = flint::encodeFrame(coreRequest(frame, session));
+                if (auto reply = coreRequest(frame, session))
+                    tx = flint::encodeFrame(*reply);
                 txOffset = 0;
             });
         }
@@ -172,7 +180,7 @@ void usbLinkDiagnostics(flint::Values &values) {
     values["usb_init_error"] = std::to_string(initError);
 }
 uint64_t usbLinkNextWake() {
-    return ready && driverReady && connectionState().connected && tx.empty()
-        ? coreCompanionNextWake(session)
-        : UINT64_MAX;
+    if (!ready || !driverReady || !connectionState().connected || !tx.empty())
+        return UINT64_MAX;
+    return coreReplyReady(session) ? 0 : coreCompanionNextWake(session);
 }

@@ -21,6 +21,9 @@ flint::Bytes outgoing;
 void (*tickHook)(){};
 usj_select_notif_callback_t callback{};
 bool eventPending{};
+bool asyncRequested{};
+uint64_t asyncSession{};
+std::optional<flint::Frame> deferred;
 void feed(const flint::Frame &frame) {
     const auto bytes = flint::encodeFrame(frame);
     incoming.insert(incoming.end(), bytes.begin(), bytes.end());
@@ -84,14 +87,31 @@ void coreWake(uint32_t reason) {
 uint64_t coreNewSession() {
     return ++sessionId;
 }
-void coreDisconnect(flint::Session &) {
+void coreDisconnect(flint::Session &session) {
     ++disconnects;
+    if (session.id == asyncSession)
+        deferred.reset();
 }
-flint::Frame coreRequest(const flint::Frame &frame, flint::Session &session) {
+std::optional<flint::Frame> coreRequest(const flint::Frame &frame, flint::Session &session) {
     ++requests;
     lastSession = session.id;
     session.compatible = true;
-    return {frame.method, frame.id, true, flint::Bytes(800, uint8_t(frame.id))};
+    if (frame.method == flint::Method::install_commit) {
+        asyncRequested = true;
+        asyncSession = session.id;
+        return std::nullopt;
+    }
+    return flint::Frame{frame.method, frame.id, true, flint::Bytes(800, uint8_t(frame.id))};
+}
+bool coreTakeReply(const flint::Session &session, flint::Frame &reply) {
+    if (!deferred || session.id != asyncSession)
+        return false;
+    reply = std::move(*deferred);
+    deferred.reset();
+    return true;
+}
+bool coreReplyReady(const flint::Session &session) {
+    return deferred && session.id == asyncSession;
 }
 bool coreTakeCompanionEvent(const flint::Session &, flint::Frame &frame) {
     if (!eventPending)
@@ -152,6 +172,18 @@ int main() {
         parser.reset();
         parser.feed(outgoing, [&](flint::Frame frame) { frames.push_back(std::move(frame)); });
         CHECK(frames.size() == 1 && frames[0].id == 4);
+        outgoing.clear();
+        feed({flint::Method::install_commit, 9, false, {}});
+        usbLinkMaintain();
+        CHECK(asyncRequested && outgoing.empty());
+        deferred = flint::Frame{flint::Method::install_commit, 9, true, flint::Bytes(800, 9)};
+        CHECK(usbLinkNextWake() == 0);
+        for (int i = 0; i < 6; ++i)
+            usbLinkMaintain();
+        frames.clear();
+        parser.reset();
+        parser.feed(outgoing, [&](flint::Frame frame) { frames.push_back(std::move(frame)); });
+        CHECK(frames.size() == 1 && frames[0].id == 9 && frames[0].reply);
         puts("USB bounded RX/TX, whole frames, backpressure, wakeups and disconnect: passed");
         return 0;
     } catch (const std::exception &error) {

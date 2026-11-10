@@ -1,6 +1,9 @@
 #pragma once
 #include <flint/core.h>
-flint::Frame coreRequest(const flint::Frame &frame, flint::Session &session);
+#include <optional>
+std::optional<flint::Frame> coreRequest(const flint::Frame &frame, flint::Session &session);
+bool coreTakeReply(const flint::Session &session, flint::Frame &reply);
+bool coreReplyReady(const flint::Session &session);
 void coreDisconnect(flint::Session &session);
 // Allocate identities only on the Core owner task; shared by USB and BLE.
 uint64_t coreNewSession();

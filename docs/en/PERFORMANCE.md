@@ -46,8 +46,9 @@ VFS/select as a competing owner of the binary channel's callback.
 
 BLE RX, indication completion and connection changes notify the owner. The fixed
 20-ms maintenance loop is replaced by pairing, TX retry and ready-event deadlines.
-USB ISRs and NimBLE callbacks never call Core. Large install commits are still
-synchronous; incremental commit processing is a separate following stage.
+USB ISRs and NimBLE callbacks never call Core. Install verification now advances
+in 4096-byte Core ticks, with deferred replies serialized as complete frames.
+Metadata/durable writes and recovery remain synchronous; no strict wall-clock bound is claimed.
 
 Builds default to pinned `platform/`. `-DFLINT_PLATFORM_DIR=/absolute/path/to/IgniteSDK`
 is an explicit development override, not a replacement for pinned-submodule

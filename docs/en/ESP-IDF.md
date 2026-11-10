@@ -31,3 +31,13 @@ python tools/test_lua_device.py --port /dev/ttyACM0 --report /tmp/spark-lua.json
 
 This command installs/removes only `test.lua-*` fixtures and launches factory clock;
 it does not flash firmware or erase Flash. Detailed reports are temporary diagnostics, not repository documents.
+
+## Application API 1 integration
+
+SDK is pinned to `c686975f71be708a9600a7d2f160a9dfe900679e` (local SDK branch `application-api-1`). Publish that SDK commit to its origin before distributing the parent commit. Rebuild firmware; package/Companion formats and Flash partitions are unchanged. CONFIG_FLINT_LUA_RUNTIME enables CapAppApi (128); new projects use app_api: 1.
+
+The main loop limits blocking USB waits by Core::nextWake() and the existing 20 ms BLE maintenance bound. USB messages wake the read; sustained traffic or zero waits yield one FreeRTOS tick after processing. No latency or power improvement is claimed.
+
+corePostInput(InputEvent) and coreRuntimeGeneration() in core/bridge.h are application-task-only. Drivers capture generation when obtaining input; ISR/other-task producers must use their own bounded queue drained by the application task. Runtime enforces queue limits and input.focused. The selected Spark profile has no buttons, touch or battery sensor: physical input remains unavailable and power returns not_supported. No hardware signals or measurements are synthesized.
+
+Private state uses shared Core storage /storage/packages/app-<id>.kv; SDK owns quotas, atomic writes, CRC, update/removal semantics and write throttling. Timers and extended diagnostics also stay in SDK. Lua heap/instruction limits were not raised; native peaks, stack, Flash durability and timing require new device checks.

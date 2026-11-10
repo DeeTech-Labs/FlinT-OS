@@ -24,7 +24,7 @@ Do not assume that existing implementations are correct. Inspect the actual sour
 
 - Language: C++20
 - Firmware framework: ESP-IDF
-- Verified development version: ESP-IDF 6.0.2
+- Development/CI version: ESP-IDF 6.0.2 (`.github/workflows/host-tests.yml`)
 - Target MCU: ESP32-S3
 - Build system: CMake / ESP-IDF
 - Application runtime: sandboxed Lua
@@ -39,7 +39,8 @@ Do not introduce ESP32-C3 compatibility or legacy platform support unless explic
 - `main/` — ESP-IDF application entry point.
 - `components/flint/` — firmware-specific components, hardware adapters, transport, and recovery.
 - `components/flint/board/models/` — hardware models and board revisions.
-- `components/LovyanGFX/` — graphics dependency.
+- `components/LovyanGFX/` — slim ESP-IDF integration for LovyanGFX.
+- `third_party/LovyanGFX/` — upstream graphics sources, fetched at the revision specified by `components/LovyanGFX/CMakeLists.txt` when absent.
 - `platform/` — pinned IgniteSDK Git submodule.
 - `config/` — firmware configuration and partition definitions.
 - `tools/` — device selection, building, resource tooling, and tests.
@@ -337,7 +338,7 @@ Do not claim successful validation without executing the relevant checks.
 
 ### Firmware Build
 
-From repository root:
+From repository root, inspect `git status --short` and `git submodule status` first. Initialize missing submodules only when this will not overwrite local SDK work:
 
 ```bash
 git submodule update --init --recursive
@@ -345,22 +346,25 @@ python3 tools/select_device.py --list
 python3 tools/select_device.py --build
 ```
 
-With an activated ESP-IDF environment:
+With an activated ESP-IDF environment, the CI build command is:
 
 ```bash
-idf.py set-target esp32s3
-idf.py build
+idf.py -DIDF_TARGET=esp32s3 build
 ```
 
-Do not assume that `set-target` is harmless to existing build configuration.
+Use `idf.py set-target esp32s3` only when intentionally changing the configured target: it resets configuration/build state. Do not run it as routine validation of an existing S3 checkout.
+
+Python 3 and Pillow are needed for resource generation. A clean firmware configure may need network access for LovyanGFX and managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
 
 ### IgniteSDK Host Tests
 
 ```bash
-cmake -S platform -B /tmp/flint-platform -DCMAKE_BUILD_TYPE=Debug
-cmake --build /tmp/flint-platform
-ctest --test-dir /tmp/flint-platform --output-on-failure
+cmake -S platform -B /tmp/flint-os-platform -DCMAKE_BUILD_TYPE=Debug
+cmake --build /tmp/flint-os-platform --parallel 2
+ctest --test-dir /tmp/flint-os-platform --output-on-failure
 ```
+
+Use a fresh build directory if it already belongs to another checkout. Never reuse the standalone SDK or Flare build directory for this submodule.
 
 ### Tooling Tests
 
@@ -428,6 +432,8 @@ Do not treat a successful compilation as proof of behavioral correctness.
 ## 12. Git Submodule Policy
 
 `platform/` is a pinned Git submodule containing IgniteSDK.
+
+A sibling `Flint-IgniteSDK/` checkout and `platform/` may have different revisions and local changes. Validate the SDK revision actually used by this consumer; a passing sibling checkout does not validate the pinned submodule.
 
 - Do not edit shared SDK functionality through duplicated source files in FlinT OS.
 - Do not convert the submodule into a copied source tree.

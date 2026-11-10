@@ -14,6 +14,7 @@
 #include <unistd.h>
 static std::unique_ptr<flint::Core> core;
 static flint::FrameParser usbParser;
+static TaskHandle_t coreTask{};
 static uint64_t maxTickUs{}, maxFrameUs{};
 static flint::Session usbSession{true, false, 1};
 
@@ -52,7 +53,16 @@ void coreDisconnect(flint::Session &session) {
     if (core)
         core->disconnect(session);
 }
+uint64_t coreRuntimeGeneration() {
+    return xTaskGetCurrentTaskHandle() == coreTask && core ? core->runtime().generation() : 0;
+}
+flint::Error corePostInput(flint::InputEvent event) {
+    if (xTaskGetCurrentTaskHandle() != coreTask || !core)
+        return flint::Error::invalid_state;
+    return core->postInput(event);
+}
 void appSetup(bool trustReady) {
+    coreTask = xTaskGetCurrentTaskHandle();
     displayBegin();
     bool factory = mount("factory", "/factory", true);
     bool storage = mount("storage", "/storage");
@@ -85,6 +95,10 @@ void appSetup(bool trustReady) {
         values["max_frame_us"] = std::to_string(maxFrameUs);
         return values;
     };
+    // The selected Spark profile has no battery sensor. Never synthesize telemetry.
+    platform.power = [](std::string_view, flint::AppReply &) {
+        return flint::Error::not_supported;
+    };
     platform.monotonic = [] { return uint64_t(esp_timer_get_time() / 1000); };
     platform.free_storage = [] {
         size_t total = 0, used = 0;
@@ -108,7 +122,13 @@ void appSetup(bool trustReady) {
 }
 void appLoop() {
     uint8_t bytes[256];
-    auto count = usb_serial_jtag_read_bytes(bytes, sizeof(bytes), pdMS_TO_TICKS(20));
+    const auto at = core->platform().monotonic();
+    const auto deadline = core->nextWake();
+    // USB traffic wakes the read immediately. BLE maintenance retains its existing 20 ms bound;
+    // application timers can request an earlier wake without a permanent 2 ms polling loop.
+    const auto waitMs = deadline <= at ? 0 : std::min<uint64_t>(20, deadline - at);
+    const auto waitTicks = pdMS_TO_TICKS(waitMs);
+    auto count = usb_serial_jtag_read_bytes(bytes, sizeof(bytes), waitTicks);
     if (count > 0)
         usbParser.feed({bytes, size_t(count)}, [](flint::Frame frame) {
             auto bytes = flint::encodeFrame(coreRequest(frame, usbSession));
@@ -139,5 +159,7 @@ void appLoop() {
             displayScene(*core, scene);
         maxFrameUs = std::max(maxFrameUs, uint64_t(esp_timer_get_time() - frameStart));
     }
-    vTaskDelay(pdMS_TO_TICKS(2));
+    // A zero-time read or sustained USB traffic must still let lower-priority tasks run.
+    if (!waitTicks || count > 0)
+        vTaskDelay(1);
 }

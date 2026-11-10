@@ -120,13 +120,28 @@ void appSetup(bool trustReady) {
     if (trustReady) {
         platform.capabilities |= flint::CapBle;
     }
-    const auto internal = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    const auto external = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    // Stable profile limits determine package admissibility, never the current free heap.
     platform.memory = {
-        uint32_t(internal > 32768 ? std::min<size_t>(internal - 32768, 48 * 1024) : 0),
-        uint32_t(external), 4096};
+        48 * 1024, uint32_t(heap_caps_get_total_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)), 4096};
+    platform.available_memory = [] {
+        const auto budget = [](uint32_t caps, size_t reserve) {
+            const auto free = heap_caps_get_free_size(caps);
+            const auto largest = heap_caps_get_largest_free_block(caps);
+            return uint32_t(std::min(free > reserve ? free - reserve : 0, largest));
+        };
+        // During asynchronous BLE initialization retain additional startup headroom.
+        const auto startupReserve = !bootSnapshotReady && expectBleInitialization ? 32768 : 0;
+        auto internal = budget(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT,
+            CONFIG_FLINT_INTERNAL_MEMORY_RESERVE + startupReserve);
+        if (bootSnapshotReady)
+            internal = std::min<uint32_t>(internal, counters.internalLargest);
+        return flint::MemoryBudget{std::min<uint32_t>(internal, 48 * 1024),
+            budget(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, CONFIG_FLINT_PSRAM_MEMORY_RESERVE), 4096};
+    };
     platform.diagnostics = [] {
         flint::Values values;
+        values["internal_reserve_bytes"] = std::to_string(CONFIG_FLINT_INTERNAL_MEMORY_RESERVE);
+        values["psram_reserve_bytes"] = std::to_string(CONFIG_FLINT_PSRAM_MEMORY_RESERVE);
         values["internal_free_bytes"] =
             std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         values["internal_largest_bytes"] =

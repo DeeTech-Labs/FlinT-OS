@@ -53,3 +53,7 @@ Metadata/durable writes and recovery remain synchronous; no strict wall-clock bo
 Builds default to pinned `platform/`. `-DFLINT_PLATFORM_DIR=/absolute/path/to/IgniteSDK`
 is an explicit development override, not a replacement for pinned-submodule
 validation before integration.
+
+## RAM preflight
+
+Package admissibility uses the stable profile limit of 48 KiB internal and installed PSRAM capacity. Launch checks current free/largest values separately: `CONFIG_FLINT_INTERNAL_MEMORY_RESERVE` (32 KiB default) protects DMA, transport and recovery; `CONFIG_FLINT_PSRAM_MEMORY_RESERVE` defaults to 8 KiB. Asynchronous BLE startup retains another 32 KiB. After the mandatory-service baseline, the internal budget is also bounded by the baseline largest block. PSRAM never increases the internal budget. Reserves are conservative and still require full hardware stress validation; BLE pools and stacks have not been reduced.

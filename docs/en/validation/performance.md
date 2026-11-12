@@ -5,6 +5,7 @@
 Host tests do not establish electrical behavior, power consumption or device latency. Associate measurements with OS/SDK revisions, board, configuration and scenario.
 
 - [Tests](../development/testing.md).
+- [2026-11-12 icons and UI](2026-11-12-icon-ui-resources.md).
 - [2026-11-10](2026-11-10-optimization.md).
 
 USB install scenario: `python tools/check_install_responsiveness.py --port <port> --output <new.json>`. Changes device test packages; close Flare and save work first.

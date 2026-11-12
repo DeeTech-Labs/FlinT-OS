@@ -23,6 +23,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 - Reduce SPI validation code in IRAM by omitting detailed ESP-IDF check-macro messages only in `esp_driver_spi`; retain argument checks, error returns, assertions and FlinT error handling.
 
 ### Added
+- Record the ESP32-S3 icon/UI resource validation, including RAM, stack, Flash and the remaining cold-launcher latency limitation in `docs/en/validation/2026-11-12-icon-ui-resources.md`.
 - Add Core-task touch input with generation-safe cancellation, bounded active sampling and a gated CST816 driver; prepare Waveshare wiring without changing the selected Spark profile.
 - Protocol v1 correlated settings/face commands with validation and atomic persistence.
 - Persistent Studio face with configurable colors, text placement and 16x16 icon.

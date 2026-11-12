@@ -31,6 +31,7 @@
 ## Проверки
 
 - [Диагностика и измерения](validation/performance.md).
+- [Иконки и UI: проверка платы 2026-11-12](validation/2026-11-12-icon-ui-resources.md).
 - [2026-11-10 optimization report](validation/2026-11-10-optimization.md).
 
 ## Проект

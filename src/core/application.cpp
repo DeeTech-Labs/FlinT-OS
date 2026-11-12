@@ -1,4 +1,5 @@
 #include "ble/ble_link.h"
+#include "board/device_config.h"
 #include "core/bridge.h"
 #include "display/display.h"
 #include "esp_app_desc.h"
@@ -9,8 +10,8 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "input/touch.h"
 #include "hardware/peripherals.h"
+#include "input/touch.h"
 #include "sdkconfig.h"
 #include "usb/usb_link.h"
 #include <cstring>
@@ -213,6 +214,32 @@ void appSetup(bool trustReady) {
         return values;
     };
     platform.power = devicePowerStatus;
+    platform.sensors = deviceSensorBackend();
+#if FLINT_HAS_RTC
+    platform.rtc_read = deviceRtcReadEpoch;
+    platform.rtc_set = deviceRtcRequest;
+    platform.rtc_result = deviceRtcResult;
+#endif
+#if FLINT_HAS_BUZZER
+    platform.beep = [](unsigned frequency, unsigned duration) {
+        const auto error = deviceTone(frequency, duration);
+        return error == ESP_OK             ? flint::Error::ok
+            : error == ESP_ERR_INVALID_ARG ? flint::Error::invalid_argument
+                                           : flint::Error::source_unavailable;
+    };
+    platform.mute_apply = [](bool muted) {
+        const auto error = deviceSetMuted(muted);
+        return error == ESP_OK ? flint::Error::ok : flint::Error::source_unavailable;
+    };
+#endif
+#if FLINT_HAS_BACKLIGHT
+    platform.brightness_apply = [](unsigned percent) {
+        const auto error = deviceBacklight(percent);
+        return error == ESP_OK             ? flint::Error::ok
+            : error == ESP_ERR_INVALID_ARG ? flint::Error::invalid_argument
+                                           : flint::Error::source_unavailable;
+    };
+#endif
     platform.monotonic = [] { return uint64_t(esp_timer_get_time() / 1000); };
     platform.microseconds = [] { return uint64_t(esp_timer_get_time()); };
     platform.free_storage = [] {
@@ -276,6 +303,8 @@ void appLoop() {
     if (reason & CoreWakeTouch)
         touchInterrupt();
     touchMaintain();
+    if (reason & CoreWakeButtons)
+        deviceButtonsInterrupt();
     deviceHardwareMaintain();
     captureMemoryBaseline();
     const auto tickStart = esp_timer_get_time();

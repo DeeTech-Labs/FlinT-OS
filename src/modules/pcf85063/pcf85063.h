@@ -1,17 +1,10 @@
 #pragma once
 
 /**
- * @brief PCF85063A: аппаратный календарь/часы с резервным питанием, I2C 0x51.
- * Включение: [modules.pcf85063], общие pins.sda/scl, опциональный pins.interrupt.
- * begin(sharedBus) проверяет доступность; read(utc) и set(utc) работают со std::tm:
- * tm_year = год - 1900, tm_mon = месяц - 1, tm_wday = 0..6, время — UTC, 2000..2099.
- * Пример OS: std::tm utc{}; const auto error = deviceRtcRead(utc);
- * В OS функции deviceRtcRead/Set объявлены в hardware/peripherals.h; второй экземпляр
- * драйвера на тот же адрес не нужен. Нет автоматической записи RTC при загрузке.
- * Oscillator-stop, STOP и неверный BCD/календарь дают ошибку, а не достоверное время.
- * Неудачный set оставляет STOP: повторный успешный set восстанавливает валидные часы.
- * Владеет своим I2C device, но не общей шиной. Один Core-владелец, вызовы не из ISR.
- * Будильники и wake по RTC INT не реализованы; GPIO INT только резервируется конфигом.
+ * PCF85063 RTC UTC, I2C0x51, years2000..2099. Rejects oscillator-stop and malformed BCD.
+ * Failed writes retain STOP so partially written UTC cannot be trusted.
+ * Only the hardware worker accesses I2C; Core uses deviceRtcReadEpoch/Request/Result
+ * cache and asynchronous verified write acknowledgment. No alarm/wakeup handler.
  */
 
 #include "hardware/i2c.h"

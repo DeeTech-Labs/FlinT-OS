@@ -139,6 +139,15 @@ int main() {
     assert(driver.begin(config, wake, &wakes, shared) == ESP_OK && !buses);
     driver.stop();
     assert(!buses && !devices && !handlers);
+    assert(driver.beginAsync(config, wake, &wakes, shared, 1000) == ESP_OK);
+    assert(!driver.ready() && driver.nextInitWake() == 1010);
+    assert(driver.maintainInit(1009) == ESP_ERR_INVALID_STATE);
+    assert(driver.maintainInit(1010) == ESP_OK && !driver.ready());
+    assert(driver.nextInitWake() == 1210);
+    assert(driver.maintainInit(1209) == ESP_ERR_INVALID_STATE);
+    assert(driver.maintainInit(1210) == ESP_OK && driver.ready());
+    assert(driver.nextInitWake() == UINT64_MAX);
+    driver.stop();
     auto invalid = config;
     invalid.scl = invalid.sda;
     assert(driver.begin(invalid, wake, &wakes) == ESP_ERR_INVALID_ARG);

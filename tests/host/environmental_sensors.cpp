@@ -20,7 +20,7 @@ struct Client {
 };
 std::array<Client, 4> clients;
 std::array<std::array<uint8_t, 256>, 128> regs;
-unsigned removed{};
+unsigned removed{}, transfers{};
 int failRegister = -1;
 void trim(unsigned address, int h4 = 325, int h5 = 50) {
     auto &r = regs[address];
@@ -77,6 +77,7 @@ esp_err_t i2c_master_bus_rm_device(i2c_master_dev_handle_t d) {
 }
 esp_err_t i2c_master_transmit(
     i2c_master_dev_handle_t d, const uint8_t *data, size_t size, int timeout) {
+    ++transfers;
     CHECK(timeout == 5);
     if (data[0] == failRegister)
         return ESP_ERR_TIMEOUT;
@@ -86,6 +87,7 @@ esp_err_t i2c_master_transmit(
 }
 esp_err_t i2c_master_transmit_receive(i2c_master_dev_handle_t d, const uint8_t *reg, size_t tx,
     uint8_t *data, size_t count, int timeout) {
+    ++transfers;
     CHECK(tx == 1 && timeout == 5);
     if (*reg == failRegister)
         return ESP_ERR_TIMEOUT;
@@ -102,7 +104,15 @@ int main() {
     {
         Bmp280 sensor;
         EnvironmentalSample value;
-        CHECK(sensor.begin(bus) == ESP_OK && sensor.nextWake() == UINT64_MAX);
+        const auto before = transfers;
+        CHECK(sensor.beginAsync(bus, 0x76) == ESP_OK && transfers == before);
+        CHECK(sensor.initializing() && !sensor.ready());
+        for (unsigned step = 0; step < 4; ++step) {
+            const auto prior = transfers;
+            CHECK(sensor.maintainInit() == ESP_OK && transfers == prior + 1);
+        }
+        CHECK(sensor.ready() && !sensor.initializing() && sensor.nextWake() == UINT64_MAX);
+        CHECK(sensor.maintainInit() == ESP_ERR_INVALID_STATE);
         CHECK(sensor.read(value, 0) == ESP_ERR_INVALID_STATE);
         CHECK(sensor.start(100) == ESP_OK && sensor.nextWake() == 112 && regs[0x76][0xf4] == 0x25);
         CHECK(sensor.start(101) == ESP_ERR_INVALID_STATE);
@@ -146,6 +156,15 @@ int main() {
     {
         Bme280 bad;
         CHECK(bad.begin(bus) == ESP_ERR_INVALID_RESPONSE && !bad.ready());
+        trim(0x76);
+        CHECK(bad.beginAsync(bus, 0x76) == ESP_OK);
+        failRegister = 0xd0;
+        CHECK(bad.maintainInit() == ESP_ERR_TIMEOUT && !bad.ready() && !bad.initializing());
+        failRegister = -1;
+        CHECK(bad.beginAsync(bus, 0x76) == ESP_OK);
+        for (unsigned step = 0; step < 6; ++step)
+            CHECK(bad.maintainInit() == ESP_OK);
+        CHECK(bad.ready());
     }
     {
         Veml7700 light;
@@ -165,7 +184,7 @@ int main() {
         regs[0x10][4] = regs[0x10][5] = 255;
         CHECK(light.read(lux, 810) == ESP_ERR_INVALID_RESPONSE);
     }
-    CHECK(removed == 6);
+    CHECK(removed == 8);
     for (const auto &client : clients)
         CHECK(!client.used);
     std::puts("Bosch calibration/reference vectors, signed humidity trims, forced deadlines and "

@@ -8,7 +8,7 @@
  * Пример: flint::modules::EnvironmentalSample s{}; const auto error = sensor.read(s, nowMs);
  * Единицы: temperatureC — °C, pressurePa — Pa, humidityPercent — %RH только у BME280;
  * BMP280 всегда выставляет humidityAvailable=false. Проверяйте ESP_OK перед использованием.
- * Нет polling, высоты или автоматического sea-level correction. Только Core, не ISR.
+ * Нет polling, высоты или автоматического sea-level correction. Только hardware worker, не ISR.
  * Класс использует общую Bosch280-реализацию компенсации; свой I2C device освобождается RAII.
  */
 #include "hardware/bosch280.h"
@@ -17,6 +17,18 @@ class Bmp280 {
 public:
     esp_err_t begin(i2c_master_bus_handle_t bus, uint8_t address = 0x76) {
         return sensor_.begin(bus, address, false);
+    }
+    esp_err_t beginAsync(i2c_master_bus_handle_t bus, uint8_t address) {
+        return sensor_.beginAsync(bus, address, false);
+    }
+    esp_err_t maintainInit() {
+        return sensor_.maintainInit();
+    }
+    bool initializing() const {
+        return sensor_.initializing();
+    }
+    void stop() {
+        sensor_.stop();
     }
     esp_err_t start(uint64_t nowMs) {
         return sensor_.start(nowMs);

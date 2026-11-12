@@ -114,8 +114,16 @@ int main() {
         CHECK(buzzer.tone(2000, 5001, 0) == ESP_ERR_INVALID_ARG);
         CHECK(buzzer.tone(2000, 100, 20) == ESP_OK && duty[0] == 512 && !paused[0]);
         CHECK(buzzer.nextWake() == 120);
+        CHECK(buzzer.tone(3000, 5000, 21) == ESP_ERR_INVALID_STATE);
         CHECK(buzzer.maintain(119) == ESP_OK && duty[0] == 512);
         CHECK(buzzer.maintain(120) == ESP_OK && duty[0] == 0 && paused[0]);
+        CHECK(buzzer.tone(2000, 100, 121) == ESP_ERR_INVALID_STATE);
+        CHECK(buzzer.tone(2000, 5000, 220) == ESP_OK);
+        CHECK(buzzer.tone(3000, 5000, 320) == ESP_OK && buzzer.nextWake() == 5220);
+        CHECK(buzzer.maintain(5220) == ESP_OK);
+        CHECK(buzzer.tone(2000, 100, 10219) == ESP_ERR_INVALID_STATE);
+        CHECK(buzzer.tone(2000, 100, 10220) == ESP_OK);
+        CHECK(buzzer.tone(2000, 0, 10221) == ESP_OK);
         CHECK(buzzer.nextWake() == UINT64_MAX);
         CHECK(buzzer.tone(500, 0, 0) == ESP_OK && duty[0] == 0);
         PwmBacklight light;

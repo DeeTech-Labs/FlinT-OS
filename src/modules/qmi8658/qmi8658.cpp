@@ -6,7 +6,14 @@ Qmi8658::~Qmi8658() {
     if (ready() && enable(false) != ESP_OK)
         ESP_LOGE("imu", "power-down failed");
 }
+void Qmi8658::stop() {
+    if (enabled_)
+        enable(false);
+    device_.stop();
+    enabled_ = false;
+}
 esp_err_t Qmi8658::begin(i2c_master_bus_handle_t bus, uint8_t address) {
+    stop();
     auto error = device_.begin(bus, address);
     uint8_t id{};
     if (error == ESP_OK)
@@ -25,12 +32,19 @@ esp_err_t Qmi8658::begin(i2c_master_bus_handle_t bus, uint8_t address) {
         device_.stop();
     return error;
 }
-esp_err_t Qmi8658::enable(bool enabled) {
+esp_err_t Qmi8658::enable(bool enabled, uint32_t intervalMs) {
     if (!ready())
         return ESP_ERR_INVALID_STATE;
     auto error = device_.write(8, 0);
     if (error == ESP_OK)
         error = device_.write(2, enabled ? 0x40 : 0x41);
+    // QST QMI8658C rev0.9/rev0.10: equal accel/gyro ODR for synchronized 6DOF.
+    // Code 7 services 20ms demand; code 8 is the lowest supported gyro rate.
+    const uint8_t odr = intervalMs < 36 ? 7 : 8;
+    if (error == ESP_OK && enabled)
+        error = device_.write(3, odr);
+    if (error == ESP_OK && enabled)
+        error = device_.write(4, uint8_t(0x50 | odr));
     if (error == ESP_OK && enabled)
         error = device_.write(8, 0x83); // Synchronized sample locking.
     enabled_ = enabled && error == ESP_OK;

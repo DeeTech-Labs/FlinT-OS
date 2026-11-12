@@ -8,6 +8,22 @@ namespace {
 // Process-lifetime bus: never destroyed before clients in other translation units.
 // Reboots reset the peripheral; each module owns and releases only its device handle.
 i2c_master_bus_handle_t sharedBus{};
+void (*serviceHook)(){};
+uint64_t (*microsecondsHook)(){};
+DeviceI2cMetrics metrics;
+uint64_t beforeTransfer() {
+    if (serviceHook)
+        serviceHook();
+    return microsecondsHook ? microsecondsHook() : 0;
+}
+esp_err_t afterTransfer(esp_err_t error, uint64_t start) {
+    const auto elapsed = microsecondsHook ? microsecondsHook() - start : 0;
+    ++metrics.transfers;
+    metrics.errors += error != ESP_OK;
+    metrics.totalTransferUs += elapsed;
+    metrics.maxTransferUs = std::max(metrics.maxTransferUs, elapsed);
+    return error;
+}
 } // namespace
 i2c_master_bus_handle_t deviceI2cBus() {
     if (!sharedBus) {
@@ -50,7 +66,8 @@ esp_err_t I2cDevice::read(uint8_t reg, uint8_t *data, size_t size) const {
         return ESP_ERR_INVALID_STATE;
     if (!data || !size)
         return ESP_ERR_INVALID_ARG;
-    return i2c_master_transmit_receive(device_, &reg, 1, data, size, 5);
+    const auto start = beforeTransfer();
+    return afterTransfer(i2c_master_transmit_receive(device_, &reg, 1, data, size, 5), start);
 }
 esp_err_t I2cDevice::write(uint8_t reg, uint8_t value) const {
     if (!ready())
@@ -65,6 +82,15 @@ esp_err_t I2cDevice::write(uint8_t reg, const uint8_t *data, size_t size) const 
     std::array<uint8_t, 17> bytes{};
     bytes[0] = reg;
     std::copy_n(data, size, bytes.data() + 1);
-    return i2c_master_transmit(device_, bytes.data(), size + 1, 5);
+    const auto start = beforeTransfer();
+    return afterTransfer(i2c_master_transmit(device_, bytes.data(), size + 1, 5), start);
 }
 } // namespace flint::hardware
+
+void deviceI2cWorkerHooks(void (*service)(), uint64_t (*microseconds)()) {
+    serviceHook = service;
+    microsecondsHook = microseconds;
+}
+DeviceI2cMetrics deviceI2cMetrics() {
+    return metrics;
+}

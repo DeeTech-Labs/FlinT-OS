@@ -68,3 +68,8 @@ add_executable(environmental_tests environmental_sensors.cpp ../../src/hardware/
 target_include_directories(environmental_tests PRIVATE peripherals_idf cst816_idf ../../src)
 target_compile_features(environmental_tests PRIVATE cxx_std_20)
 add_test(NAME environmental_sensors COMMAND environmental_tests)
+
+add_executable(sensor_mailbox_tests sensor_mailbox.cpp ../../src/input/touch_state.cpp)
+target_include_directories(sensor_mailbox_tests PRIVATE ../../src)
+target_link_libraries(sensor_mailbox_tests PRIVATE Flint::Platform)
+add_test(NAME sensor_mailbox COMMAND sensor_mailbox_tests)

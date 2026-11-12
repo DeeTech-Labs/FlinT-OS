@@ -7,7 +7,7 @@
  * Проверяйте ESP_OK; sample.down=false означает отпускание. Преобразование координат
  * в canvas выполняет TouchTransform, а не этот драйвер.
  * Пример чтения после begin: TouchSample s{}; const auto error = touch.read(s);
- * wakeFromIsr выполняется в ISR: только уведомить Core, без I2C и обращения к UI.
+ * wakeFromIsr выполняется в ISR: только уведомить hardware worker, без I2C и обращения к UI.
  * Переданный sharedBus не принадлежит драйверу; без него драйвер создаёт собственный.
  * Объект живёт до stop(), владеет своим device и GPIO handler; деструктор вызывает stop().
  * В OS используйте input/touch.h: адаптер сам разделяет шину с RTC/IMU и отменяет жесты.
@@ -29,7 +29,7 @@ struct Cst816Config {
     uint8_t address{0x15};
 };
 
-// Core-task owned. The callback executes in GPIO ISR context and must only wake
+// Hardware-worker owned. The callback executes in GPIO ISR context and must only wake
 // the owner; never perform I2C or access Core there. Keep this object alive until stop().
 class Cst816 {
 public:
@@ -40,6 +40,13 @@ public:
 
     esp_err_t begin(const Cst816Config &config, void (*wakeFromIsr)(void *), void *context,
         i2c_master_bus_handle_t sharedBus = nullptr);
+    // Nonblocking reset sequencing for the shared hardware worker.
+    esp_err_t beginAsync(const Cst816Config &config, void (*wakeFromIsr)(void *), void *context,
+        i2c_master_bus_handle_t sharedBus, uint64_t at);
+    esp_err_t maintainInit(uint64_t at);
+    uint64_t nextInitWake() const {
+        return initAt_;
+    }
     esp_err_t read(TouchSample &sample);
     void stop();
     bool ready() const {
@@ -50,7 +57,9 @@ private:
     i2c_master_bus_handle_t bus_{};
     i2c_master_dev_handle_t device_{};
     bool busOwned_{}, handlerInstalled_{}, ready_{};
-    int interrupt_{-1};
+    int interrupt_{-1}, reset_{-1};
+    unsigned initStage_{};
+    uint64_t initAt_{UINT64_MAX};
     void (*wake_)(void *){};
     void *context_{};
     static void IRAM_ATTR interrupt(void *context);

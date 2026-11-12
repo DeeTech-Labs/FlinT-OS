@@ -12,45 +12,82 @@ int32_t signed12(unsigned value) {
 }
 } // namespace
 esp_err_t Bosch280::begin(i2c_master_bus_handle_t bus, uint8_t address, bool humidity) {
+    auto error = beginAsync(bus, address, humidity);
+    while (error == ESP_OK && initializing())
+        error = maintainInit();
+    return error;
+}
+esp_err_t Bosch280::beginAsync(i2c_master_bus_handle_t bus, uint8_t address, bool humidity) {
     if (address != 0x76 && address != 0x77)
         return ESP_ERR_INVALID_ARG;
-    auto error = device_.begin(bus, address);
-    uint8_t id{}, status{};
-    if (error == ESP_OK)
-        error = device_.read(0xd0, &id, 1);
-    if (error == ESP_OK && id != (humidity ? 0x60 : 0x58))
-        error = ESP_ERR_NOT_SUPPORTED;
-    if (error == ESP_OK)
-        error = device_.write(0xf4, 0); // Sleep, no permanent normal mode.
-    if (error == ESP_OK)
-        error = device_.read(0xf3, &status, 1);
-    if (error == ESP_OK && (status & 9))
-        error = ESP_ERR_NOT_FOUND;
-    uint8_t trim[24]{};
-    if (error == ESP_OK)
-        error = device_.read(0x88, trim, sizeof(trim));
+    stop();
+    const auto error = device_.begin(bus, address);
     if (error == ESP_OK) {
-        for (unsigned i = 0; i < calibration_.size(); ++i) {
-            const auto value = little(trim + i * 2);
-            calibration_[i] = (i == 0 || i == 3) ? int32_t(value) : std::bit_cast<int16_t>(value);
-        }
-        if (!calibration_[0] || calibration_[0] == 65535 || !calibration_[3])
-            error = ESP_ERR_INVALID_RESPONSE;
+        humidity_ = humidity;
+        initStage_ = 1;
     }
-    if (error == ESP_OK && humidity) {
-        uint8_t h1{}, h[7]{};
-        error = device_.read(0xa1, &h1, 1);
+    return error;
+}
+esp_err_t Bosch280::maintainInit() {
+    if (!initializing())
+        return ESP_ERR_INVALID_STATE;
+    esp_err_t error = ESP_OK;
+    switch (initStage_) {
+    case 1: {
+        uint8_t id{};
+        error = device_.read(0xd0, &id, 1);
+        if (error == ESP_OK && id != (humidity_ ? 0x60 : 0x58))
+            error = ESP_ERR_NOT_SUPPORTED;
+        break;
+    }
+    case 2:
+        error = device_.write(0xf4, 0);
+        break;
+    case 3: {
+        uint8_t status{};
+        error = device_.read(0xf3, &status, 1);
+        if (error == ESP_OK && (status & 9))
+            error = ESP_ERR_NOT_FOUND;
+        break;
+    }
+    case 4: {
+        uint8_t trim[24]{};
+        error = device_.read(0x88, trim, sizeof(trim));
+        if (error == ESP_OK) {
+            for (unsigned i = 0; i < calibration_.size(); ++i) {
+                const auto value = little(trim + i * 2);
+                calibration_[i] =
+                    (i == 0 || i == 3) ? int32_t(value) : std::bit_cast<int16_t>(value);
+            }
+            if (!calibration_[0] || calibration_[0] == 65535 || !calibration_[3])
+                error = ESP_ERR_INVALID_RESPONSE;
+        }
+        break;
+    }
+    case 5:
+        error = device_.read(0xa1, &humidityTrim1_, 1);
+        break;
+    case 6: {
+        uint8_t h[7]{};
+        error = device_.read(0xe1, h, sizeof(h));
         if (error == ESP_OK)
-            error = device_.read(0xe1, h, sizeof(h));
-        if (error == ESP_OK)
-            humidityCalibration_ = {h1, std::bit_cast<int16_t>(little(h)), h[2],
+            humidityCalibration_ = {humidityTrim1_, std::bit_cast<int16_t>(little(h)), h[2],
                 signed12(unsigned(h[3]) * 16 + (h[4] & 15)),
                 signed12(unsigned(h[5]) * 16 + (h[4] >> 4)), std::bit_cast<int8_t>(h[6])};
+        break;
     }
-    if (error != ESP_OK)
-        device_.stop();
-    humidity_ = humidity;
-    return error;
+    default:
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (error != ESP_OK) {
+        stop();
+        return error;
+    }
+    if (++initStage_ > (humidity_ ? 6u : 4u)) {
+        initStage_ = 0;
+        initialized_ = true;
+    }
+    return ESP_OK;
 }
 esp_err_t Bosch280::start(uint64_t nowMs) {
     if (!ready() || readyAt_ != UINT64_MAX)

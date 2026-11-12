@@ -47,25 +47,7 @@ Flash 16 MB и octal PSRAM 8 MB требуют отдельной проверк
 и Bosch-компенсация — `flint::hardware`. Новый module включается только секцией
 в одном device.toml. Исходники и IDF dependencies невыбранных драйверов не собираются.
 
-`hardware/peripherals.h` связывает выбранные драйверы с задачей Core:
-
-- `deviceHardwareBegin()` удерживает питание, инициализирует периферию и оставляет
-  IMU/зуммер/подсветку выключенными. Дисплей включает подсветку после заполнения GRAM.
-- `deviceMotionEnable/Read` даёт raw ускорение/угловую скорость с фиксированными
-  диапазонами; нет фонового опроса, fusion, автоматического WoM или обработчика IMU INT.
-- `deviceRtcRead/Set` читает/записывает UTC; oscillator-stop и неверный BCD отклоняются.
-  Неудачная запись оставляет STOP, чтобы частично записанное время не считалось валидным.
-  RTC не синхронизируется автоматически с Core epoch; alarm/wakeup не реализованы.
-- `Platform::power` поддерживает key `voltage_mv` через существующий permission boundary.
-  Измерение — калиброванный ADC, без подстановки значений при ошибках.
-- `deviceTone(Hz, durationMs)` ограничен 5 секундами; Core учитывает deadline остановки.
-  Таймеры LEDC при выключенном выходе приостановлены. `deviceBacklight(0..100)` задаёт яркость.
-- `deviceReleasePower()` разрешено вызывать из Core только после завершения записей
-  Flash и остановки транспорта. Кнопки пока читаются как raw diagnostics, без UI/debounce.
-
-Новых Lua API и обхода разрешений нет: IMU/RTC/звук доступны native-интеграции,
-готовность и измеренные данные — существующей диагностике. INT RTC/IMU в конфиге
-резервируются; автоматический wake по ним не реализован.
+Интеграции, единицы и ограничения описаны в [сервисе аппаратных данных](sensor-service.md). Старые глобальные deviceMotion/Environment/Light polling APIs заменены Core Broker и bounded hardware worker.
 
 ## Внешние BMP280, BME280 и VEML7700
 
@@ -77,17 +59,7 @@ BMP280 и BME280 им нужны разные адреса.
 Общие калибровка и компенсация BMP280/BME280 реализованы по
 [даташиту Bosch BMP280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf)
 и [даташиту BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
-`deviceEnvironmentStart(EnvironmentSensor::bmp280/bme280)` запускает одну forced
-конверсию x1; Core завершает её по deadline через 12 мс. `deviceEnvironmentRead`
-возвращает сохранённый результат: °C, Pa и %RH только у BME280. Нет busy-wait,
-постоянного normal mode, высоты и sea-level correction.
-
-`deviceLightStart/Read` работают аналогично. По [application note Vishay](https://cdn.sparkfun.com/assets/8/7/4/4/1/VEML7700_Application_Note.pdf)
-используются gain 1/8 и integration 100 ms; чтение запланировано через 210 мс с
-запасом на первый sample. ALS выключается после чтения, даже при ошибке I2C.
-Результат — линейные lux, 0.4608 lx/count. Autorange и коррекция нелинейности
-при сильном освещении пока не реализованы; saturation возвращает ошибку.
-Диагностика показывает последний успешный результат; периодический сбор не запускается.
+Worker выполняет forced-конверсии по demand Broker; интервалы, shutdown и диагностика описаны в [сервисе аппаратных данных](sensor-service.md). Нет постоянного polling, altitude или sea-level correction.
 
 ## Проверка на полученной плате
 

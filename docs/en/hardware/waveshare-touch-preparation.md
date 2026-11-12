@@ -47,25 +47,7 @@ and an example. Drivers use `flint::modules`; common I2C/PWM and Bosch compensat
 use `flint::hardware`. A section in the single device.toml selects a module;
 unselected driver sources and IDF requirements are excluded.
 
-`hardware/peripherals.h` connects the selected modules to the Core task:
-
-- `deviceHardwareBegin()` holds power, initializes peripherals and leaves IMU,
-  buzzer and backlight off. Display initialization enables backlight after filling GRAM.
-- `deviceMotionEnable/Read` exposes raw acceleration/angular rate with fixed ranges;
-  there is no polling task, fusion, automatic WoM or IMU interrupt handler.
-- `deviceRtcRead/Set` reads/writes UTC. Oscillator-stop and malformed BCD are rejected;
-  failed writes leave STOP set so partial time is not trusted. RTC is not automatically
-  synchronized with Core epoch; alarm/wakeup is not implemented.
-- `Platform::power` supports `voltage_mv` through the existing permission boundary.
-  ADC readings are calibrated, with no synthetic fallback on failure.
-- `deviceTone(Hz,durationMs)` is limited to 5 seconds; Core schedules its stop deadline.
-  Off LEDC timers are paused. `deviceBacklight(0..100)` sets brightness.
-- `deviceReleasePower()` must run on Core only after Flash writes and transports are
-  quiesced. Buttons currently expose raw diagnostics without UI policy or debounce.
-
-There are no new Lua APIs or permission bypasses. IMU/RTC/sound are native integration
-APIs; readiness and measurements use existing diagnostics. RTC/IMU INT pins are
-reserved but do not implement automatic wakeup.
+Integration, units and limitations are documented in the [hardware data service](sensor-service.md). Old global deviceMotion/Environment/Light polling APIs are replaced by the Core Broker and bounded hardware worker.
 
 ## External BMP280, BME280 and VEML7700
 
@@ -76,17 +58,7 @@ are connected.
 
 Shared calibration and compensation follow the [Bosch BMP280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf)
 and [BME280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
-`deviceEnvironmentStart(EnvironmentSensor::bmp280/bme280)` triggers one x1 forced
-conversion. Core completes it after a 12 ms deadline; `deviceEnvironmentRead` returns
-the cached result in °C, Pa and %RH for BME280 only. There is no busy-wait, permanent
-normal mode, altitude or sea-level correction.
-
-`deviceLightStart/Read` follows the same pattern. The [Vishay application note](https://cdn.sparkfun.com/assets/8/7/4/4/1/VEML7700_Application_Note.pdf)
-defines gain 1/8 and integration 100 ms; reading is scheduled after 210 ms with a
-first-sample margin. ALS shuts down after reading, including I2C read errors.
-Output is linear lux at 0.4608 lx/count; autorange and high-light nonlinearity
-correction are not implemented. Saturation is an error. Diagnostics show the last
-successful result; no periodic collection starts automatically.
+The worker performs forced conversions on Broker demand; intervals, shutdown and diagnostics are documented in the [hardware data service](sensor-service.md). There is no permanent polling, altitude or sea-level correction.
 
 ## Physical validation
 

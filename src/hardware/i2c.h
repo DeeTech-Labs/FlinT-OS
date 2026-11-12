@@ -4,7 +4,7 @@
 #include <cstdint>
 
 namespace flint::hardware {
-// Core-task owned; devices must be destroyed before their shared bus.
+// Hardware-worker owned; devices must be destroyed before their shared bus.
 class I2cDevice {
 public:
     I2cDevice() = default;
@@ -27,3 +27,10 @@ private:
 
 // One bus for all selected device modules. No driver may delete this handle.
 i2c_master_bus_handle_t deviceI2cBus();
+
+struct DeviceI2cMetrics {
+    uint64_t transfers{}, errors{}, maxTransferUs{}, totalTransferUs{};
+};
+// Install/read only on the hardware owner. The service callback must not use I2cDevice.
+void deviceI2cWorkerHooks(void (*service)(), uint64_t (*microseconds)());
+DeviceI2cMetrics deviceI2cMetrics();

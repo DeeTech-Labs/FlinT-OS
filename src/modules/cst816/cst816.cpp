@@ -29,6 +29,8 @@ void IRAM_ATTR Cst816::interrupt(void *context) {
 
 void Cst816::stop() {
     ready_ = false;
+    initStage_ = 0;
+    initAt_ = UINT64_MAX;
     if (handlerInstalled_) {
         checkCleanup(gpio_intr_disable(gpio_num_t(interrupt_)));
         checkCleanup(gpio_isr_handler_remove(gpio_num_t(interrupt_)));
@@ -48,7 +50,19 @@ void Cst816::stop() {
 
 esp_err_t Cst816::begin(const Cst816Config &config, void (*wakeFromIsr)(void *), void *context,
     i2c_master_bus_handle_t sharedBus) {
-    if (ready_)
+    auto error = beginAsync(config, wakeFromIsr, context, sharedBus, 0);
+    if (error != ESP_OK)
+        return error;
+    delayMs(10);
+    error = maintainInit(10);
+    if (error != ESP_OK)
+        return error;
+    delayMs(200);
+    return maintainInit(210);
+}
+esp_err_t Cst816::beginAsync(const Cst816Config &config, void (*wakeFromIsr)(void *), void *context,
+    i2c_master_bus_handle_t sharedBus, uint64_t at) {
+    if (ready_ || initStage_)
         return ESP_ERR_INVALID_STATE;
     if (!wakeFromIsr || !GPIO_IS_VALID_OUTPUT_GPIO(config.reset) ||
         !GPIO_IS_VALID_GPIO(config.interrupt) || !GPIO_IS_VALID_OUTPUT_GPIO(config.sda) ||
@@ -96,14 +110,28 @@ esp_err_t Cst816::begin(const Cst816Config &config, void (*wakeFromIsr)(void *),
     error = gpio_set_level(gpio_num_t(config.reset), 0);
     if (error != ESP_OK)
         return fail(error);
-    delayMs(10);
-    error = gpio_set_level(gpio_num_t(config.reset), 1);
-    if (error != ESP_OK)
-        return fail(error);
-    delayMs(200);
-
+    reset_ = config.reset;
+    initStage_ = 1;
+    initAt_ = at + 10;
+    return ESP_OK;
+}
+esp_err_t Cst816::maintainInit(uint64_t at) {
+    if (!initStage_ || at < initAt_)
+        return ESP_ERR_INVALID_STATE;
+    const auto fail = [this](esp_err_t error) {
+        stop();
+        return error;
+    };
+    if (initStage_ == 1) {
+        const auto error = gpio_set_level(gpio_num_t(reset_), 1);
+        if (error != ESP_OK)
+            return fail(error);
+        initStage_ = 2;
+        initAt_ = at + 200;
+        return ESP_OK;
+    }
     uint8_t id{}, idRegister = 0xa7;
-    error = i2c_master_transmit_receive(device_, &idRegister, 1, &id, 1, TransferTimeoutMs);
+    auto error = i2c_master_transmit_receive(device_, &idRegister, 1, &id, 1, TransferTimeoutMs);
     if (error != ESP_OK)
         return fail(error);
     if (id != 0xb4 && id != 0xb5 && id != 0xb6)
@@ -115,7 +143,7 @@ esp_err_t Cst816::begin(const Cst816Config &config, void (*wakeFromIsr)(void *),
         return fail(error);
 
     gpio_config_t irq{};
-    irq.pin_bit_mask = 1ULL << config.interrupt;
+    irq.pin_bit_mask = 1ULL << interrupt_;
     irq.mode = GPIO_MODE_INPUT;
     irq.intr_type = GPIO_INTR_DISABLE;
     error = gpio_config(&irq);
@@ -134,6 +162,8 @@ esp_err_t Cst816::begin(const Cst816Config &config, void (*wakeFromIsr)(void *),
     error = gpio_intr_enable(gpio_num_t(interrupt_));
     if (error != ESP_OK)
         return fail(error);
+    initStage_ = 0;
+    initAt_ = UINT64_MAX;
     ready_ = true;
     return ESP_OK;
 }

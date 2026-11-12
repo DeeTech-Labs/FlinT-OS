@@ -9,7 +9,14 @@ Veml7700::~Veml7700() {
     if (ready() && shutdown() != ESP_OK)
         ESP_LOGE("light", "shutdown failed");
 }
+void Veml7700::stop() {
+    if (ready())
+        shutdown();
+    device_.stop();
+    readyAt_ = UINT64_MAX;
+}
 esp_err_t Veml7700::begin(i2c_master_bus_handle_t bus) {
+    stop();
     auto error = device_.begin(bus, 0x10);
     if (error == ESP_OK)
         error = shutdown();

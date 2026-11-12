@@ -30,6 +30,7 @@ public:
 
 private:
     flint::hardware::PwmOutput output_;
-    uint64_t stopAt_{UINT64_MAX};
+    uint64_t stopAt_{UINT64_MAX}, startedAt_{}, quietUntil_{}, lastCommand_{};
+    bool commanded_{};
 };
 } // namespace flint::modules

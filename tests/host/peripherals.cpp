@@ -19,7 +19,14 @@ struct FakeDevice {
 };
 std::array<FakeDevice, 4> clients;
 std::array<std::array<uint8_t, 256>, 128> registers;
-unsigned buses{}, removed{}, timeouts{}, writes{};
+unsigned buses{}, removed{}, timeouts{}, writes{}, serviced{};
+uint64_t fakeUs{};
+void serviceTouchMock() {
+    ++serviced;
+}
+uint64_t clockMock() {
+    return fakeUs;
+}
 int failRegister = -1;
 } // namespace
 esp_err_t i2c_new_master_bus(const i2c_master_bus_config_t *config, i2c_master_bus_handle_t *bus) {
@@ -52,6 +59,7 @@ esp_err_t i2c_master_bus_rm_device(i2c_master_dev_handle_t device) {
 esp_err_t i2c_master_transmit(
     i2c_master_dev_handle_t device, const uint8_t *data, size_t size, int timeout) {
     CHECK(timeout == 5 && size >= 2 && size <= 17);
+    fakeUs += 25;
     ++writes;
     if (data[0] == failRegister) {
         ++timeouts;
@@ -63,6 +71,7 @@ esp_err_t i2c_master_transmit(
 }
 esp_err_t i2c_master_transmit_receive(i2c_master_dev_handle_t device, const uint8_t *reg, size_t tx,
     uint8_t *data, size_t size, int timeout) {
+    fakeUs += 25;
     CHECK(tx == 1 && timeout == 5);
     if (*reg == failRegister) {
         ++timeouts;
@@ -74,6 +83,7 @@ esp_err_t i2c_master_transmit_receive(i2c_master_dev_handle_t device, const uint
 }
 int main() {
     using namespace flint::modules;
+    deviceI2cWorkerHooks(serviceTouchMock, clockMock);
     auto bus = deviceI2cBus();
     CHECK(bus == deviceI2cBus() && buses == 1);
     auto &clock = registers[0x51];
@@ -128,6 +138,9 @@ int main() {
         CHECK(motion[2] == 0x41 && motion[8] == 0);
         CHECK(imu.read(sample) == ESP_ERR_INVALID_STATE);
         CHECK(imu.enable(true) == ESP_OK && motion[8] == 0x83);
+        CHECK(motion[3] == 8 && motion[4] == 0x58);
+        CHECK(imu.enable(true, 20) == ESP_OK && motion[3] == 7 && motion[4] == 0x57);
+        CHECK(imu.enable(true, 1000) == ESP_OK && motion[3] == 8 && motion[4] == 0x58);
         CHECK(imu.read(sample) == ESP_ERR_NOT_FOUND);
         motion[0x2e] = 3;
         const uint8_t bytes[]{0, 0x40, 0, 0xc0, 0xff, 0xff, 1, 0, 0, 0x80, 0xff, 0x7f};
@@ -142,6 +155,9 @@ int main() {
         CHECK(imu.enable(false) == ESP_OK && motion[2] == 0x41 && motion[8] == 0);
     }
     CHECK(removed == 3 && timeouts == 2 && buses == 1);
+    const auto metrics = deviceI2cMetrics();
+    CHECK(metrics.transfers == serviced && metrics.errors == timeouts);
+    CHECK(metrics.maxTransferUs == 25 && metrics.totalTransferUs == 25 * metrics.transfers);
     for (const auto &client : clients)
         CHECK(!client.used);
     std::puts("RTC integrity, failed writes, IMU locking/raw data, shared I2C and RAII: passed");

@@ -8,7 +8,8 @@ void coreDisconnect(flint::Session &session);
 // Allocate identities only on the Core owner task; shared by USB and BLE.
 uint64_t coreNewSession();
 inline constexpr uint32_t CoreWakeUsbRx = 1, CoreWakeUsbTx = 2, CoreWakeUsbSession = 4,
-                          CoreWakeBle = 8, CoreWakeWork = 16, CoreWakeTouch = 32;
+                          CoreWakeBle = 8, CoreWakeWork = 16, CoreWakeTouch = 32,
+                          CoreWakeButtons = 64;
 void coreWake(uint32_t reason);
 bool coreTakeCompanionEvent(const flint::Session &session, flint::Frame &event);
 uint64_t coreCompanionNextWake(const flint::Session &session);

@@ -7,6 +7,20 @@
 - Ensure both `/build/` and `/temp/` are listed in that project's `.gitignore` before creating artifacts.
 - Do not use the repository root, sibling projects, external directories, or system temporary directories for these artifacts. Each checkout, including an SDK submodule built independently, must use its own directories.
 
+## Changelog Policy
+
+- Maintain a root `CHANGELOG.md` following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Create it when the project first needs a notable-change entry; do not invent historical releases.
+- Update the changelog in the same change as every notable user- or developer-facing change: features, fixes, security changes, public APIs, contracts, configuration, dependencies, build requirements, and compatibility changes.
+- Add unreleased entries under `## [Unreleased]` at the top. Group them under `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, or `### Security`; omit empty categories.
+- Write concise, human-readable entries describing the actual effect and affected audience. Preserve the existing changelog language; use English for a new changelog. Do not copy commit logs, record routine internal work without a notable effect, or describe planned functionality as implemented.
+- Explicitly identify breaking changes, affected interfaces or formats, and required migration steps; link to detailed migration documentation when needed.
+- Keep releases in reverse chronological order with headings `## [X.Y.Z] - YYYY-MM-DD`, using the actual release date. Follow the project's versioning policy and [Semantic Versioning](https://semver.org/spec/v2.0.0.html) where applicable; do not bump versions or declare releases without authorization.
+- At an authorized release, move the relevant Unreleased entries into the new version section, keep an Unreleased section for subsequent work, and maintain valid release/tag and comparison links where the repository provides them.
+- Preserve published release history. Correct factual errors transparently; do not silently rewrite it to match later behavior. Mark withdrawn releases as `[YANKED]` rather than deleting them.
+- Record shared SDK changes in the SDK's own changelog. Consumer changelogs describe their integration and observable consequences; do not edit vendored/submodule changelogs or advance submodule revisions merely to duplicate entries.
+- Before completing a task, check whether a changelog entry is required and verify that entries match the implemented diff. For sensitive security fixes, follow `SECURITY.md` where present and coordinated disclosure requirements; do not publish secrets or premature exploit details.
+
+
 ## 1. Role and Mission
 
 Act as a Senior Embedded Software Engineer, C++ Architect, and Security Reviewer working on the FlinT ecosystem.
@@ -462,7 +476,7 @@ Russian is the canonical language for repository documentation.
 - Document API changes and breaking changes.
 - Document hardware limitations.
 - Document configuration and migration requirements.
-- Update `CHANGELOG.md` for significant user-visible changes when appropriate.
+- Follow the Changelog Policy above for all notable user- and developer-facing changes.
 - Preserve existing Markdown links.
 - Avoid documenting unimplemented features as available.
 

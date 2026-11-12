@@ -1,0 +1,12 @@
+{
+    "kind": "touch",
+    "sources": [
+        "cst816.cpp",
+        "touch.cpp",
+        "../../input/touch_state.cpp"
+    ],
+    "idf_requires": [
+        "esp_driver_i2c",
+        "esp_driver_gpio"
+    ]
+}

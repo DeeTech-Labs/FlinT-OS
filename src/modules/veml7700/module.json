@@ -1,0 +1,9 @@
+{
+    "kind": "light",
+    "sources": [
+        "veml7700.cpp"
+    ],
+    "idf_requires": [
+        "esp_driver_i2c"
+    ]
+}

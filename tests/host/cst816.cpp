@@ -1,4 +1,4 @@
-#include "input/cst816.h"
+#include "modules/cst816/cst816.h"
 #include "driver/gpio.h"
 #include <array>
 #include <cassert>
@@ -99,9 +99,9 @@ esp_err_t gpio_isr_handler_remove(gpio_num_t) {
 }
 
 int main() {
-    const flint::input::Cst816Config config{.sda = 11, .scl = 10, .reset = 13, .interrupt = 14};
-    flint::input::Cst816 driver;
-    flint::input::TouchSample sample;
+    const flint::modules::Cst816Config config{.sda = 11, .scl = 10, .reset = 13, .interrupt = 14};
+    flint::modules::Cst816 driver;
+    flint::modules::TouchSample sample;
     assert(driver.read(sample) == ESP_ERR_INVALID_STATE);
     assert(driver.begin(config, wake, &wakes) == ESP_OK);
     const int beginOperations = operation;

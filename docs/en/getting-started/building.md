@@ -5,7 +5,7 @@
 The local `platform/` working tree contains matching touch/UI changes and build-local SDK generation; no external override is needed for a local build. These changes are uncommitted, so the previous pin alone does not reproduce this working tree. [Integration status](../development/sdk-integration.md).
 
 
-Target: ESP32-S3 only. The required SDK is ESP-IDF 6.1.0. Python tooling discovers the existing SDK and its managed environment.
+Target: ESP32-S3 only. The required SDK is ESP-IDF 6.1.0. Python 3.11+ tooling discovers the existing SDK and its managed environment.
 
 ```sh
 python3 tools/select_device.py --list

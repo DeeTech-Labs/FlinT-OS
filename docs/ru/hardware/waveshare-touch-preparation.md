@@ -1,40 +1,96 @@
 [English translation](../../en/hardware/waveshare-touch-preparation.md)
 
-# Подготовка Waveshare ESP32-S3-Touch-LCD-1.69
+# Будущий FlinT Spark на Waveshare ESP32-S3-Touch-LCD-1.69
 
-Это неактивная заготовка, не поддерживаемый профиль для прошивки. Устройство пока
-не получено; электрическая работа, ориентация touch и энергопотребление не проверены.
-Выбранный `flint_spark_s3_supermini` и его файлы конфигурации не меняются.
+Полная заготовка аппаратного состава находится в
+[device.future.toml](../../../config/devices/flint_spark/device.future.toml).
+Селектор её игнорирует; активный Spark не изменён. Плата ещё не получена:
+компиляция и host-тесты не подтверждают электрическую работу и энергопотребление.
 
-По [документации Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.69)
-touch-контроллер — CST816T, адрес I2C `0x15`, SDA GPIO11, SCL GPIO10,
-reset GPIO13, interrupt GPIO14; дисплей имеет разрешение 240×280.
-Не следует путать эту плату с отдельным модулем 1.69inch Touch LCD на CST816S.
-В документации встречаются разные ревизии платы: перед подключением нужно
-сверить маркировку и схему полученного экземпляра.
+Состав и основная распиновка взяты из [руководства Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.69)
+и [официальных примеров](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.69).
 
-`src/board/models/waveshare/esp32_s3_touch_lcd_169/touch.h` содержит
-эти параметры и **raw portrait identity transform**. Он не подключён активной
-платой и не задаёт проверенную ориентацию для landscape canvas OS.
-Полный профиль требует настройки ST7789V2, Flash/PSRAM, питания, GPIO,
-полярности подсветки и согласования геометрии canvas; эти настройки не добавлены.
+| Узел | Реализация OS | Подключение в будущем конфиге |
+|---|---|---|
+| ST7789V2, 240×280 | `flint::modules::St7789` | MOSI7, SCLK6, CS5, DC4, RST8 |
+| CST816T | `flint::modules::Cst816` | I2C 0x15, RST13, INT14 |
+| QMI8658C | `flint::modules::Qmi8658` | I2C 0x6b, INT38 |
+| PCF85063A | `flint::modules::Pcf85063` | I2C 0x51, INT39 |
+| Измерение аккумулятора | `flint::modules::BatteryAdc` | ADC1/GPIO1, делитель 200k/100k, ×3 |
+| Подсветка | `flint::modules::PwmBacklight` | GPIO15, LEDC timer1/channel1 |
+| Зуммер | `flint::modules::PwmBuzzer` | GPIO42, LEDC timer0/channel0 |
+| Питание и кнопки | `flint::modules::PowerButton` | SYS_EN41, PWR40, BOOT0 |
 
-Новый `input/cst816.cpp` независимо реализует чтение пяти байт с регистра `0x02`
-(число контактов и 12-bit X/Y), проверяет event bits и принимает single-contact
-данные. Регистр `0xFA=0x60` включает periodic contact и state-change interrupts.
-Основание для регистров — [пример производителя](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.69/tree/main/examples/arduino/libraries/Arduino_DriveBus/src/touch_chip)
-и [включённый производителем SensorLib](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.69/blob/main/examples/arduino/libraries/SensorLib/src/touch/TouchDrvCST816.cpp).
-Исходники библиотек не включаются в firmware.
+Touch/IMU/RTC разделяют SDA11/SCL10 и один bus ESP-IDF. Каждый драйвер владеет
+только своим I2C device. Общий bus живёт до перезапуска firmware. Внешние
+pull-ups обязательны; на схеме платы они предусмотрены. Нельзя назначать эту
+же пару GPIO другим функциям или два устройства на один I2C-адрес.
 
-Драйвер использует новый I2C master API ESP-IDF, timeout передачи 5 мс,
-не создаёт задачу и не отключает auto sleep контроллера. IRQ только будит владельца;
-чтение и обработка выполняются задачей Core. Общий I2C bus можно передать в `begin`:
-драйвер удаляет только свой device, не переданный bus. При собственном bus
-нужны внешние pull-up резисторы. GPIO ISR service общая для системы и не
-удаляется при `stop`; собственный pin handler удаляется. Если существующая
-ISR service использует IRAM, callback и его данные также должны быть доступны
-при отключённом flash cache.
+## Ревизии и автономные цепи
 
-После получения платы нужны проверки касаний четырёх углов, удержания, движения,
-отпускания, отмены при смене приложения, восстановления после I2C error и влияния
-на idle power. До этих проверок заготовку нельзя считать hardware-validated.
+[Схема V2.1](https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.69/ESP32-S3-Touch-LCD-1.69_V2.1.pdf)
+отличается от основной таблицы руководства: buzzer=39, RTC_INT=41, SYS_EN=42.
+В Arduino-примере также есть старая комбинация PWR36/SYS_EN35/buzzer33.
+Перед активацией обязательно сверить маркировку и схему полученного экземпляра.
+Будущий конфиг явно использует основную таблицу руководства, а не автоопределение ревизии.
+
+ETA6098 заряжает аккумулятор автономно, ME6217 формирует 3.3V; программного
+I2C-интерфейса управления ими в схеме нет. Поэтому выдуманного драйвера зарядника,
+процента заряда и charging status нет. RST идёт на CHIP_PU, а не на GPIO.
+Flash 16 MB и octal PSRAM 8 MB требуют отдельной проверки sdkconfig; TOML не меняет
+существующую карту разделов 4 MB и настройки Quad PSRAM активного Spark.
+
+## Использование модулей
+
+Каждый заголовок `src/modules/<id>/<id>.h` содержит назначение, единицы, порядок
+вызовов, ограничения и пример. Пространство имён: `flint::modules`; общие I2C/PWM
+и Bosch-компенсация — `flint::hardware`. Новый module включается только секцией
+в одном device.toml. Исходники и IDF dependencies невыбранных драйверов не собираются.
+
+`hardware/peripherals.h` связывает выбранные драйверы с задачей Core:
+
+- `deviceHardwareBegin()` удерживает питание, инициализирует периферию и оставляет
+  IMU/зуммер/подсветку выключенными. Дисплей включает подсветку после заполнения GRAM.
+- `deviceMotionEnable/Read` даёт raw ускорение/угловую скорость с фиксированными
+  диапазонами; нет фонового опроса, fusion, автоматического WoM или обработчика IMU INT.
+- `deviceRtcRead/Set` читает/записывает UTC; oscillator-stop и неверный BCD отклоняются.
+  Неудачная запись оставляет STOP, чтобы частично записанное время не считалось валидным.
+  RTC не синхронизируется автоматически с Core epoch; alarm/wakeup не реализованы.
+- `Platform::power` поддерживает key `voltage_mv` через существующий permission boundary.
+  Измерение — калиброванный ADC, без подстановки значений при ошибках.
+- `deviceTone(Hz, durationMs)` ограничен 5 секундами; Core учитывает deadline остановки.
+  Таймеры LEDC при выключенном выходе приостановлены. `deviceBacklight(0..100)` задаёт яркость.
+- `deviceReleasePower()` разрешено вызывать из Core только после завершения записей
+  Flash и остановки транспорта. Кнопки пока читаются как raw diagnostics, без UI/debounce.
+
+Новых Lua API и обхода разрешений нет: IMU/RTC/звук доступны native-интеграции,
+готовность и измеренные данные — существующей диагностике. INT RTC/IMU в конфиге
+резервируются; автоматический wake по ним не реализован.
+
+## Внешние BMP280, BME280 и VEML7700
+
+На самой Waveshare этих датчиков нет. В конце будущего TOML есть закомментированные
+секции; включать их следует только после подключения и проверки питания/pull-ups.
+BMP280/BME280 используют 0x76/0x77, VEML7700 — 0x10. При совместном подключении
+BMP280 и BME280 им нужны разные адреса.
+
+Общие калибровка и компенсация BMP280/BME280 реализованы по
+[даташиту Bosch BMP280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf)
+и [даташиту BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
+`deviceEnvironmentStart(EnvironmentSensor::bmp280/bme280)` запускает одну forced
+конверсию x1; Core завершает её по deadline через 12 мс. `deviceEnvironmentRead`
+возвращает сохранённый результат: °C, Pa и %RH только у BME280. Нет busy-wait,
+постоянного normal mode, высоты и sea-level correction.
+
+`deviceLightStart/Read` работают аналогично. По [application note Vishay](https://cdn.sparkfun.com/assets/8/7/4/4/1/VEML7700_Application_Note.pdf)
+используются gain 1/8 и integration 100 ms; чтение запланировано через 210 мс с
+запасом на первый sample. ALS выключается после чтения, даже при ошибке I2C.
+Результат — линейные lux, 0.4608 lx/count. Autorange и коррекция нелинейности
+при сильном освещении пока не реализованы; saturation возвращает ошибку.
+Диагностика показывает последний успешный результат; периодический сбор не запускается.
+
+## Проверка на полученной плате
+
+Нужны проверка ревизии GPIO, Flash/PSRAM, цветов/ориентации дисплея и четырёх углов
+touch, точности RTC и батарейного напряжения, знаков осей IMU, PWM, кнопок и отключения
+питания. Отдельно измерить idle power и поведение при отказах I2C/ADC.

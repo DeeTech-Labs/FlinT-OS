@@ -1,6 +1,6 @@
 #include "display/display.h"
 #include "board/device_config.h"
-#include "display/st7789.h"
+#include "modules/st7789/st7789.h"
 #include "driver/gpio.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
@@ -60,7 +60,7 @@ bool hasCommand(uint8_t command) {
 void driverTests() {
     auto &s = fake();
     {
-        flint::display::St7789 panel;
+        flint::modules::St7789 panel;
         CHECK(panel.setWindow(0, 0, 1, 1) == ESP_ERR_INVALID_STATE);
         CHECK(panel.begin() == ESP_OK);
         CHECK(s.busConfig.mosi_io_num == 11 && s.busConfig.sclk_io_num == 12);
@@ -98,7 +98,7 @@ void driverTests() {
         CHECK(panel.setWindow(279, 239, 2, 1) == ESP_ERR_INVALID_ARG);
         CHECK(panel.setWindow(279, 239, 1, 2) == ESP_ERR_INVALID_ARG);
         CHECK(panel.setWindow(0, 0, 280, 240) == ESP_OK);
-        alignas(4) const uint16_t oversized[flint::display::St7789::MaxTransferPixels + 1]{};
+        alignas(4) const uint16_t oversized[flint::modules::St7789::MaxTransferPixels + 1]{};
         CHECK(panel.writePixels(oversized) == ESP_ERR_INVALID_ARG);
         CHECK(panel.setWindow(0, 0, 1, 1) == ESP_OK);
         CHECK(panel.writePixels({}) == ESP_ERR_INVALID_ARG);
@@ -113,7 +113,7 @@ void driverTests() {
     for (int attempt = 1; attempt <= 27; ++attempt) {
         clearTransfers();
         s.failTransfer = attempt;
-        flint::display::St7789 panel;
+        flint::modules::St7789 panel;
         CHECK(panel.begin() == ESP_FAIL);
         CHECK(!panel.ready() && !s.bus);
         s.failTransfer = 0;
@@ -123,14 +123,14 @@ void driverTests() {
     s.failBus = true;
     const int frees = s.busFrees;
     {
-        flint::display::St7789 panel;
+        flint::modules::St7789 panel;
         CHECK(panel.begin() == ESP_FAIL);
     }
     CHECK(s.busFrees == frees);
     s.failBus = false;
     s.failDevice = true;
     {
-        flint::display::St7789 panel;
+        flint::modules::St7789 panel;
         CHECK(panel.begin() == ESP_FAIL);
     }
     CHECK(s.busFrees == frees + 1 && !s.bus);

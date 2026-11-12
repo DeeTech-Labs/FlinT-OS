@@ -2,7 +2,7 @@
 
 # FlinT Spark S3 Super Mini
 
-Only supported profile: `flint_spark_s3_supermini`, target `esp32s3`.
+Only supported profile: `flint_spark`, target `esp32s3`.
 The C3 profile was removed; selecting its ID is an error.
 
 Development wiring selected for ST7789 240×280 (landscape UI 280×240):
@@ -22,9 +22,9 @@ The connected development unit was identified on 2026-11-04 as ESP32-S3 revision
 
 ```sh
 python3 tools/select_device.py --list
-python3 tools/select_device.py --device flint_spark_s3_supermini --build
+python3 tools/select_device.py --device flint_spark --build
 ```
 
-Board implementations live in `src/board/models/flint_spark/s3_supermini/`; parameters in `config/devices/flint_spark/s3_supermini/`. The selector writes `device_config.h`, `device_display.h` and `device.cmake` into `<build-dir>/generated/board/`. Generated files are ignored by git.
+Display module implementations live in `src/modules/st7789/`; parameters in `config/devices/flint_spark/`. The selector writes `device_config.h`, `device_display.h` and `device.cmake` into `<build-dir>/generated/board/`. Generated files are ignored by git.
 
 See [platform migration status](../../../platform/README.md) for what is implemented and what still needs replacing.

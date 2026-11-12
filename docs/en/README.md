@@ -66,7 +66,7 @@ idf.py -p /dev/ttyACM0 flash
 Time synchronization and package management are available through **Flint Flare**.
 USB and BLE use the same binary Companion v1 contract; there is no serial-command fallback.
 
-Optional: `idf.py -DFLINT_DEVICE=flint_spark_s3_supermini build` · board guide: [Spark board guide](hardware/spark-s3-supermini.md)
+Optional: `idf.py -DFLINT_DEVICE=flint_spark build` · board guide: [Spark board guide](hardware/spark-s3-supermini.md)
 
 <details>
 <summary><b>Application controls</b></summary>
@@ -80,7 +80,7 @@ Factory packages are provisioned on the read-only `factory` volume. User package
 <details>
 <summary><b>Hardware — FlinT Spark pinout</b></summary>
 
-Default device revision: `flint_spark_s3_supermini`. Display: GMT028-class **ST7789** 240×280 SPI (UI landscape 280×240).
+Default model: `flint_spark`. Display: GMT028-class **ST7789** 240×280 SPI (UI landscape 280×240).
 
 | Signal | GPIO |
 |--------|:----:|
@@ -94,7 +94,7 @@ Default device revision: `flint_spark_s3_supermini`. Display: GMT028-class **ST7
 
 Spark uses an ESP32-S3 Super Mini. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM. The Flash map provides two 1 MiB firmware slots, 192 KiB factory storage and 1728 KiB user storage; PSRAM is separate volatile memory. See [`config/README.md`](development/configuration.md) for partition migration requirements. The onboard LED remains disabled until its configuration is verified.
 
-Hardware is fixed per model/revision under `src/board/models/`. Select a supported revision with `-DFLINT_DEVICE=…`.
+Hardware modules live under `src/modules/` and are selected per model in `config/devices/`. Select a supported model with `-DFLINT_DEVICE=…`.
 
 </details>
 

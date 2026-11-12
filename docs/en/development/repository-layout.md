@@ -19,7 +19,7 @@ build/        ignored local output, generated headers, dependency lock, factory 
 
 `src/` is registered through `EXTRA_COMPONENT_DIRS`; its ESP-IDF component name is `src`, and `main` uses `REQUIRES src`. Target registration stays in local `CMakeLists.txt`; shared build logic lives in `cmake/`. Component manifests and `Kconfig.projbuild` stay beside their components. Tool-specific root and `.github/` configuration files keep their required locations.
 
-`config/devices.json` lists supported revisions; `config/devices/<model>/<revision>/` owns board parameters and dependencies. Display and touch implementations live in `src/board/models/`. GPIO has one board-configuration source. An implementation draft is not automatically a selectable profile.
+`config/devices.json` stores only the default ID; `config/devices/<model>/device.toml` is the single device configuration. Profiles are discovered automatically; panel parameters live in the same `device.toml`. Display and touch implementations live in `src/modules/`. GPIO has one board-configuration source. An implementation draft is not automatically a selectable profile.
 
 `config/version.cmake` is the only version source. CMake generates `generated/config/flint_version.h`; the selector generates `generated/board/`. SDK factory packages are built in the selected build directory's `factory/`. Shared SDK resources remain in the submodule.
 

@@ -1,0 +1,9 @@
+{
+    "kind": "battery",
+    "sources": [
+        "battery_adc.cpp"
+    ],
+    "idf_requires": [
+        "esp_adc"
+    ]
+}

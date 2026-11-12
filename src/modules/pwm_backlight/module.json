@@ -1,0 +1,10 @@
+{
+    "kind": "backlight",
+    "sources": [
+        "pwm_backlight.cpp"
+    ],
+    "idf_requires": [
+        "esp_driver_ledc",
+        "esp_driver_gpio"
+    ]
+}

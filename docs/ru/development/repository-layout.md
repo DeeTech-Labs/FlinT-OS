@@ -19,7 +19,7 @@ build/        ignored local output, generated headers, dependency lock, factory 
 
 `src/` подключается через `EXTRA_COMPONENT_DIRS`; имя компонента ESP-IDF — `src`, зависимость `main` — `REQUIRES src`. Регистрация целей остаётся в их `CMakeLists.txt`, общая логика — в `cmake/`. `idf_component.yml` и `Kconfig.projbuild` находятся у компонента. Конфигурационные файлы инструментов с фиксированным расположением остаются в корне и `.github/`.
 
-`config/devices.json` содержит реестр поддерживаемых ревизий; `config/devices/<model>/<revision>/` — параметры платы и зависимости. C++-реализации дисплея и touch находятся в `src/board/models/`. GPIO задаются только в конфигурации платы. Наличие заготовки в `src/` не делает её выбираемым профилем.
+`config/devices.json` хранит только default ID; `config/devices/<model>/device.toml` — единственный конфиг устройства. Профили обнаруживаются автоматически; параметры панели находятся в том же `device.toml`. C++-реализации дисплея и touch находятся в `src/modules/`. GPIO задаются только в конфигурации платы. Наличие заготовки в `src/` не делает её выбираемым профилем.
 
 `config/version.cmake` — единственный источник версии. CMake создаёт `generated/config/flint_version.h`; selector создаёт `generated/board/`. Заводские пакеты SDK собираются в `factory/` внутри выбранного build directory. Общие ресурсы SDK остаются в подмодуле.
 

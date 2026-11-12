@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "input/touch.h"
+#include "hardware/peripherals.h"
 #include "sdkconfig.h"
 #include "usb/usb_link.h"
 #include <cstring>
@@ -121,6 +122,7 @@ flint::Error corePostInput(flint::InputEvent event) {
 void appSetup(bool trustReady) {
     expectBleInitialization = trustReady && BleSupported;
     coreTask = xTaskGetCurrentTaskHandle();
+    deviceHardwareBegin();
     displayBegin();
     bool factory = mount("factory", "/factory", true);
     bool storage = mount("storage", "/storage");
@@ -205,14 +207,12 @@ void appSetup(bool trustReady) {
         values["boot_psram_free_bytes"] = std::to_string(counters.psramFree);
         values["boot_psram_largest_bytes"] = std::to_string(counters.psramLargest);
         displayDiagnostics(values);
+        deviceHardwareDiagnostics(values);
         bleLinkDiagnostics(values);
         values["touch_ready"] = touchReady() ? "1" : "0";
         return values;
     };
-    // The selected Spark profile has no battery sensor. Never synthesize telemetry.
-    platform.power = [](std::string_view, flint::AppReply &) {
-        return flint::Error::not_supported;
-    };
+    platform.power = devicePowerStatus;
     platform.monotonic = [] { return uint64_t(esp_timer_get_time() / 1000); };
     platform.microseconds = [] { return uint64_t(esp_timer_get_time()); };
     platform.free_storage = [] {
@@ -250,8 +250,8 @@ uint64_t coreCompanionNextWake(const flint::Session &session) {
 }
 void appLoop() {
     const auto at = core->platform().monotonic();
-    const auto deadline =
-        std::min({core->nextWake(), bleLinkNextWake(), usbLinkNextWake(), touchNextWake()});
+    const auto deadline = std::min({core->nextWake(), bleLinkNextWake(), usbLinkNextWake(),
+        touchNextWake(), deviceHardwareNextWake()});
     TickType_t waitTicks = portMAX_DELAY;
     if (deadline != UINT64_MAX) {
         const auto delay = deadline <= at ? 0 : deadline - at;
@@ -276,6 +276,7 @@ void appLoop() {
     if (reason & CoreWakeTouch)
         touchInterrupt();
     touchMaintain();
+    deviceHardwareMaintain();
     captureMemoryBaseline();
     const auto tickStart = esp_timer_get_time();
     const bool dirty = core->tick();

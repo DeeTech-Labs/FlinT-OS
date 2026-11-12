@@ -13,7 +13,7 @@ Thanks for helping improve **FlinT OS** (firmware for **FlinT** devices; base bo
 
 ## Development setup
 
-Use ESP-IDF 6.1.0, C++20 and Python 3. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
+Use ESP-IDF 6.1.0, C++20 and Python 3.11+. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
 
 ```bash
 python3 tools/select_device.py --build
@@ -30,7 +30,7 @@ python3 platform/tools/generate_registry.py
 python3 platform/tools/build_system.py
 ```
 
-Edit the pinned IgniteSDK repository and update the consumer submodules. Hardware sources remain under `src/board/models/`.
+Edit the pinned IgniteSDK repository and update the consumer submodules. Hardware sources remain under `src/modules/`.
 
 ## Host tests
 

@@ -1,0 +1,9 @@
+{
+    "kind": "power_button",
+    "sources": [
+        "power_button.cpp"
+    ],
+    "idf_requires": [
+        "esp_driver_gpio"
+    ]
+}

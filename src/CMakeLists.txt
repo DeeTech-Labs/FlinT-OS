@@ -7,24 +7,16 @@ if(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG OR CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL
     message(FATAL_ERROR "Binary Companion owns USB Serial/JTAG: select CONFIG_ESP_CONSOLE_NONE=y and CONFIG_ESP_CONSOLE_SECONDARY_NONE=y (including existing sdkconfig)")
 endif()
 set(PLATFORM "${FLINT_PLATFORM_DIR}")
-# Only a touch-enabled board requires I2C. Spark retains its current dependencies.
-file(STRINGS "${CMAKE_BINARY_DIR}/generated/board/device_config.h" _flint_touch_enabled
-    REGEX "^#define FLINT_HAS_TOUCH 1$")
-set(_flint_input_sources input/touch.cpp)
-if(_flint_touch_enabled)
-    list(APPEND _flint_input_sources input/touch_state.cpp input/cst816.cpp)
-    list(APPEND FLINT_DEVICE_IDF_REQUIRES esp_driver_i2c)
-endif()
 if(CONFIG_FLINT_LUA_RUNTIME)
     include("${PLATFORM}/cmake/LuaSources.cmake")
 endif()
 idf_component_register(
-    SRCS ${FLINT_LUA_CORE} ${_flint_input_sources} core/application.cpp display/display.cpp display/st7789.cpp ble/ble_link.cpp usb/usb_link.cpp
+    SRCS ${FLINT_LUA_CORE} ${FLINT_MODULE_SOURCES} core/application.cpp hardware/peripherals.cpp ble/ble_link.cpp usb/usb_link.cpp
         "${PLATFORM}/src/lua_app.cpp" "${PLATFORM}/src/manifest.cpp" "${PLATFORM}/src/storage.cpp" "${PLATFORM}/src/runtime.cpp"
         "${PLATFORM}/src/flim.cpp" "${PLATFORM}/src/icons.cpp" "${PLATFORM}/src/resources.cpp" "${PLATFORM}/src/core.cpp" "${PLATFORM}/src/core_ui.cpp" "${PLATFORM}/src/core_touch.cpp" "${PLATFORM}/src/fonts.cpp"
     INCLUDE_DIRS "${CMAKE_BINARY_DIR}/generated/sdk/include" "${CMAKE_BINARY_DIR}/generated" "." "${PLATFORM}/include"
     LDFRAGMENTS usb/usb.lf
-    REQUIRES esp_app_format bt esp_partition nvs_flash esp_timer esp_driver_gpio freertos heap log esp_driver_usb_serial_jtag joltwallet__littlefs ${FLINT_DEVICE_IDF_REQUIRES}
+    REQUIRES esp_app_format bt esp_partition nvs_flash esp_timer freertos heap log esp_driver_usb_serial_jtag joltwallet__littlefs ${FLINT_MODULE_IDF_REQUIRES}
 )
 if(NOT CONFIG_ESP_TIMER_IN_IRAM)
     message(FATAL_ERROR "USB session observer runs during Flash writes: CONFIG_ESP_TIMER_IN_IRAM=y is required")

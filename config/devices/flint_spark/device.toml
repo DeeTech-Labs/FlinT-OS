@@ -1,0 +1,33 @@
+# Единственный конфиг модели. Неуказанные модули отключены.
+name = "FlinT Spark / S3 Super Mini development"
+
+[modules.st7789]
+rotation = 3
+frequency = 80000000
+pins = { mosi = 11, sclk = 12, cs = 10, dc = 4, reset = 5 }
+
+[modules.st7789.panel]
+# Параметры конкретной панели Spark. Совпадение размера не означает совместимость.
+width = 240
+height = 280
+gram_width = 240
+gram_height = 320
+offset_x = 0
+offset_y = 20
+madctl = 0xb8
+invert = true
+three_wire = true
+init = [
+    { command = 0xb7, data = [0x35], delay_ms = 0 },
+    { command = 0xbb, data = [0x28], delay_ms = 0 },
+    { command = 0xc0, data = [0x0c], delay_ms = 0 },
+    { command = 0xc2, data = [0x01, 0xff], delay_ms = 0 },
+    { command = 0xc3, data = [0x10], delay_ms = 0 },
+    { command = 0xc4, data = [0x20], delay_ms = 0 },
+    { command = 0xd0, data = [0xa4, 0xa1], delay_ms = 0 },
+    { command = 0xb0, data = [0x00, 0xc0], delay_ms = 0 },
+    { command = 0xe0, data = [0xd0, 0x00, 0x02, 0x07, 0x0a, 0x28, 0x32, 0x44, 0x42, 0x06, 0x0e, 0x12, 0x14, 0x17], delay_ms = 0 },
+    { command = 0xe1, data = [0xd0, 0x00, 0x02, 0x07, 0x0a, 0x28, 0x31, 0x54, 0x47, 0x0e, 0x1c, 0x17, 0x1b, 0x1e], delay_ms = 0 },
+    { command = 0x11, data = [], delay_ms = 130 },
+    { command = 0x38, data = [], delay_ms = 0 },
+]

@@ -45,7 +45,7 @@ Do not introduce ESP32-C3 compatibility or legacy platform support unless explic
 
 - `main/` — ESP-IDF application entry point.
 - `src/` — firmware-specific components, hardware adapters, transport, and recovery.
-- `src/board/models/` — hardware models and board revisions.
+- `src/modules/` — reusable hardware drivers and OS integration; selected by model configuration in `config/devices/`.
 - `src/display/` — ST7789 driver and display/recovery integration.
 - `platform/` — pinned IgniteSDK Git submodule.
 - `config/` — firmware defaults, board parameters/registry, version and partition definitions.
@@ -295,7 +295,7 @@ Hardware support must be isolated behind the existing board abstraction.
 
 Current primary board profile:
 
-`flint_spark_s3_supermini`
+`flint_spark`
 
 Do not introduce device-specific logic into shared IgniteSDK APIs unless the contract explicitly requires it.
 
@@ -362,7 +362,7 @@ idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
 
 Use `idf.py set-target esp32s3` only when intentionally changing the configured target: it resets configuration/build state. Do not run it as routine validation of an existing S3 checkout.
 
-Python 3 and Pillow are needed for resource generation. A clean firmware configure may need network access for managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
+Python 3.11+ and Pillow are needed for resource generation. A clean firmware configure may need network access for managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
 
 ### IgniteSDK Host Tests
 

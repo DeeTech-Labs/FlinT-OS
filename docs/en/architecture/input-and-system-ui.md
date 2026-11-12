@@ -1,0 +1,15 @@
+[Русский оригинал](../../ru/architecture/input-and-system-ui.md)
+
+# Base applications and touch navigation
+
+Clock remains declarative and refreshes once per minute. The watchface has no Menu/Settings buttons: a right-to-left swipe starting in its rightmost 36 px opens Apps. The panel tracks the finger, supports cancellation/reversal and can be grabbed during settling. Launcher is a two-column grid with inertial vertical scrolling; Settings is one of its tiles. Four complete Settings rows change actual Bluetooth policy, UTC offset (15-minute steps), language and reduced motion. Shared SDK input carries coordinates, pointer ID, generation and monotonic timestamp.
+
+Only `ESP_RST_POWERON` sets `Platform::power_on`. Protected `system.boot/main` animates its mark and restores the selected clock 700 ms after the first scene. Sleep wakeup, software reset, watchdog and brownout skip it. `reduce_motion=1` retains direct tracking but disables introductory movement and automatic inertia.
+
+`Platform::system_ui` enables touch messages for operations/errors/pairing. Bytes and phases reflect real operations; before publication, local Cancel rejects subsequent chunks/commit until a new install_begin. Atomic publication already started cannot be cancelled. An owner-thread paint sink presents “Removing data” before synchronous removal; the normal loop then shows the result without an invented percentage. Flare retains permission and dangerous remote-action confirmation. Recovery bounds its failure text and provides USB/Flare instructions using built-in fonts, without Core, filesystem or framebuffer.
+
+The logical viewport stays 280×240. The active Spark configuration and GPIO are unchanged. `input/touch.cpp` forwards events through `Core::postInput` before `Core::tick`; IRQ only wakes the Core owner. With `FLINT_HAS_TOUCH=0`, no I2C bus, ISR or extra periodic wakeups are created. [SDK contracts and limitations](../../../platform/docs/en/ARCHITECTURE.md).
+
+The adapter serves one pointer, captures generation on down, and suppresses held contact after application changes until release. Stationary samples do not generate events. Read/coordinate errors cancel contact; queue saturation retries only cancel with its original generation. Active reads have a minimum 16 ms interval; idle waits for IRQ. An I2C error or three consecutive invalid samples disable the controller until restart. `touch_ready` reports current controller readiness; `CapTouchEvents`/`CapInteractiveUi` describe API support rather than hardware presence.
+
+A touch-enabled board must provide `board/device_touch.h` with `FLINT_TOUCH_CONFIG` and `FLINT_TOUCH_TRANSFORM`: swap/mirror map raw coordinates into the selected canvas. A size mismatch fails compilation. CMake includes CST816 and `esp_driver_i2c` only for that board. The [Waveshare preparation](../hardware/waveshare-touch-preparation.md) is absent from selectable profiles; its portrait transform is not yet aligned with the OS landscape. Host tests cover lifecycle, queue saturation, registers and failure cleanup; electrical operation, physical gestures and power remain unverified.

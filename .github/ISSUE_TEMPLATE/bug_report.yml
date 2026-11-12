@@ -33,7 +33,7 @@ body:
     id: flint_os_version
     attributes:
       label: FlinT OS version / commit
-      description: Tag, `flint_version.h`, or short git SHA.
+      description: Tag, `config/version.cmake`, or short git SHA.
       placeholder: e.g. 0.1.0 or abc1234
     validations:
       required: true
@@ -50,10 +50,10 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      description: Exact steps from boot or a known UI state (serial keys help).
+      description: Exact steps from boot or a known UI state.
       placeholder: |
         1. Flash build …
-        2. Press `s` for Settings
+        2. Describe the device or Flare action
         3. …
     validations:
       required: true

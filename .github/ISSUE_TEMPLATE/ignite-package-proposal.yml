@@ -1,0 +1,41 @@
+name: Ignite package proposal
+description: Propose a clock, theme, language or application package
+title: "[ignite] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ignite packages are developed separately from firmware using IgniteSDK.
+        Package guide:
+        https://github.com/DeeTech-Labs/FlinT-OS/blob/main/docs/en/development/ignite-packages.md
+  - type: input
+    id: package_id
+    attributes:
+      label: Package identifier
+      description: Stable identifier for the proposed package.
+    validations:
+      required: true
+  - type: input
+    id: package_name
+    attributes:
+      label: Display name
+    validations:
+      required: true
+  - type: textarea
+    id: concept
+    attributes:
+      label: Purpose and behavior
+      description: Describe the user flow, package role and required capabilities.
+    validations:
+      required: true
+  - type: textarea
+    id: resources
+    attributes:
+      label: Permissions and resources
+      description: Required permissions, fonts, images, localization and storage.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Mockups, related issues or a package repository.

@@ -13,16 +13,17 @@ jobs:
               with:
                   submodules: recursive
             - run: python3 -m pip install Pillow
-            - run: cmake -S platform -B /tmp/flint-platform -DCMAKE_BUILD_TYPE=Debug
-            - run: cmake --build /tmp/flint-platform --parallel 2
-            - run: ctest --test-dir /tmp/flint-platform --output-on-failure
-            - run: python3 -m unittest discover -s tools/tests -v
-            - run: cmake -S tests/host -B /tmp/flint-display -DCMAKE_BUILD_TYPE=Debug
-            - run: cmake --build /tmp/flint-display --parallel 2
-            - run: ctest --test-dir /tmp/flint-display --output-on-failure
+            - run: cmake -S platform -B platform/build/ci -DCMAKE_BUILD_TYPE=Debug
+            - run: cmake --build platform/build/ci --parallel 2
+            - run: ctest --test-dir platform/build/ci --output-on-failure
+            - run: python3 -m unittest discover -s tests/tooling -v
+            - run: python3 tools/check_docs.py
+            - run: cmake -S tests/host -B build/host-ci -DCMAKE_BUILD_TYPE=Debug
+            - run: cmake --build build/host-ci --parallel 2
+            - run: ctest --test-dir build/host-ci --output-on-failure
             - run: |
-                    python3 platform/tools/generate_registry.py
-                    python3 platform/tools/build_system.py
+                    python3 -B platform/tools/generate_registry.py --output platform/build/ci/generated/include
+                    python3 -B platform/tools/build_system.py --output platform/build/ci/generated/factory --examples-output platform/build/ci/generated/examples
                     git -C platform diff --exit-code -- include/flint/registry.h include/flint/services.h factory examples
     firmware:
         runs-on: ubuntu-latest
@@ -35,4 +36,5 @@ jobs:
               shell: bash
               run: |
                     . /opt/esp/idf/export.sh
-                    idf.py -DIDF_TARGET=esp32s3 build
+                    python -m pip install Pillow
+                    idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build

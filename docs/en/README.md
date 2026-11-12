@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../../.github/assets/readme-hero.en.svg" alt="FlinT OS — The firmware behind your FlinT." width="1280"/>
+  <img src="../../resources/docs/readme-hero.en.svg" alt="FlinT OS — The firmware behind your FlinT." width="1280"/>
 </p>
 
 <p align="center">
@@ -53,18 +53,20 @@ Core services provide hardware, time, storage, security and recovery. **Apps are
 
 ## Quick start
 
+The local `platform/` working tree contains matching touch/UI changes and build-local SDK generation; no external override is needed for a local build. These changes are uncommitted, so the previous pin alone does not reproduce this working tree. [Integration status](development/sdk-integration.md).
+
+
 **Board:** FlinT Spark (ESP32‑S3, USB Serial/JTAG) · **ESP‑IDF** 6.1.0
 
 ```bash
-idf.py set-target esp32s3
-idf.py build
+idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
 idf.py -p /dev/ttyACM0 flash
 ```
 
 Time synchronization and package management are available through **Flint Flare**.
 USB and BLE use the same binary Companion v1 contract; there is no serial-command fallback.
 
-Optional: `idf.py -DFLINT_DEVICE=flint_spark_s3_supermini build` · board guide: [`components/flint/board/README.md`](BOARD.md)
+Optional: `idf.py -DFLINT_DEVICE=flint_spark_s3_supermini build` · board guide: [Spark board guide](hardware/spark-s3-supermini.md)
 
 <details>
 <summary><b>Application controls</b></summary>
@@ -90,9 +92,9 @@ Default device revision: `flint_spark_s3_supermini`. Display: GMT028-class **ST7
 | VCC / LED | 3.3V |
 | GND | GND |
 
-Spark uses an ESP32-S3 Super Mini. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM. The Flash map provides two 1 MiB firmware slots, 192 KiB factory storage and 1728 KiB user storage; PSRAM is separate volatile memory. See [`config/README.md`](CONFIGURATION.md) for partition migration requirements. The onboard LED remains disabled until its configuration is verified.
+Spark uses an ESP32-S3 Super Mini. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM. The Flash map provides two 1 MiB firmware slots, 192 KiB factory storage and 1728 KiB user storage; PSRAM is separate volatile memory. See [`config/README.md`](development/configuration.md) for partition migration requirements. The onboard LED remains disabled until its configuration is verified.
 
-Hardware is fixed per model/revision under `components/flint/board/models/`. Select a supported revision with `-DFLINT_DEVICE=…`.
+Hardware is fixed per model/revision under `src/board/models/`. Select a supported revision with `-DFLINT_DEVICE=…`.
 
 </details>
 
@@ -102,14 +104,15 @@ Hardware is fixed per model/revision under `components/flint/board/models/`. Sel
 ```
 flint_os/
 ├── main/                 # ESP-IDF entry point
-├── config/               # sdkconfig.defaults + partitions.csv
-├── components/
-│   └── flint/            # hardware, native ST7789 driver, links and recovery
-├── platform/             # shared Core, Runtime, SDK, compiler and tests
-│   ├── system/           # source factory Ignite projects
-│   └── factory/          # compiled factory packages
-├── tools/                # device selection and firmware tooling
-└── brand/                # marketing logo
+├── src/                  # hardware, input, transport, recovery, Core integration
+├── config/               # defaults, board parameters, version, local sdkconfig
+├── cmake/                # build logic and header templates
+├── platform/             # pinned shared SDK and source factory projects
+├── resources/            # branding and documentation assets
+├── tools/                # developer commands and device checks
+├── tests/                # host and tooling tests
+├── docs/                 # topic documentation in RU/EN
+└── build/                # generated headers, factory packages and images
 ```
 
 </details>
@@ -119,26 +122,26 @@ flint_os/
 ## Documentation
 
 USB and BLE share the binary Companion contract. See the
-[companion protocol](COMPANION-PROTOCOL.md) for framing, compatibility and trust.
+[companion protocol](architecture/companion-protocol.md) for framing, compatibility and trust.
 
 | Doc | Contents |
 |-----|----------|
 | [`platform/README.md`](../../platform/README.md) | Shared platform contracts, security, formats and current limits |
-| [`docs/IGNITS.md`](IGNITS.md) | Binary packages and project compilation |
-| [`docs/ROADMAP.md`](ROADMAP.md) | Migration milestones and hardware validation |
-| [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | Core, Runtime, hardware and application boundaries |
-| [`docs/ESP-IDF.md`](ESP-IDF.md) | Build and target configuration |
-| [`components/flint/board/README.md`](BOARD.md) | Board profile and wiring |
-| [`tools/README.md`](TOOLS.md) | Local development tools |
+| [Ignite packages](development/ignite-packages.md) | Binary packages and project compilation |
+| [Roadmap](project/roadmap.md) | Migration milestones and hardware validation |
+| [Architecture](architecture/overview.md) | Core, Runtime, hardware and application boundaries |
+| [ESP-IDF build](getting-started/building.md) | Build and target configuration |
+| [Spark board guide](hardware/spark-s3-supermini.md) | Board profile and wiring |
+| [Tools](development/tools.md) | Local development tools |
 | [`CHANGELOG.md`](../../CHANGELOG.md) | Release history (Keep a Changelog) |
 
-Public API, Face SDK, package format and protocol versions remain **1** during active development. Bounded Lua execution is enabled and physically validated on Spark; background services are not supported. Physical-device checks are separate from the local test suite.
+Application API 1 and Companion v1 define the supported application and transport contracts. Bounded Lua execution is enabled and physically validated on Spark; background services are not supported. Physical-device checks are separate from the local test suite.
 
 ---
 
 ## Contributing
 
-[CONTRIBUTING.md](CONTRIBUTING.md) · [SUPPORT.md](SUPPORT.md) · [SECURITY.md](SECURITY.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions)
+[CONTRIBUTING.md](development/contributing.md) · [SUPPORT.md](project/support.md) · [SECURITY.md](project/security.md) · [CODE_OF_CONDUCT.md](project/code-of-conduct.md) · [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions)
 
 ---
 
@@ -158,3 +161,54 @@ Thank you to everyone who contributes code, tests, bug reports, documentation an
 </a>
 
 <p><sub>FlinT OS · Part of the FlinT ecosystem · Developed by DeeTech Labs</sub></p>
+
+## Documentation index
+
+### Getting started
+
+- [Build and flash](getting-started/building.md).
+
+### Architecture
+
+- [Overview](architecture/overview.md).
+- [Display / recovery](architecture/display.md).
+- [BLE lifecycle](architecture/ble-lifecycle.md).
+- [Input / system UI](architecture/input-and-system-ui.md).
+- [Companion](architecture/companion-protocol.md).
+
+### Hardware
+
+- [Spark S3 Super Mini](hardware/spark-s3-supermini.md).
+- [Waveshare touch preparation](hardware/waveshare-touch-preparation.md).
+
+### Development
+
+- [Layout and migration](development/repository-layout.md).
+- [Configuration](development/configuration.md).
+- [Tools](development/tools.md).
+- [Ignite packages](development/ignite-packages.md).
+- [Testing](development/testing.md).
+- [SDK integration status](development/sdk-integration.md).
+
+### Validation
+
+- [Diagnostics and measurements](validation/performance.md).
+- [2026-11-10 optimization report](validation/2026-11-10-optimization.md).
+
+### Project
+
+- [Roadmap](project/roadmap.md).
+- [Changelog](../../CHANGELOG.md).
+- [Contributing](development/contributing.md).
+- [Security](project/security.md).
+- [Support](project/support.md).
+- [Code of conduct](project/code-of-conduct.md).
+
+### Licensing
+
+- [commercial-license](legal/commercial-license.md).
+- [community-exception](legal/community-exception.md).
+- [hardware-license](legal/hardware-license.md).
+- [licensing](legal/licensing.md).
+- [sdk-development-permission](legal/sdk-development-permission.md).
+- [trademarks](legal/trademarks.md).

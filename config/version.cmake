@@ -1,0 +1,5 @@
+# Single source of firmware and OS API versions.
+set(FLINT_OS_VERSION_MAJOR 0)
+set(FLINT_OS_VERSION_MINOR 3)
+set(FLINT_OS_VERSION_PATCH 0)
+set(FLINT_OS_API_VERSION 1)

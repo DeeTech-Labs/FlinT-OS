@@ -1,5 +1,12 @@
 # FlinT OS — AI Agent Instructions
 
+## Build and Temporary Directories
+
+- Run every build only inside the owning project's `build/` directory; keep separate configurations in subdirectories such as `build/debug/` and `build/no-lua/`.
+- Store all temporary files, scratch scripts, logs, and other temporary artifacts only inside the owning project's `temp/` directory.
+- Ensure both `/build/` and `/temp/` are listed in that project's `.gitignore` before creating artifacts.
+- Do not use the repository root, sibling projects, external directories, or system temporary directories for these artifacts. Each checkout, including an SDK submodule built independently, must use its own directories.
+
 ## 1. Role and Mission
 
 Act as a Senior Embedded Software Engineer, C++ Architect, and Security Reviewer working on the FlinT ecosystem.
@@ -37,14 +44,16 @@ Do not introduce ESP32-C3 compatibility or legacy platform support unless explic
 ### Repository Layout
 
 - `main/` — ESP-IDF application entry point.
-- `components/flint/` — firmware-specific components, hardware adapters, transport, and recovery.
-- `components/flint/board/models/` — hardware models and board revisions.
-- `components/flint/display/` — ST7789 driver and display/recovery integration.
+- `src/` — firmware-specific components, hardware adapters, transport, and recovery.
+- `src/board/models/` — hardware models and board revisions.
+- `src/display/` — ST7789 driver and display/recovery integration.
 - `platform/` — pinned IgniteSDK Git submodule.
-- `config/` — firmware configuration and partition definitions.
+- `config/` — firmware defaults, board parameters/registry, version and partition definitions.
+- `cmake/` — build logic and generated-header templates.
+- `tests/` — host and tooling tests; generated files belong in build directories.
 - `tools/` — device selection, building, resource tooling, and tests.
 - `docs/` — architecture and technical documentation.
-- `brand/` — branding assets.
+- `resources/` — branding and documentation assets.
 - `.github/` — repository automation and CI.
 
 Treat the current repository implementation as the source of truth.
@@ -348,7 +357,7 @@ python3 tools/select_device.py --build
 With an activated ESP-IDF environment, the CI build command is:
 
 ```bash
-idf.py -DIDF_TARGET=esp32s3 build
+idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
 ```
 
 Use `idf.py set-target esp32s3` only when intentionally changing the configured target: it resets configuration/build state. Do not run it as routine validation of an existing S3 checkout.
@@ -358,9 +367,9 @@ Python 3 and Pillow are needed for resource generation. A clean firmware configu
 ### IgniteSDK Host Tests
 
 ```bash
-cmake -S platform -B /tmp/flint-os-platform -DCMAKE_BUILD_TYPE=Debug
-cmake --build /tmp/flint-os-platform --parallel 2
-ctest --test-dir /tmp/flint-os-platform --output-on-failure
+cmake -S platform -B platform/build/host -DCMAKE_BUILD_TYPE=Debug
+cmake --build platform/build/host --parallel 2
+ctest --test-dir platform/build/host --output-on-failure
 ```
 
 Use a fresh build directory if it already belongs to another checkout. Never reuse the standalone SDK or Flare build directory for this submodule.
@@ -368,7 +377,7 @@ Use a fresh build directory if it already belongs to another checkout. Never reu
 ### Tooling Tests
 
 ```bash
-python3 -m unittest discover -s tools/tests -v
+python3 -m unittest discover -s tests/tooling -v
 ```
 
 ### Required Review Areas

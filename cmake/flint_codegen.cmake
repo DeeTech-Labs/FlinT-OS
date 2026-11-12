@@ -1,18 +1,9 @@
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-file(GLOB_RECURSE FLINT_PLATFORM_INPUTS CONFIGURE_DEPENDS
-    "${FLINT_PLATFORM_DIR}/system/*.json"
-    "${FLINT_PLATFORM_DIR}/examples/*/project.json"
-    "${FLINT_PLATFORM_DIR}/spec/*.json"
-    "${FLINT_PLATFORM_DIR}/tools/*.py"
-)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${FLINT_PLATFORM_INPUTS})
-foreach(generator generate_registry.py build_system.py)
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} "${FLINT_PLATFORM_DIR}/tools/${generator}"
-        RESULT_VARIABLE result
-    )
-    if(NOT result EQUAL 0)
-        message(FATAL_ERROR "Platform generation failed: ${generator}")
+include("${FLINT_PLATFORM_DIR}/cmake/FlintGenerate.cmake")
+flint_generate_sdk(OUTPUT_DIR "${CMAKE_BINARY_DIR}/generated/sdk")
+# Never package source staging files or developer scratch files.
+file(GLOB factory_contents "${FLINT_FACTORY_DIR}/*")
+foreach(factory_file IN LISTS factory_contents)
+    if(IS_DIRECTORY "${factory_file}" OR NOT factory_file MATCHES "\\.ignit$")
+        message(FATAL_ERROR "Unexpected file in generated factory directory: ${factory_file}")
     endif()
 endforeach()
-littlefs_create_partition_image(factory "${FLINT_PLATFORM_DIR}/factory" FLASH_IN_PROJECT)

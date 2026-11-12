@@ -1,12 +1,12 @@
-[English translation](docs/en/CONTRIBUTING.md)
+[English translation](docs/en/development/contributing.md)
 
 # Вклад в FlinT OS
 
 ## Подготовка
 
-Начните с [README](README.md), [архитектуры](docs/ru/ARCHITECTURE.md), [протокола Companion](docs/ru/COMPANION-PROTOCOL.md) и [истории изменений](CHANGELOG.md). Вопросы обсуждаются в [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions), воспроизводимые ошибки и функции — в [Issues](https://github.com/DeeTech-Labs/FlinT-OS/issues). [Маршруты поддержки](SUPPORT.md).
+Начните с [README](README.md), [архитектуры](docs/ru/architecture/overview.md), [протокола Companion](docs/ru/architecture/companion-protocol.md) и [истории изменений](CHANGELOG.md). Вопросы обсуждаются в [Discussions](https://github.com/DeeTech-Labs/FlinT-OS/discussions), воспроизводимые ошибки и функции — в [Issues](https://github.com/DeeTech-Labs/FlinT-OS/issues). [Маршруты поддержки](SUPPORT.md).
 
-Требуются ESP-IDF 6.1.0, C++20, Python 3 и Pillow для ресурсов и тестов. Сборка: `python3 tools/select_device.py --build`. Аппаратные профили — `components/flint/board/models/`; карта Flash — `config/partitions.csv`.
+Требуются ESP-IDF 6.1.0, C++20, Python 3 и Pillow для ресурсов и тестов. Сборка: `python3 tools/select_device.py --build`. Аппаратные профили — `config/devices/` и `src/board/models/`; карта Flash — `config/partitions.csv`.
 
 ## Общий SDK и организация кода
 
@@ -26,7 +26,7 @@ cmake --build /tmp/flint-platform
 ctest --test-dir /tmp/flint-platform --output-on-failure
 ```
 
-Для OS дополнительно `python3 -m unittest discover -s tools/tests -v`; для Flare — CTest основной сборки и тесты каталогов локализации. Обычные тесты автономны; проверки физического USB/BLE запускаются отдельно и явно. Не добавляйте реальные учётные данные, каталоги сборки, аппаратные захваты и личные настройки Qt Creator.
+Для OS дополнительно `python3 -m unittest discover -s tests/tooling -v`; для Flare — CTest основной сборки и тесты каталогов локализации. Обычные тесты автономны; проверки физического USB/BLE запускаются отдельно и явно. Не добавляйте реальные учётные данные, каталоги сборки, аппаратные захваты и личные настройки Qt Creator.
 
 ## Изменения и оформление
 
@@ -38,4 +38,4 @@ ctest --test-dir /tmp/flint-platform --output-on-failure
 
 Независимые Ignite создаются отдельными проектами общим компилятором, без нативной регистрации циферблатов в Core. Разрешения объявляются с точной областью; неподдерживаемые API не рекламируются. Автор сохраняет права на собственный вклад. Вклад предоставляется по лицензии соответствующего компонента; если прав недостаточно, сообщите до включения. Передача авторских прав и общее согласие на коммерческое перелицензирование не предполагаются.
 
-[Карта лицензий](docs/ru/LICENSING.md), [LICENSE](LICENSE), [NOTICE](NOTICE). Участие регулируется [правилами сообщества](CODE_OF_CONDUCT.md).
+[Карта лицензий](docs/ru/legal/licensing.md), [LICENSE](LICENSE), [NOTICE](NOTICE). Участие регулируется [правилами сообщества](CODE_OF_CONDUCT.md).

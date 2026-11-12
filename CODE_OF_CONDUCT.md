@@ -1,4 +1,4 @@
-[English translation](docs/en/CODE_OF_CONDUCT.md)
+[English translation](docs/en/project/code-of-conduct.md)
 
 # Правила сообщества
 

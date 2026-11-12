@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Select a supported FlinT product revision and run ESP-IDF actions.
 
-Hardware is maintained as fixed C++/CMake files under board/models/.
+Hardware implementations live under src/board/models/; settings under config/devices/.
+Generated board headers belong to the selected build directory.
 Only supported model/revision IDs are accepted.
 """
 
@@ -17,23 +18,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEVICE_DIR = ROOT / "components" / "flint" / "board"
-OUT_INC = DEVICE_DIR / "device_config.h"
-OUT_IMPL = DEVICE_DIR / "device_display.h"
-OUT_CMAKE = DEVICE_DIR / "device.cmake"
-
-# Supported product revisions. No external hardware descriptions are loaded.
-PROFILES = {
-    "flint_spark_s3_supermini": {
-        "name": "FlinT Spark / S3 Super Mini development",
-        "model": "flint_spark",
-        "revision": "s3_supermini",
-        "idf_target": "esp32s3",
-        "display": "st7789_spi_240x280",
-        "directory": "models/flint_spark/s3_supermini",
-    },
-}
-DEFAULT_PROFILE = "flint_spark_s3_supermini"
+DEVICE_DIR = ROOT / "src" / "board"
+CONFIG_DIR = ROOT / "config" / "devices"
+DEFAULT_BUILD_DIR = ROOT / "build"
+DEFAULT_SDKCONFIG = ROOT / "config" / "sdkconfig"
+_REGISTRY = json.loads((ROOT / "config" / "devices.json").read_text(encoding="utf-8"))
+PROFILES = _REGISTRY["devices"]
+DEFAULT_PROFILE = _REGISTRY["default"]
 PROG_DESCRIPTION = "Select a fixed FlinT model/revision and build firmware"
 PROG_EPILOG = "Example: %(prog)s --device flint_spark_s3_supermini --build"
 
@@ -60,23 +51,39 @@ def cmd_list_devices(*, as_json: bool) -> int:
     return 0
 
 
-def cmd_generate(device_arg: str, *, quiet: bool) -> tuple[str, dict]:
+def cmd_generate(device_arg: str, *, quiet: bool, build_dir: Path = DEFAULT_BUILD_DIR) -> tuple[str, dict]:
     selected = resolve_device_id(device_arg)
     profile = PROFILES[selected]
     source = DEVICE_DIR / profile["directory"]
-    # Select complete, reviewed product hardware.
-    for output in (OUT_INC, OUT_IMPL, OUT_CMAKE):
-        content = (source / output.name).read_bytes()
-        if not output.exists() or output.read_bytes() != content:
-            output.write_bytes(content)
+    settings = CONFIG_DIR / profile["model"] / profile["revision"]
+    output = build_dir / "generated" / "board"
+    output.mkdir(parents=True, exist_ok=True)
+    inputs = {
+        "device_config.h": settings / "device_config.h",
+        "device.cmake": settings / "device.cmake",
+        "device_display.h": source / "device_display.h",
+    }
+    # Touch implementations remain owned by the selected hardware model.
+    touch = source / "device_touch.h"
+    if touch.is_file():
+        inputs["device_touch.h"] = touch
+    else:
+        (output / "device_touch.h").unlink(missing_ok=True)
+    for name, path in inputs.items():
+        content = path.read_bytes()
+        target = output / name
+        if not target.exists() or target.read_bytes() != content:
+            target.write_bytes(content)
     if not quiet:
         print(f"{profile['name']} ({selected}, {profile['idf_target']})")
     return selected, dict(profile)
 
 
-def current_idf_target() -> str | None:
-    """Best-effort current chip from sdkconfig (None if not configured yet)."""
-    sdk = ROOT / "sdkconfig"
+def current_idf_target(sdkconfig: Path = DEFAULT_SDKCONFIG) -> str | None:
+    """Read the selected persistent configuration, falling back to the legacy root file."""
+    sdk = sdkconfig
+    if not sdk.is_file() and sdkconfig.resolve() == DEFAULT_SDKCONFIG.resolve():
+        sdk = ROOT / "sdkconfig"
     if not sdk.is_file():
         return None
     for line in sdk.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -120,7 +127,14 @@ def _espressif_idf_candidates() -> list[Path]:
 
 
 def discover_idf() -> tuple[Path, Path]:
-    """Return (IDF_PATH, idf.py). Uses PATH, IDF_PATH, then ~/.espressif installs."""
+    """Return the SDK and its Python script, not a Windows PATH executable wrapper."""
+    env_path = os.environ.get("IDF_PATH") or os.environ.get("FLINT_IDF_PATH")
+    if env_path:
+        root = Path(env_path).expanduser().resolve()
+        idf_py = root / "tools" / "idf.py"
+        if idf_py.is_file():
+            return root, idf_py
+
     which = shutil.which("idf.py")
     if which:
         idf_py = Path(which).resolve()
@@ -131,13 +145,6 @@ def discover_idf() -> tuple[Path, Path]:
         if idf_py.parent.name == "tools":
             return idf_py.parent.parent, idf_py
         return idf_py.parent, idf_py
-
-    env_path = os.environ.get("IDF_PATH") or os.environ.get("FLINT_IDF_PATH")
-    if env_path:
-        root = Path(env_path).expanduser().resolve()
-        idf_py = root / "tools" / "idf.py"
-        if idf_py.is_file():
-            return root, idf_py
 
     for root in _espressif_idf_candidates():
         idf_py = root / "tools" / "idf.py"
@@ -195,7 +202,7 @@ def idf_python_env_dir(idf_path: Path) -> Path:
 def ensure_idf_python_env(idf_path: Path) -> Path:
     """Return venv python; create env via idf_tools.py if missing."""
     env_dir = idf_python_env_dir(idf_path)
-    venv_python = env_dir / "bin" / "python"
+    venv_python = env_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     if venv_python.is_file():
         return venv_python
 
@@ -233,13 +240,13 @@ def run_idf(args: list[str]) -> None:
     env["IDF_PATH"] = str(idf_path)
     env["IDF_PYTHON_ENV_PATH"] = str(venv_python.parent.parent)
     # Prefer venv binaries (provides `python` even when host only has python3).
-    env["PATH"] = f"{venv_python.parent}:{env.get('PATH', '')}"
+    env["PATH"] = f"{venv_python.parent}{os.pathsep}{env.get('PATH', '')}"
 
     export_sh = idf_path / "export.sh"
     # Always invoke idf.py with the venv interpreter — avoids `env: python: No such file`.
     idf_cmd = [str(venv_python), str(idf_py), *args]
 
-    if export_sh.is_file() and not (
+    if os.name != "nt" and export_sh.is_file() and not (
         shutil.which("idf.py") and os.environ.get("IDF_PATH")
     ):
         inner = " ".join(shlex.quote(x) for x in idf_cmd)
@@ -256,19 +263,23 @@ def run_idf(args: list[str]) -> None:
         raise SystemExit(result.returncode)
 
 
-def ensure_idf_target(wanted: str, *, force: bool) -> None:
-    current = current_idf_target()
+def ensure_idf_target(wanted: str, *, force: bool, build_dir: Path = DEFAULT_BUILD_DIR,
+                      sdkconfig: Path = DEFAULT_SDKCONFIG) -> None:
+    current = current_idf_target(sdkconfig)
+    if not force and current is None:
+        # A fresh configure selects the target without the destructive fullclean action.
+        return
     if not force and current == wanted:
         print(f"idf target already {wanted}", flush=True)
         return
     if current and current != wanted:
         print(f"idf target {current} → {wanted}", flush=True)
-    run_idf(["set-target", wanted])
+    run_idf(["-B", str(build_dir), f"-DSDKCONFIG={sdkconfig}", "set-target", wanted])
 
 
-def firmware_bin_path() -> Path:
+def firmware_bin_path(build_dir: Path = DEFAULT_BUILD_DIR) -> Path:
     """ESP-IDF app image for this project (CMake project(flint_os))."""
-    return ROOT / "build" / "flint_os.bin"
+    return build_dir / "flint_os.bin"
 
 
 def cmd_idf_actions(
@@ -280,6 +291,8 @@ def cmd_idf_actions(
     do_monitor: bool,
     port: str,
     set_target: bool,
+    build_dir: Path = DEFAULT_BUILD_DIR,
+    sdkconfig: Path = DEFAULT_SDKCONFIG,
 ) -> int:
     """Run idf.py actions. build/flash/monitor are independent."""
     target = str(board["idf_target"]).strip()
@@ -288,9 +301,9 @@ def cmd_idf_actions(
 
     need_target = do_build or do_flash
     if need_target and set_target:
-        ensure_idf_target(target, force=False)
+        ensure_idf_target(target, force=False, build_dir=build_dir, sdkconfig=sdkconfig)
     elif need_target and not set_target:
-        current = current_idf_target()
+        current = current_idf_target(sdkconfig)
         if current and current != target:
             print(
                 f"warning: sdkconfig target is {current}, board wants {target} "
@@ -299,18 +312,20 @@ def cmd_idf_actions(
             )
 
     # --flash: only build if there is nothing to flash yet.
-    if do_flash and not do_build and not firmware_bin_path().is_file():
+    if do_flash and not do_build and not firmware_bin_path(build_dir).is_file():
         print(
-            f"no {firmware_bin_path().relative_to(ROOT)} — building once before flash",
+            f"no {firmware_bin_path(build_dir)} — building once before flash",
             flush=True,
         )
         do_build = True
         if set_target:
-            ensure_idf_target(target, force=False)
+            ensure_idf_target(target, force=False, build_dir=build_dir, sdkconfig=sdkconfig)
 
-    idf_args: list[str] = []
+    idf_args: list[str] = ["-B", str(build_dir), f"-DSDKCONFIG={sdkconfig}"]
     if do_build or do_flash:
         idf_args.append(f"-DFLINT_DEVICE={device_id}")
+        if set_target:
+            idf_args.append(f"-DIDF_TARGET={target}")
     if port:
         idf_args.extend(["-p", port])
 
@@ -335,6 +350,10 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=PROG_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    ap.add_argument("-B", "--build-dir", type=Path, default=DEFAULT_BUILD_DIR,
+                    help="build directory (default: build/); owns generated headers and images")
+    ap.add_argument("--sdkconfig", type=Path, default=DEFAULT_SDKCONFIG,
+                    help="persistent local configuration (default: config/sdkconfig)")
     ap.add_argument(
         "-d",
         "--device",
@@ -362,17 +381,17 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--build",
         action="store_true",
-        help="after generate: idf.py set-target (if needed) + build -DFLINT_DEVICE=<id>",
+        help="configure and build the selected device; set-target only for a target mismatch",
     )
     ap.add_argument(
         "--flash",
         action="store_true",
-        help="after generate: idf.py flash only (builds first only if build/*.bin missing)",
+        help="flash the selected build (builds first if its firmware image is missing)",
     )
     ap.add_argument(
         "--monitor",
         action="store_true",
-        help="after generate: idf.py monitor only (does not build or flash)",
+        help="monitor the selected build (does not generate, build or flash)",
     )
     ap.add_argument(
         "-p",
@@ -404,7 +423,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.port and not (args.build or args.flash or args.monitor):
         raise SystemExit("-p/--port is only used with --build/--flash/--monitor")
 
-    device_id, board = cmd_generate(args.device, quiet=bool(args.quiet))
+    build_dir = args.build_dir.expanduser().resolve()
+    sdkconfig = args.sdkconfig.expanduser().resolve()
+    device_id = resolve_device_id(args.device)
+    board = PROFILES[device_id]
 
     if args.build or args.flash or args.monitor:
         return cmd_idf_actions(
@@ -415,7 +437,10 @@ def main(argv: list[str] | None = None) -> int:
             do_monitor=bool(args.monitor),
             port=str(args.port or ""),
             set_target=not bool(args.no_set_target),
+            build_dir=build_dir,
+            sdkconfig=sdkconfig,
         )
+    cmd_generate(args.device, quiet=bool(args.quiet), build_dir=build_dir)
     return 0
 
 

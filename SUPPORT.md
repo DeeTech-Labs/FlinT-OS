@@ -1,4 +1,4 @@
-[English translation](docs/en/SUPPORT.md)
+[English translation](docs/en/project/support.md)
 
 # Поддержка FlinT OS
 

@@ -142,7 +142,7 @@ void displayTests() {
     displayBegin();
     CHECK(s.pixelBytes == 280 * 240 * 2);
     CHECK(s.transfers.back().bytes == std::vector<uint8_t>{0x29});
-    CHECK(std::all_of(s.gram.begin(), s.gram.end(), [](auto c) { return c == 0x0842; }));
+    CHECK(std::all_of(s.gram.begin(), s.gram.end(), [](auto c) { return c == 0x1082; }));
     flint::Core core("", "", {});
     FlintRender::Scene scene;
     FlintRender::rect(scene, 0, 0, 280, 240, 0x0842);
@@ -175,14 +175,19 @@ void displayTests() {
     displayRecovery("Test error");
     CHECK(s.allocations == allocations);
     CHECK(s.pixelBytes == 280 * 240 * 2);
-    expected.fill(0x0842);
+    expected.fill(0x1082);
     FlintRender::Canvas recovery(expected.data(), 280, 240);
     const int ascent = FlintRender::be32(FlintRender::fontData(FlintRender::Body) + 16);
-    for (const auto &[text, top] : {std::pair{"FlinT recovery", 50}, std::pair{"Test error", 90},
-             std::pair{"Connect Flint Flare", 130}})
-        recovery.label(12, top + ascent, reinterpret_cast<const uint8_t *>(text),
-            std::char_traits<char>::length(text), 0xf800, FlintRender::Body, false);
+    for (const auto &[text, top] : {std::pair{"Recovery", 24}, std::pair{"Test error", 74},
+             std::pair{"Connect USB", 180}, std::pair{"Open Flare to recover", 207}})
+        recovery.label(20, top + ascent, reinterpret_cast<const uint8_t *>(text),
+            std::char_traits<char>::length(text), top == 24 || top == 180 ? 0x8f3d : 0xf7bf,
+            FlintRender::Body, false);
     CHECK(s.gram == expected);
+    const std::string longReason(2000, 'W');
+    displayRecovery(longReason.c_str());
+    CHECK(std::equal(s.gram.begin() + 174 * 280, s.gram.end(), expected.begin() + 174 * 280));
+    displayRecovery("Test error");
     clearTransfers();
     displayScene(core, scene);
     CHECK(s.pixelBytes == 280 * 240 * 2); // recovery forces full repaint
@@ -207,7 +212,7 @@ void displayTests() {
     s.failAllocation = true;
     displayBegin();
     const auto recoveryPixels = s.gram;
-    CHECK(std::any_of(s.gram.begin(), s.gram.end(), [](auto c) { return c != 0x0842; }));
+    CHECK(std::any_of(s.gram.begin(), s.gram.end(), [](auto c) { return c != 0x1082; }));
     clearTransfers();
     displayScene(core, scene);
     CHECK(s.transfers.empty() && s.gram == recoveryPixels);

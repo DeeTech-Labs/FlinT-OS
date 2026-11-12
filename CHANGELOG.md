@@ -9,6 +9,12 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 ## [Unreleased]
 
 ### Changed
+- Integrate the pinned SDK icon/touch/UI contract and generate registries and factory packages in the build directory without rewriting SDK sources.
+- Render the application grid with 48 px color/theme icons, clipped alpha composition and bounded resource caching; rebuild factory packages for FLM2/FLIM v2.
+- Move firmware sources to `src/`, board/version settings to `config/`, and branding/documentation assets to `resources/`; group RU/EN documentation by topic and generate board/version/factory artifacts in build directories. Preserve local `menuconfig` settings in `config/sdkconfig`.
+- Rebuild factory screens for touch: right-edge Apps navigation, inertial grid scrolling, Settings controls and English/Russian labels.
+- Show a protected factory Ignite splash only on physical power-on, then restore the selected clock without blocking command handling.
+- Display actual transfer/verification progress, package-operation results, application failures, pairing comparisons and access-change notices. Keep confirmation in Flare and recovery independent of package storage.
 
 - Require ESP-IDF 6.1.0 or newer; pin the firmware CI build to 6.1.0.
 
@@ -17,6 +23,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 - Reduce SPI validation code in IRAM by omitting detailed ESP-IDF check-macro messages only in `esp_driver_spi`; retain argument checks, error returns, assertions and FlinT error handling.
 
 ### Added
+- Add Core-task touch input with generation-safe cancellation, bounded active sampling and a gated CST816 driver; prepare Waveshare wiring without changing the selected Spark profile.
 - Protocol v1 correlated settings/face commands with validation and atomic persistence.
 - Persistent Studio face with configurable colors, text placement and 16x16 icon.
 - NimBLE companion GATT service for INFO/STATUS/TIME with bounded indications.
@@ -37,7 +44,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 ### Added
 
 - Dirty-aware community face template (`community/face_template.cpp.example`) and FACES.md paint contract notes
-- Host tests for `date_fmt`, day-mode hour/profile, and `tools/gen_*` schema smoke (`tests/host/`, `tools/tests/`)
+- Host tests for `date_fmt`, day-mode hour/profile, and `tools/gen_*` schema smoke (`tests/host/`, `tests/tooling/`)
 - GitHub Action `host-tests` on PR / `main` (host C++ + unittest)
 - `DAY_MODE_WAITING` path when `!hasTime` (neutral profile; no synthetic noon → day)
 - Shell overlay modules `shell_picker` / `shell_settings` (split from monolithic shell)

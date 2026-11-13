@@ -37,4 +37,4 @@ Root documents retain their full text. Topic/resource URLs changed, so external 
 
 The SDK's shared `flint_generate_sdk` function generates OS registry headers and factory packages under `<build>/generated/sdk/include/` and `<build>/generated/sdk/factory/`. Firmware builds skip examples. `factory.bin` remains at the build root. Generation and tests do not update source `platform/include/`, `platform/factory/` or `platform/examples/`; unchanged outputs keep their timestamps.
 
-SDK is pinned to 56292d7 / 0x20261115. Use the pinned revision from the remote rather than selecting latest. [Integration](sdk-integration.md).
+SDK is pinned to 8d53e1b / 0x20261115. Use the pinned revision from the remote rather than selecting latest. [Integration](sdk-integration.md).

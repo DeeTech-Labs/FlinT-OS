@@ -27,7 +27,7 @@ build/        ignored local output, generated headers, dependency lock, factory 
 
 Исходники `components/flint/` перенесены в `src/`; `core/system.cpp` переименован в `core/application.cpp`. `brand/` и `.github/assets/` объединены в `resources/`. `tools/tests/` перенесены в `tests/tooling/`; Bash launcher находится в `tools/flint_tools.sh`.
 
-Пересоздайте конфигурацию сборки после смены путей компонентов. Для сохранения прежней сборки используйте новый каталог: `idf.py -B build-layout -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build`. Не выполняйте `set-target` без необходимости: он сбрасывает состояние конфигурации.
+Пересоздайте конфигурацию сборки после смены путей компонентов. Для сохранения прежней сборки используйте новый каталог: `idf.py -B build/layout -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build`. Не выполняйте `set-target` без необходимости: он сбрасывает состояние конфигурации.
 
 По умолчанию локальные настройки хранятся в `config/sdkconfig` и переживают `idf.py fullclean`. При первом configure прежний корневой `sdkconfig` копируется туда, если нового ещё нет; оригинал сохраняется. Явный `-DSDKCONFIG=<path>` или selector `--sdkconfig <path>` выбирает отдельную конфигурацию. Новый явно выбранный файл создаётся из defaults без импорта корневого файла. `--build-dir` меняет только каталог артефактов. `set-target` намеренно сбрасывает конфигурацию и сохраняет прежний файл как `.old`; не используйте его для обычной проверки S3. Зависимости фиксируются в `<build-dir>/dependencies.lock`.
 
@@ -37,4 +37,4 @@ build/        ignored local output, generated headers, dependency lock, factory 
 
 Реестры и factory-пакеты OS создаются общей функцией SDK `flint_generate_sdk` в `<build>/generated/sdk/include/` и `<build>/generated/sdk/factory/`. Примеры при сборке прошивки не компилируются. `factory.bin` остаётся в корне каталога сборки. Генерация и тесты не обновляют исходные `platform/include/`, `platform/factory/` и `platform/examples/`; неизменившиеся результаты не переписываются.
 
-Локальная совместимость обеспечена незакоммиченными правками SDK в `platform/`. Для переноса на другой компьютер нужны эти правки целиком либо будущий опубликованный SDK-коммит и обновлённый pin. [Состояние интеграции](sdk-integration.md).
+Штатный SDK закреплён на 845590f / 0x20261114. Локально согласованный pin может ещё отсутствовать в remote; получите exact SDK checkout/bundle, не заменяйте его на latest. [Интеграция](sdk-integration.md).

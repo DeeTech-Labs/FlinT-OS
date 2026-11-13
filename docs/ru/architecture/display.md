@@ -11,9 +11,9 @@
 Проверки драйвера на компьютере (эмуляция SPI/GPIO, без подключения устройства):
 
 ```sh
-cmake -S tests/host -B /tmp/flint-display -DCMAKE_BUILD_TYPE=Debug
-cmake --build /tmp/flint-display
-ctest --test-dir /tmp/flint-display --output-on-failure
+cmake -S tests/host -B build/display -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/display --config Debug
+ctest --test-dir build/display --output-on-failure -C Debug
 ```
 
 Тесты сравнивают пиксели с переносимым рендерером и проверяют адресацию, параметры панели, dirty regions, ошибки передачи, очистку ресурсов и recovery при отказе выделения памяти. Они не подтверждают электрические характеристики SPI, визуальную ориентацию, отсутствие tearing или производительность на плате. Lua, LittleFS и форматы пакетов не изменены.

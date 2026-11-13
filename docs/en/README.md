@@ -53,14 +53,16 @@ Core services provide hardware, time, storage, security and recovery. **Apps are
 
 ## Quick start
 
-The local `platform/` working tree contains matching touch/UI changes and build-local SDK generation; no external override is needed for a local build. These changes are uncommitted, so the previous pin alone does not reproduce this working tree. [Integration status](development/sdk-integration.md).
+[Audience index](INDEX.md) · [Device use/recovery](getting-started/device-use.md) · [Build prerequisites and safe flashing](getting-started/building.md).
+
+The SDK is pinned to 845590f / contract0x20261114 / FLM3; normal builds use platform/. The sibling checkout is not selected automatically. [Integration status](development/sdk-integration.md).
 
 
 **Board:** FlinT Spark (ESP32‑S3, USB Serial/JTAG) · **ESP‑IDF** 6.1.0
 
 ```bash
 idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
-idf.py -p /dev/ttyACM0 flash
+# Flashing writes device firmware/factory; review the linked build/data-preservation guide first.
 ```
 
 Time synchronization and package management are available through **Flint Flare**.
@@ -135,7 +137,7 @@ USB and BLE share the binary Companion contract. See the
 | [Tools](development/tools.md) | Local development tools |
 | [`CHANGELOG.md`](../../CHANGELOG.md) | Release history (Keep a Changelog) |
 
-Application API 1 and Companion v1 define the supported application and transport contracts. Bounded Lua execution is enabled and physically validated on Spark; background services are not supported. Physical-device checks are separate from the local test suite.
+Application API 1 and Companion v1 define the supported application and transport contracts. Bounded Lua and isolated services are enabled in firmware. Current service/sensor integration has host/build validation; historical physical reports apply only to their stated revisions. Physical-device checks are separate from the local test suite.
 
 ---
 

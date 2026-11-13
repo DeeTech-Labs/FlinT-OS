@@ -31,9 +31,9 @@
 
 ## Быстрый старт
 
-Команды выполняются из корня репозитория. Требуется ESP-IDF 6.1.0; нужны Python 3.11+ и Pillow для обработки ресурсов.
+Команды выполняются из корня репозитория. Требуется активированное окружение ESP-IDF 6.1.0; нужны Python 3.11+ и Pillow для обработки ресурсов.
 
-Рабочее дерево `platform/` содержит согласованные touch/UI-изменения SDK и генерацию в каталог сборки; внешний override для локальной сборки не нужен. Эти правки пока не закоммичены, поэтому один прежний pin не воспроизводит рабочее дерево. [Состояние интеграции](docs/ru/development/sdk-integration.md).
+SDK закреплён на `845590f`, контракт `0x20261114`, manifest FLM3. Штатная сборка использует `platform/`; соседний SDK автоматически не выбирается. [Состояние интеграции](docs/ru/development/sdk-integration.md).
 
 
 ```sh
@@ -50,7 +50,7 @@ python3 tools/select_device.py --build
 
 Ignite Hub в Flint Flare устанавливает, запускает и удаляет пользовательские пакеты, выбирает часы, тему и язык, выдаёт и отзывает разрешения. Пользовательские пакеты не могут удалить заводские компоненты. Заводские пакеты размещены в read-only `factory`, пользовательские пакеты, настройки и согласия — в `storage`.
 
-Lua — единственный язык приложений; ограниченный Runtime включён и физически проверен на Spark. Фоновые службы не поддерживаются. Проверки платы выполняются отдельно от локальных тестов. [Пакеты Ignite](docs/ru/development/ignite-packages.md), [контракт платформы](platform/README.md).
+Lua — единственный язык приложений; ограниченный Runtime включён в firmware Spark. Физические отчёты относятся только к указанным в них старым ревизиям; для текущей интеграции подтверждены host tests и firmware build. Фоновые service VM реализованы в общем Core; для Spark задан предварительный предел двух служб с admission по текущей памяти. Физические измерения служб и новых датчиков пока не выполнены. Проверки платы выполняются отдельно от локальных тестов. [Пакеты Ignite](docs/ru/development/ignite-packages.md), [контракт платформы](platform/README.md).
 
 <details>
 <summary><b>Аппаратная конфигурация Spark</b></summary>
@@ -68,15 +68,17 @@ Lua — единственный язык приложений; ограниче
 `main/` — вход ESP-IDF; `config/` — конфигурация и разделы; `src/` — аппаратные адаптеры, транспорт и восстановление, включая драйвер ST7789 поверх SPI Master ESP-IDF; `platform/` — общая платформа; `tools/` — инструменты устройства; `resources/` — логотипы и иллюстрации; `cmake/` — модули сборки; `tests/` — тесты.
 
 ```sh
-cmake -S platform -B /tmp/flint-platform -DCMAKE_BUILD_TYPE=Debug
-cmake --build /tmp/flint-platform
-ctest --test-dir /tmp/flint-platform --output-on-failure
+cmake -S platform -B platform/build/docs -DCMAKE_BUILD_TYPE=Debug
+cmake --build platform/build/docs --config Debug
+ctest --test-dir platform/build/docs --output-on-failure -C Debug
 python3 -m unittest discover -s tests/tooling -v
 ```
 
-Локальные тесты не подключаются к устройству и не прошивают его.
+Локальные тесты не подключаются к устройству и не прошивают его. Для Visual Studio используйте `--config Debug` при сборке и `-C Debug` для CTest. При самостоятельной сборке submodule его build/ и temp/ находятся внутри platform/. Для Visual Studio используйте `--config Debug` при сборке и `-C Debug` для CTest. При самостоятельной сборке submodule его build/ и temp/ находятся внутри platform/.
 
 ## Документация
+
+[Как пользоваться устройством и восстановить доступ](docs/ru/getting-started/device-use.md) · [Добавить модуль](docs/ru/development/extending.md) · [Единый индекс экосистемы](https://github.com/DeeTech-Labs/Flint-IgniteSDK/blob/main/docs/ru/README.md).
 
 [Оглавление документации](docs/ru/README.md) · [Структура репозитория и миграция](docs/ru/development/repository-layout.md).
 

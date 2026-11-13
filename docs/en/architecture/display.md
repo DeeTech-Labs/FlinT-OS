@@ -11,9 +11,9 @@ CMake enables `CONFIG_COMPILER_OPTIMIZATION_CHECKS_SILENT` only for `esp_driver_
 Host driver checks (SPI/GPIO simulation, no device access):
 
 ```sh
-cmake -S tests/host -B /tmp/flint-display -DCMAKE_BUILD_TYPE=Debug
-cmake --build /tmp/flint-display
-ctest --test-dir /tmp/flint-display --output-on-failure
+cmake -S tests/host -B build/display -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/display --config Debug
+ctest --test-dir build/display --output-on-failure -C Debug
 ```
 
 The tests compare pixels against the portable renderer and cover addressing, panel settings, dirty regions, transfer failures, resource cleanup and recovery after allocation failure. They do not verify SPI electrical behavior, physical orientation, tearing or device performance. Lua, LittleFS and package formats are unchanged.

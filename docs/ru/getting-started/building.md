@@ -1,55 +1,75 @@
-[English translation](../../en/getting-started/building.md)
+# Сборка и прошивка ESP32-S3
 
-# Сборка ESP-IDF
+[Индекс](../README.md) · [English](../../en/getting-started/building.md) · [Использование/recovery](device-use.md)
 
-Рабочее дерево `platform/` содержит согласованные touch/UI-изменения SDK и генерацию в каталог сборки; внешний override для локальной сборки не нужен. Эти правки пока не закоммичены, поэтому один прежний pin не воспроизводит рабочее дерево. [Состояние интеграции](../development/sdk-integration.md).
+## Условия
 
+Нужны Git, ESP-IDF 6.1.0 (upstream release tag `v6.1`), Python 3.11+ и Pillow в
+управляемом Python окружении IDF. Установите ESP-IDF его штатным installer/install
+script для своей ОС, затем активируйте `export.ps1` (PowerShell) или `export.sh`
+(Linux/macOS). `idf.py --version` должен показать ESP-IDF v6.1, target — esp32s3.
+Это инструкция для текущего исходного дерева; сборка других IDF/ОС требует проверки.
 
-Цель — только ESP32-S3. Требуется ESP-IDF 6.1.0. Требуются Python 3.11+ и Pillow. Инструменты Python находят установленный SDK и его управляемое окружение. Команды из корня репозитория:
-
-```sh
-python3 tools/select_device.py --list
-python3 tools/select_device.py --build
-```
-
-В активированном окружении SDK используйте `idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build`; `set-target` нужен только при намеренной смене цели. Используйте отдельный каталог и конфигурацию сборки, чтобы сохранить другие локальные сборки.
-
-Основной задаче выделен внутренний стек 32 КиБ. Общая конфигурация Lua ограничивает вложенные C-вызовы до 40. Стек обслуживает парсер, обработчики, проверку пакетов и файловые операции; при изменениях этих путей измеряйте запас. PSRAM не увеличивает стек задачи. Профиль Spark включает `CONFIG_FLINT_LUA_RUNTIME`; исходники и лимиты берутся из закреплённого SDK.
-
-Образ прошивки включает доступный только для чтения LittleFS `factory` со скомпилированными системными Ignite. Отдельный `storage` хранит пользовательские пакеты, настройки и согласия. Повреждённое непустое хранилище не форматируется автоматически. USB отведён бинарным кадрам Companion; логи не смешиваются с потоком данных.
-
-Карта Flash 4 МиБ содержит два слота приложений по 1024 КиБ, 192 КиБ заводского хранилища, 1728 КиБ пользовательского хранилища, NVS и раздел coredump. На проверенной плате — Flash 4 МиБ и Quad PSRAM 2 МиБ; PSRAM является отдельной энергозависимой памятью. ESP-IDF сообщает размер образа и запас, отклоняя образ больше слота 1 МиБ.
-
-Карта меняет смещения `ota_1`, `factory`, `storage`. До прошивки сохраните и перенесите пользовательские данные; запишите новую таблицу разделов и заводской образ вместе с прошивкой. OTA только приложения не обновляет карту разделов.
-
-Тесты на компьютере не прошивают плату и не подключаются к ней. Отдельная аппаратная проверка требует Python-окружение ESP-IDF или pyserial:
+Команды выполняются из корня OS. Сначала проверьте `git status` и `git submodule status`.
+Штатный SDK pin — `845590f`, contract `0x20261114`/FLM3. Инициализация:
 
 ```sh
-python tools/test_lua_device.py --port /dev/ttyACM0 --report /tmp/spark-lua.json
+git submodule update --init --recursive
+python -m pip install Pillow
+python tools/select_device.py --list
+python tools/select_device.py --device flint_spark --build-dir build/docs-firmware --sdkconfig config/local/sdkconfig.docs --build
 ```
 
-Команда устанавливает и удаляет только тестовые пакеты `test.lua-*` и запускает заводские часы. Она не прошивает и не стирает Flash. Подробные отчёты — временная диагностика вне документации репозитория.
-
-## Интеграция Application API 1
-
-SDK закреплён на `594eae4631f4fc5242a9c828bb7e3523e9758149` (main после SDK PR #5). Коммит опубликован в origin; `platform/` закрепляет именно эту ревизию с Application API 1, Demand v1 и продолжаемой установкой. Требуется пересборка прошивки; форматы пакета/Companion и разметка Flash не меняются. При CONFIG_FLINT_LUA_RUNTIME включён CapAppApi (128); новые проекты используют app_api: 1.
-
-Основной цикл ожидает уведомления USB/BLE и ближайший deadline Core/транспорта; постоянного 20-мс BLE maintenance нет. RX/TX ограничены за проход, длительная проверка установки продолжается в Core::tick. После непрерывной работы задача уступает один FreeRTOS tick. Подробности и ограничения измерений приведены в [PERFORMANCE.md](../validation/performance.md).
-
-`corePostInput(InputEvent)` и `coreRuntimeGeneration()` в core/bridge.h предназначены только для задачи приложения. Драйвер сохраняет генерацию при получении события; ISR и другие задачи должны использовать собственную ограниченную очередь и передавать её события основной задаче. Runtime применяет лимит очереди и input.focused. У выбранного профиля Spark FLINT_HAS_BUTTONS=0, FLINT_HAS_TOUCH=0 и FLINT_HAS_BATTERY=0: физический ввод не подключён, служба питания возвращает not_supported. Аппаратные сигналы и значения датчиков не подменяются программной имитацией.
-
-Приватное состояние приложений использует общее хранилище Core `/storage/packages/app-<id>.kv`; лимиты, атомарная запись, CRC, правила обновления/удаления и ограничение частоты записи реализованы SDK. Таймеры и расширенная диагностика также остаются в SDK. Предел Lua heap/инструкций не увеличен; новые native-пики, стек, фактическую долговечность Flash и точность таймеров нужно повторно проверить на плате.
-
-CI использует официальный release image `espressif/idf:v6.1`: его upstream tag называется `v6.1`, хотя CMake сообщает версию 6.1.0. Docker tag `v6.1.0` не опубликован. Локальная сборка и CI должны использовать один release, а не moving `release-v6.1`/`latest`.
-
-## Отдельные сборки и локальная конфигурация
+`--list` ничего не пишет. Build выбирает единственный `device.toml`, генерирует board/SDK
+assets в build tree и вызывает IDF. Локальный sdkconfig отделён от других сборок.
+Альтернатива в активированном IDF:
 
 ```sh
-python3 tools/select_device.py --build-dir build-layout --build
-# Activated ESP-IDF environment:
-idf.py -B build-layout -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
+idf.py -B build/docs-firmware -DSDKCONFIG=config/local/sdkconfig.docs -DIDF_TARGET=esp32s3 -DFLINT_DEVICE=flint_spark build size
 ```
 
-[Правила размещения, импорт старого sdkconfig и миграция](../development/repository-layout.md).
+Успех — `Project build complete`, `build/docs-firmware/flint_os.bin`, `factory.bin` и
+проверка размера app slot. CMake не должен использовать случайный sibling SDK: при старом
+cache сбросьте override явно `-DFLINT_PLATFORM_DIR=<OS checkout>/platform`. Не применяйте
+`set-target` к рабочему build без необходимости: это смена конфигурации, не шаг каждой сборки.
 
-Для независимых настроек: `python3 tools/select_device.py --build-dir build-layout --sdkconfig config/local/sdkconfig.layout --build`.
+Если remote ещё не содержит локально согласованный SDK SHA, `submodule update` не сможет
+его скачать. Получите owning SDK checkout/bundle той же ревизии от сопровождающего;
+не заменяйте pin на latest ради configure. Для предоставленного локального checkout:
+`git -c submodule.platform.url=<путь-к-SDK> submodule update --init platform`.
+Это не утверждение, что локальные коммиты опубликованы в origin.
+
+## Прошивка — отдельное действие
+
+До подключения проверьте электрическую ревизию, Flash/PSRAM и wiring активного конфига.
+Для уже работающего устройства сначала подготовьте сохранение важных данных. Следующая
+команда **пишет firmware/таблицу/factory по выбранному build**, это не host test:
+
+```sh
+python tools/select_device.py --device flint_spark --build-dir build/docs-firmware --sdkconfig config/local/sdkconfig.docs --build --flash --port COM7
+```
+
+Замените COM7 своим портом (`/dev/ttyACM0` на Linux). Не выполняйте команду без своей платы
+и согласованного плана обновления. Flare не имеет firmware updater. Application-only OTA
+не обновляет factory/partitions; firmware и factory.bin должны использовать один SDK contract.
+Активная карта Flash 4 MiB: два app slot по 1 MiB, factory 192 KiB, storage 1728 KiB,
+служебные разделы. PSRAM отдельна от Flash. Интеграция датчиков/служб не меняла partitions;
+при намеренной смене layout требуется отдельная миграция/recovery, а не erase_flash.
+
+## Эксплуатационные границы
+
+Factory read-only, storage содержит пакеты/настройки/grants; повреждённый непустой том
+не форматируется автоматически. Native USB занят бинарным Companion, не serial logging;
+закройте monitor перед Flare. Recovery/BOOT/reset следуют проверенной электрической схеме.
+Текущий Spark display-only: touch/buttons/battery не сконфигурированы. Future Waveshare
+неактивен, включая отличающиеся ревизии GPIO/Flash/PSRAM и необязательные внешние датчики.
+
+Основной stack 32 KiB internal, Lua C-call nesting limit40; PSRAM не заменяет task stack.
+Проверка сборки не измеряет heap, stack watermark, ток или touch/USB/BLE latency.
+SDK Core исполняет UI/service VM, OS worker только аппаратные операции; исходники и
+лимиты общей Lua берутся из pin. [Аппаратная приёмка](../hardware/sensor-service.md).
+
+Host проверки — [testing](../development/testing.md). Явный hardware smoke, если плата
+уже подготовлена: `python tools/test_lua_device.py --port COM7 --report temp/spark-lua.json`.
+Заранее создайте temp/. Он изменяет test.lua-* пакеты/активное приложение, не прошивает и
+не стирает Flash; это всё равно отдельный hardware run, не часть обычного CTest.

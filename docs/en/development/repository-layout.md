@@ -27,7 +27,7 @@ build/        ignored local output, generated headers, dependency lock, factory 
 
 `components/flint/` moved to `src/`; `core/system.cpp` became `core/application.cpp`. `brand/` and `.github/assets/` became `resources/`. `tools/tests/` moved to `tests/tooling/`; the Bash launcher is `tools/flint_tools.sh`.
 
-Reconfigure after component paths change. Preserve previous builds with a new directory: `idf.py -B build-layout -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build`. Avoid unnecessary `set-target`, which resets configuration state.
+Reconfigure after component paths change. Preserve previous builds with a new directory: `idf.py -B build/layout -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build`. Avoid unnecessary `set-target`, which resets configuration state.
 
 Local settings default to `config/sdkconfig` and survive `idf.py fullclean`. The first configure copies the legacy root `sdkconfig` if the new file is absent; the original is preserved. Explicit `-DSDKCONFIG=<path>` or selector `--sdkconfig <path>` selects independent settings. A new explicitly selected file starts from defaults without importing the root file. `--build-dir` changes only artifact placement. `set-target` intentionally resets configuration and preserves the old file as `.old`; avoid it for routine S3 validation. The dependency lock is `<build-dir>/dependencies.lock`.
 
@@ -37,4 +37,4 @@ Root documents retain their full text. Topic/resource URLs changed, so external 
 
 The SDK's shared `flint_generate_sdk` function generates OS registry headers and factory packages under `<build>/generated/sdk/include/` and `<build>/generated/sdk/factory/`. Firmware builds skip examples. `factory.bin` remains at the build root. Generation and tests do not update source `platform/include/`, `platform/factory/` or `platform/examples/`; unchanged outputs keep their timestamps.
 
-Local compatibility uses uncommitted SDK changes in `platform/`. Another machine needs these changes in full, or a future published SDK commit and updated pin. [Integration status](sdk-integration.md).
+SDK is pinned to 845590f / 0x20261114. A local pin may be unpublished: obtain its exact checkout/bundle rather than selecting latest. [Integration](sdk-integration.md).

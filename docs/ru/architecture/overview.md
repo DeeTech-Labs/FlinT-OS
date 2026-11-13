@@ -14,4 +14,4 @@
 
 Настройки находятся в `config/`, реализации аппаратных модулей — в `src/modules/`. Выбранные заголовки, версия и заводские пакеты создаются в каталоге сборки: `generated/` и `factory/`. Генерация OS не записывает эти артефакты в исходники.
 
-Состояние незавершённой интеграции UI: [SDK integration](../development/sdk-integration.md).
+Закреплённый SDK и миграция: [SDK integration](../development/sdk-integration.md).

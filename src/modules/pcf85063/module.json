@@ -1,0 +1,9 @@
+{
+    "kind": "rtc",
+    "sources": [
+        "pcf85063.cpp"
+    ],
+    "idf_requires": [
+        "esp_driver_i2c"
+    ]
+}

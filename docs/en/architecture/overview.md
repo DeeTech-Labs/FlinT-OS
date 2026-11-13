@@ -12,6 +12,6 @@
 - [Diagnostics](../validation/performance.md).
 - [IgniteSDK](../../../platform/docs/en/ARCHITECTURE.md).
 
-Settings belong in `config/`, board implementations in `src/board/models/`. Selected headers, version and factory packages are generated into the build directory: `generated/` and `factory/`. OS generation does not place these artifacts in source directories.
+Settings belong in `config/`, hardware module implementations in `src/modules/`. Selected headers, version and factory packages are generated into the build directory: `generated/` and `factory/`. OS generation does not place these artifacts in source directories.
 
 Pending UI integration: [SDK integration](../development/sdk-integration.md).

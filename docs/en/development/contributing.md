@@ -13,7 +13,7 @@ Thanks for helping improve **FlinT OS** (firmware for **FlinT** devices; base bo
 
 ## Development setup
 
-Use ESP-IDF 6.1.0, C++20 and Python 3. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
+Use ESP-IDF 6.1.0, C++20 and Python 3.11+. Install Pillow for compiler font/image processing and integration fixtures. Never commit real credentials.
 
 ```bash
 python3 tools/select_device.py --build
@@ -30,14 +30,14 @@ python3 platform/tools/generate_registry.py
 python3 platform/tools/build_system.py
 ```
 
-Edit the pinned IgniteSDK repository and update the consumer submodules. Hardware sources remain under `src/board/models/`.
+Edit the pinned IgniteSDK repository and update the consumer submodules. Hardware sources remain under `src/modules/`.
 
 ## Host tests
 
 ```bash
-cmake -S platform -B /tmp/flint-platform -DCMAKE_BUILD_TYPE=Debug
-cmake --build /tmp/flint-platform
-ctest --test-dir /tmp/flint-platform --output-on-failure
+cmake -S platform -B platform/build/docs-sdk -DCMAKE_BUILD_TYPE=Debug
+cmake --build platform/build/docs-sdk --config Debug
+ctest --test-dir platform/build/docs-sdk -C Debug --output-on-failure
 python3 -m unittest discover -s tests/tooling -v
 ```
 
@@ -83,3 +83,17 @@ Participation is governed by the [Contributor Covenant](../project/code-of-condu
 ## Documentation and contribution terms
 
 Russian is canonical; update Russian documentation and its English translation together. Authors retain copyright. Contributions use the applicable component license; they do not imply assignment or unrestricted commercial relicensing. See [licensing scope](../legal/licensing.md).
+
+## Small-change validation
+
+Start with the [extension map](extending.md), not all docs. Text needs diff/link checks;
+config/generator needs `python -m unittest discover -s tests/tooling -v`, selected/unselected
+source/dependency tests. Drivers/worker need `cmake -S tests/host -B build/host`, build/CTest
+with --config/-C Debug, then ESP32-S3 build and separate physical acceptance. Shared Core
+changes belong in owning SDK with Lua/no-Lua and both consumers. Firmware/storage/recovery
+need size/error checks and separately authorized physical power-cut tests with protected data.
+Examples need actual commands/config/RU/EN checks. Pillow is required before configure.
+Artifacts only in owning build/temp; independent submodule uses platform/build. Never mix kits.
+Hardware smoke changes test packages; flashing/smoke on someone else's board needs agreement.
+Issues/PRs include revision/TOML/firmware+SDK SHA, command/symptom and no private keys/data.
+Explicitly report unperformed heap/stack/power/Flash/USB/BLE/sensor checks.

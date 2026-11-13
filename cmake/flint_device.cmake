@@ -1,12 +1,12 @@
 # Generate selected board headers before ESP-IDF scans component requirements.
-set(FLINT_DEVICE "" CACHE STRING "Supported FlinT product revision (default: Spark S3)")
+set(FLINT_DEVICE "" CACHE STRING "Supported FlinT model (default: flint_spark)")
 file(GLOB_RECURSE _flint_device_sources CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_LIST_DIR}/../src/board/models/*"
-    "${CMAKE_CURRENT_LIST_DIR}/../config/devices/*")
+    "${CMAKE_CURRENT_LIST_DIR}/../src/modules/*/module.json"
+    "${CMAKE_CURRENT_LIST_DIR}/../config/devices/*/device.toml")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_LIST_DIR}/../tools/select_device.py"
     "${CMAKE_CURRENT_LIST_DIR}/../config/devices.json" ${_flint_device_sources})
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 3.11 COMPONENTS Interpreter REQUIRED)
 set(_flint_device_args "${CMAKE_CURRENT_LIST_DIR}/../tools/select_device.py"
     --build-dir "${CMAKE_BINARY_DIR}")
 if(FLINT_DEVICE)

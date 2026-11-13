@@ -9,8 +9,14 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 ## [Unreleased]
 
 ### Changed
+- Refresh RU/EN onboarding, build/test/contributor routes, user recovery and extension guides against the implemented shared SDK contract.
+- Integrate SDK `6e7a853` / breaking contract `0x20261114` and FLM3 component manifests; rebuild firmware and factory packages together. Installed incompatible package data and grants are retained.
+- Move shared I2C/ADC and touch/RTC access to one demand-driven hardware worker with bounded mailboxes, recovery generations and prioritized touch; remove the former Core-task sensor polling and direct measurement helpers.
+- Integrate the SDK sensor/RTC/output contract and reject incompatible SDK configurations early. See [sensor integration and hardware acceptance](docs/en/hardware/sensor-service.md).
+- Keep Spark configuration directly under `config/devices/flint_spark/` with model ID `flint_spark`; retain the future Waveshare-based hardware as an inactive `device.future.toml` alongside the active configuration.
+- Configure each device with one self-contained `device.toml`, including panel parameters; discover profiles automatically, generate C++/CMake settings and exclude unselected hardware drivers. Device tooling now requires Python 3.11 or newer.
 - Integrate the pinned SDK icon/touch/UI contract and generate registries and factory packages in the build directory without rewriting SDK sources.
-- Render the application grid with 48 px color/theme icons, clipped alpha composition and bounded resource caching; rebuild factory packages for FLM2/FLIM v2.
+- Render the application grid with 48 px color/theme icons, clipped alpha composition and bounded resource caching; rebuild factory packages for FLM3/FLIM v2.
 - Move firmware sources to `src/`, board/version settings to `config/`, and branding/documentation assets to `resources/`; group RU/EN documentation by topic and generate board/version/factory artifacts in build directories. Preserve local `menuconfig` settings in `config/sdkconfig`.
 - Rebuild factory screens for touch: right-edge Apps navigation, inertial grid scrolling, Settings controls and English/Russian labels.
 - Show a protected factory Ignite splash only on physical power-on, then restore the selected clock without blocking command handling.
@@ -23,6 +29,10 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 - Reduce SPI validation code in IRAM by omitting detailed ESP-IDF check-macro messages only in `esp_driver_spi`; retain argument checks, error returns, assertions and FlinT error handling.
 
 ### Added
+- Cooperative background-service admission using live internal heap, a model-wide memory/CPU pool, low-voltage pause policy and a factory Services screen for offline start/stop/pause/autostart/revoke. Spark limits are provisional until physical measurements.
+- System battery-voltage freshness, verified asynchronous RTC write/readback, debounced focused buttons, muted/rate-limited buzzer control and diagnostic scheduling counters.
+- Add optional shared-I2C QMI8658C/PCF85063A drivers, calibrated battery ADC, PWM backlight/buzzer and GPIO power/buttons for future Spark hardware; keep its explicit Waveshare pin-revision draft inactive.
+- Add optional BMP280/BME280 forced measurements and VEML7700 ambient light readings with Core deadlines and no periodic polling. Document module usage in headers under `flint::modules`.
 - Record the ESP32-S3 icon/UI resource validation, including RAM, stack, Flash and the remaining cold-launcher latency limitation in `docs/en/validation/2026-11-12-icon-ui-resources.md`.
 - Add Core-task touch input with generation-safe cancellation, bounded active sampling and a gated CST816 driver; prepare Waveshare wiring without changing the selected Spark profile.
 - Protocol v1 correlated settings/face commands with validation and atomic persistence.
@@ -35,7 +45,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 
 
 ### Fixed
-
+- Keep power hold asserted if worker creation fails, invalidate old touch acquisitions across app generations, and attempt ALS shutdown after cancellation/errors without exposing raw readings through ordinary diagnostics.
 - Register the indication characteristic with the access callback required by NimBLE; without it GATT setup failed and the board did not advertise.
 - Initialize the security key-store callbacks and require encrypted subscription before protocol exchange.
 - Reserve a NimBLE key-store slot for pre-pairing capacity checks while keeping runtime bonding disabled.

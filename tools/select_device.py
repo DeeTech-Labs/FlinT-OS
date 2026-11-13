@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Select a supported FlinT product revision and run ESP-IDF actions.
+"""Select a supported FlinT model and run ESP-IDF actions.
 
-Hardware implementations live under src/board/models/; settings under config/devices/.
+Hardware modules live under src/modules/; model settings under config/devices/.
 Generated board headers belong to the selected build directory.
-Only supported model/revision IDs are accepted.
+Only supported model IDs are accepted.
 """
 
 from __future__ import annotations
@@ -17,23 +17,53 @@ import subprocess
 import sys
 from pathlib import Path
 
+if sys.version_info < (3, 11):
+    raise SystemExit("FlinT OS device configuration requires Python 3.11 or newer")
+import tomllib
+
 ROOT = Path(__file__).resolve().parents[1]
-DEVICE_DIR = ROOT / "src" / "board"
+MODULE_DIR = ROOT / "src" / "modules"
 CONFIG_DIR = ROOT / "config" / "devices"
 DEFAULT_BUILD_DIR = ROOT / "build"
 DEFAULT_SDKCONFIG = ROOT / "config" / "sdkconfig"
 _REGISTRY = json.loads((ROOT / "config" / "devices.json").read_text(encoding="utf-8"))
-PROFILES = _REGISTRY["devices"]
 DEFAULT_PROFILE = _REGISTRY["default"]
-PROG_DESCRIPTION = "Select a fixed FlinT model/revision and build firmware"
-PROG_EPILOG = "Example: %(prog)s --device flint_spark_s3_supermini --build"
+PROG_DESCRIPTION = "Select a FlinT model and build firmware"
+PROG_EPILOG = "Example: %(prog)s --device flint_spark --build"
+
+
+def read_toml(path: Path) -> dict:
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        raise ValueError(f"{path}: {error}") from error
+
+
+def discover_profiles(directory: Path) -> dict:
+    profiles = {}
+    for path in sorted(directory.glob("*/device.toml")):
+        model = path.parent.name
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", model):
+            raise ValueError(f"{path}: model must be a lowercase identifier")
+        data = read_toml(path)
+        name = data.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"{path}: name: expected a nonempty string")
+        profiles[model] = dict(name=name, model=model, idf_target="esp32s3")
+    return profiles
+
+
+try:
+    PROFILES = discover_profiles(CONFIG_DIR)
+except ValueError as error:
+    raise SystemExit(f"device configuration: {error}") from error
 
 
 def resolve_device_id(requested: str) -> str:
     selected = (requested or os.environ.get("FLINT_DEVICE") or DEFAULT_PROFILE).strip()
     if selected not in PROFILES:
         raise SystemExit(
-            f"unsupported product revision {selected!r}; available: {', '.join(PROFILES)}"
+            f"unsupported model {selected!r}; available: {', '.join(PROFILES)}"
         )
     return selected
 
@@ -51,31 +81,340 @@ def cmd_list_devices(*, as_json: bool) -> int:
     return 0
 
 
+def check_table(value, allowed, required, where):
+    if not isinstance(value, dict):
+        raise ValueError(f"{where}: expected a table")
+    unknown = set(value) - set(allowed)
+    missing = set(required) - set(value)
+    if unknown or missing:
+        raise ValueError(f"{where}: unknown keys {sorted(unknown)}; missing keys {sorted(missing)}")
+    return value
+
+
+def check_int(value, minimum, maximum, where):
+    if type(value) is not int or not minimum <= value <= maximum:
+        raise ValueError(f"{where}: expected integer {minimum}..{maximum}")
+    return value
+
+
+def check_bool(value, where):
+    if type(value) is not bool:
+        raise ValueError(f"{where}: expected boolean")
+    return value
+
+
+# Model policy, not hardware capabilities. Runtime admission still checks the live heap.
+BACKGROUND_FIELDS = {
+    "max_services": (0, 4, 0, "maxServices"),
+    "total_memory_bytes": (0, 1048576, 0, "memoryBytes"),
+    "foreground_reserve_bytes": (49152, 1048576, 49152, "foregroundReserveBytes"),
+    "window_ms": (10, 1000, 100, "windowMs"),
+    "instructions_per_window": (1, 1000000, 16384, "instructionsPerWindow"),
+    "native_calls_per_window": (1, 4096, 64, "nativeCallsPerWindow"),
+    "quantum_instructions": (1, 100000, 4096, "quantumInstructions"),
+    "quantum_native_calls": (1, 4096, 16, "quantumNativeCalls"),
+    "wall_us_per_window": (1, 1000000, 4000, "wallUsPerWindow"),
+    "callback_wall_us": (1, 1000000, 2000, "callbackWallUs"),
+    "native_wall_us": (1, 1000000, 1000, "nativeWallUs"),
+    "min_timer_ms": (100, 3600000, 100, "minTimerMs"),
+    "min_sensor_interval_ms": (100, 60000, 100, "minSensorIntervalMs"),
+    "min_flush_ms": (60000, 86400000, 60000, "minFlushMs"),
+    "low_voltage_mv": (2500, 5000, 3400, None),
+}
+
+
+def load_background(value, where):
+    value = check_table(value, BACKGROUND_FIELDS, {}, where)
+    policy = {name: check_int(value.get(name, default), low, high, f"{where}.{name}")
+              for name, (low, high, default, _) in BACKGROUND_FIELDS.items()}
+    if policy["max_services"] and policy["total_memory_bytes"] < policy["max_services"] * 49152:
+        raise ValueError(f"{where}.total_memory_bytes: insufficient declared service memory")
+    for part, whole in (("quantum_instructions", "instructions_per_window"),
+                        ("quantum_native_calls", "native_calls_per_window"),
+                        ("callback_wall_us", "wall_us_per_window"),
+                        ("native_wall_us", "callback_wall_us")):
+        if policy[part] > policy[whole]:
+            raise ValueError(f"{where}.{part}: must not exceed {whole}")
+    if policy["wall_us_per_window"] > policy["window_ms"] * 1000:
+        raise ValueError(f"{where}.wall_us_per_window: exceeds scheduling window")
+    return policy
+
+
+def load_device(settings: Path) -> tuple[dict, dict, list[str], list[str]]:
+    path = settings / "device.toml"
+    data = check_table(read_toml(path), {"name", "modules", "background"}, {"name"}, str(path))
+    if not isinstance(data["name"], str) or not data["name"].strip():
+        raise ValueError(f"{path}: name: expected a nonempty string")
+    available = {p.name for p in MODULE_DIR.iterdir() if (p / "module.json").is_file()}
+    modules = check_table(data.get("modules", {}), available, {}, f"{path}: modules")
+    background = load_background(data.get("background", {}), f"{path}: background")
+    width, height = 280, 240
+    roles, normalized, sources, requires, pins_used = {}, {}, [], [], {}
+    bus_signals = {}
+
+    def pins(config, names, where):
+        result = check_table(config, set(names), set(names), where)
+        for name, pin in result.items():
+            field = f"{where}.{name}"
+            check_int(pin, 0, 48, field)
+            if pin in range(22, 26):
+                raise ValueError(f"{field}: GPIO{pin} is unavailable on ESP32-S3")
+            if pin in pins_used and name in ("sda", "scl") and bus_signals.get(name) == pin:
+                continue
+            if pin in pins_used:
+                raise ValueError(f"{field}: GPIO{pin} already assigned to {pins_used[pin]}")
+            pins_used[pin] = field
+            if name in ("sda", "scl"):
+                if name in bus_signals and bus_signals[name] != pin:
+                    raise ValueError(f"{field}: all I2C modules must use one shared bus")
+                bus_signals[name] = pin
+        return result
+
+    for module, config in modules.items():
+        where = f"{path}: modules.{module}"
+        directory = MODULE_DIR / module
+        manifest = json.loads((directory / "module.json").read_text(encoding="utf-8"))
+        kind = manifest["kind"]
+        expected_role = {
+            "st7789": "display", "cst816": "touch", "qmi8658": "imu", "pcf85063": "rtc",
+            "battery_adc": "battery", "pwm_buzzer": "buzzer", "pwm_backlight": "backlight",
+            "power_button": "power_button", "bmp280": "bmp280", "bme280": "bme280",
+            "veml7700": "light",
+        }.get(module)
+        if expected_role is None or kind != expected_role:
+            raise ValueError(f"{where}: unsupported module or invalid manifest role")
+        if kind in roles:
+            raise ValueError(f"{where}: {kind} is already provided by {roles[kind]}")
+        roles[kind] = module
+        if module == "st7789":
+            check_table(config, {"panel", "rotation", "frequency", "pins"}, {"panel", "pins", "frequency", "rotation"}, where)
+            panel_where = f"{where}.panel"
+            fields = {
+                "width", "height", "gram_width", "gram_height", "offset_x", "offset_y",
+                "madctl", "invert", "three_wire", "init",
+            }
+            panel = check_table(config["panel"], fields, fields, panel_where)
+            for name in ("width", "height", "gram_width", "gram_height"):
+                check_int(panel[name], 1, 320, f"{panel_where}.{name}")
+            for name in ("offset_x", "offset_y"):
+                check_int(panel[name], 0, 320, f"{panel_where}.{name}")
+            rotation = check_int(config["rotation"], 0, 3, f"{where}.rotation")
+            if rotation != 3:
+                raise ValueError(f"{where}.rotation: only rotation 3 is implemented")
+            geometry = tuple(panel[name] for name in ("width", "height", "gram_width", "gram_height"))
+            if geometry != (240, 280, 240, 320):
+                raise ValueError(f"{panel_where}.only 240x280 glass with 240x320 GRAM is supported")
+            width, height = panel["height"], panel["width"]
+            column = panel["gram_height"] - panel["height"] - panel["offset_y"]
+            row = panel["offset_x"]
+            if column < 0 or column + width > panel["gram_height"] or row + height > panel["gram_width"]:
+                raise ValueError(f"{panel_where}.offsets place canvas outside GRAM")
+            check_int(panel["madctl"], 0, 255, f"{panel_where}.madctl")
+            if panel["madctl"] & 0xf0 != 0xb0:
+                raise ValueError(f"{panel_where}.madctl: incompatible with rotation 3")
+            for name in ("invert", "three_wire"):
+                check_bool(panel[name], f"{panel_where}.{name}")
+            frequency = check_int(
+                config["frequency"], 1, 80000000, f"{where}.frequency"
+            )
+            if not isinstance(panel["init"], list) or not panel["init"]:
+                raise ValueError(f"{panel_where}.init: expected nonempty command list")
+            for index, command in enumerate(panel["init"]):
+                field = f"{panel_where}.init[{index}]"
+                check_table(command, {"command", "data", "delay_ms"}, {"command", "data", "delay_ms"}, field)
+                check_int(command["command"], 0, 255, field + ".command")
+                check_int(command["delay_ms"], 0, 1000, field + ".delay_ms")
+                if not isinstance(command["data"], list) or len(command["data"]) > 14:
+                    raise ValueError(f"{field}.data: expected at most 14 bytes")
+                for byte in command["data"]:
+                    check_int(byte, 0, 255, field + ".data")
+            normalized[kind] = dict(
+                panel=panel,
+                pins=pins(config["pins"], ("mosi", "sclk", "cs", "dc", "reset"), where + ".pins"),
+                frequency=frequency,
+            )
+        elif module == "cst816":
+            check_table(
+                config, {"pins", "frequency", "address", "raw_size", "swap_xy", "mirror_x", "mirror_y"},
+                {"pins", "raw_size"}, where,
+            )
+            raw = config["raw_size"]
+            if not isinstance(raw, list) or len(raw) != 2:
+                raise ValueError(f"{where}.raw_size: expected [width, height]")
+            for value in raw:
+                check_int(value, 1, 4096, where + ".raw_size")
+            flags = {
+                name: check_bool(config.get(name, False), where + "." + name)
+                for name in ("swap_xy", "mirror_x", "mirror_y")
+            }
+            normalized[kind] = dict(
+                pins=pins(config["pins"], ("sda", "scl", "reset", "interrupt"), where + ".pins"),
+                raw=raw, **flags,
+                frequency=check_int(config.get("frequency", 400000), 10000, 400000, where + ".frequency"),
+                address=check_int(config.get("address", 0x15), 8, 0x77, where + ".address"),
+            )
+        elif module in ("qmi8658", "pcf85063"):
+            check_table(config, {"pins", "address"}, {"pins"}, where)
+            selected_pins = config["pins"]
+            names = ("sda", "scl", "interrupt") if isinstance(selected_pins, dict) and "interrupt" in selected_pins else ("sda", "scl")
+            normalized[kind] = dict(
+                pins=pins(selected_pins, names, where + ".pins"),
+                address=check_int(config.get("address", 0x6b if module == "qmi8658" else 0x51), 8, 0x77, where + ".address"),
+            )
+        elif module in ("bmp280", "bme280", "veml7700"):
+            check_table(config, {"pins", "address"}, {"pins"}, where)
+            address = config.get("address", 0x10 if module == "veml7700" else 0x76)
+            check_int(address, 8, 0x77, where + ".address")
+            if address not in ((0x10,) if module == "veml7700" else (0x76, 0x77)):
+                raise ValueError(f"{where}.address: unsupported sensor address")
+            normalized[kind] = dict(pins=pins(config["pins"], ("sda", "scl"), where + ".pins"), address=address)
+        elif module == "battery_adc":
+            check_table(config, {"pins", "divider"}, {"pins", "divider"}, where)
+            divider = config["divider"]
+            if not isinstance(divider, list) or len(divider) != 2:
+                raise ValueError(f"{where}.divider: expected [numerator, denominator]")
+            for value in divider:
+                check_int(value, 1, 100, where + ".divider")
+            if divider[0] < divider[1]:
+                raise ValueError(f"{where}.divider: numerator must be >= denominator")
+            selected_pins = pins(config["pins"], ("adc",), where + ".pins")
+            check_int(selected_pins["adc"], 1, 10, where + ".pins.adc")
+            normalized[kind] = dict(pins=selected_pins, divider=divider)
+        elif module in ("pwm_buzzer", "pwm_backlight"):
+            check_table(config, {"pins"}, {"pins"}, where)
+            normalized[kind] = dict(pins=pins(config["pins"], ("output",), where + ".pins"))
+        elif module == "power_button":
+            check_table(config, {"pins"}, {"pins"}, where)
+            normalized[kind] = dict(pins=pins(config["pins"], ("hold", "button", "boot"), where + ".pins"))
+        else:
+            raise ValueError(f"{where}: module has no configuration validator")
+        for name in manifest["sources"]:
+            source = (directory / name).resolve()
+            if not source.is_relative_to(MODULE_DIR.parent.resolve()) or not source.is_file():
+                raise ValueError(f"{where}: invalid module source {name!r}")
+            sources.append(source.relative_to(MODULE_DIR.parent.resolve()).as_posix())
+        for dependency in manifest["idf_requires"]:
+            if not isinstance(dependency, str) or not re.fullmatch(r"[a-zA-Z0-9_]+", dependency):
+                raise ValueError(f"{where}: invalid IDF dependency")
+            if dependency not in requires:
+                requires.append(dependency)
+    if bus_signals:
+        normalized["i2c"] = bus_signals
+        sources.append("hardware/i2c.cpp")
+    if "bmp280" in normalized or "bme280" in normalized:
+        sources.append("hardware/bosch280.cpp")
+    if "buzzer" in normalized or "backlight" in normalized:
+        sources.append("hardware/pwm.cpp")
+    addresses = [normalized[kind]["address"] for kind in ("touch", "imu", "rtc", "bmp280", "bme280", "light") if kind in normalized]
+    if len(set(addresses)) != len(addresses):
+        raise ValueError(f"{path}: modules: duplicate I2C address")
+    touch = normalized.get("touch")
+    if touch and tuple(reversed(touch["raw"]) if touch["swap_xy"] else touch["raw"]) != (width, height):
+        raise ValueError(f"{path}: modules.cst816.raw_size: transformed size must match canvas {width}x{height}")
+    for kind, source in (("display", "display/disabled.cpp"), ("touch", "input/disabled.cpp")):
+        if kind not in normalized:
+            sources.append(source)
+    return data, dict(width=width, height=height, background=background, **normalized), sources, requires
+
+
+def generated_headers(profile, config):
+    def literal(value):
+        return str(value).lower() if type(value) is bool else json.dumps(value, ensure_ascii=True)
+
+    constants = {
+        "MODEL_ID": profile["model"],
+        "DEVICE_ID": profile["model"], "IDF_TARGET": "esp32s3",
+        "DESIGN_W": config["width"], "DESIGN_H": config["height"],
+        "FB_MAX_W": config["width"], "FB_MAX_H": config["height"],
+    }
+    header = "// Generated from device.toml. Do not edit.\n#pragma once\n#include <cstdint>\n"
+    for role in ("DISPLAY", "TOUCH", "I2C", "IMU", "RTC", "BATTERY", "BUZZER", "BACKLIGHT", "POWER_BUTTON", "BMP280", "BME280", "LIGHT"):
+        header += f"#define FLINT_HAS_{role} {int(role.lower() in config)}\n"
+    for role in ("imu", "rtc", "battery", "buzzer", "backlight", "power_button", "bmp280", "bme280", "light"):
+        selected = config.get(role)
+        if not selected:
+            continue
+        for name, pin in selected["pins"].items():
+            constants[f"{role.upper()}_{name.upper()}"] = pin
+        if role in ("imu", "rtc", "bmp280", "bme280", "light"):
+            constants[f"{role.upper()}_ADDRESS"] = selected["address"]
+        if role == "battery":
+            constants["BATTERY_DIVIDER_NUMERATOR"], constants["BATTERY_DIVIDER_DENOMINATOR"] = selected["divider"]
+    if "i2c" in config:
+        constants.update(I2C_SDA=config["i2c"]["sda"], I2C_SCL=config["i2c"]["scl"])
+    display = config.get("display")
+    policy = config.get("background", load_background({}, "background"))
+    header += f'#define FLINT_HAS_BACKGROUND {int(policy["max_services"] > 0)}\n'
+    fields = "".join(f'    .{field} = {policy[name]},\n'
+                     for name, (_, _, _, field) in BACKGROUND_FIELDS.items() if field)
+    result = {"device_background.h": (
+        '// Generated from device.toml. Do not edit.\n#pragma once\n#include <flint/background.h>\n'
+        'namespace flint::board {\ninline constexpr BackgroundPolicy Background{\n' + fields + '};\nstatic_assert(Background.maxServices <= MaxBackgroundServices);\n'
+        f'inline constexpr unsigned BackgroundLowVoltageMv = {policy["low_voltage_mv"]};\n' + '}\n')}
+    if display:
+        p = display["panel"]
+        signals = (("MOSI", "mosi"), ("SCLK", "sclk"), ("CS", "cs"), ("DC", "dc"), ("RST", "reset"))
+        constants.update({f"TFT_{key}": display["pins"][name] for key, name in signals})
+        constants.update(
+            TFT_MISO=-1, SPI_FREQ_WRITE=display["frequency"],
+            SPI_3WIRE=p["three_wire"], PANEL_INVERT=p["invert"],
+        )
+        commands = ""
+        for command in p["init"]:
+            values = ", ".join(map(str, command["data"]))
+            commands += (
+                f'    {{{command["command"]}, {len(command["data"])}, '
+                f'{command["delay_ms"]}, {{{values}}}}},\n'
+            )
+        result["device_display.h"] = (
+            '#pragma once\n#include "modules/st7789/config.h"\nnamespace flint::board {\n'
+            f'inline constexpr int St7789ColumnOffset = {p["gram_height"] - p["height"] - p["offset_y"]};\n'
+            f'inline constexpr int St7789RowOffset = {p["offset_x"]};\n'
+            f'inline constexpr uint8_t St7789Madctl = {p["madctl"]};\n'
+            'inline constexpr flint::modules::St7789InitCommand St7789Init[]{\n' + commands + '};\n}\n'
+        )
+    for key, value in constants.items():
+        typename = "const char *" if isinstance(value, str) else "bool" if type(value) is bool else "int"
+        header += f"inline constexpr {typename} FLINT_{key} = {literal(value)};\n"
+    result["device_config.h"] = header
+    touch = config.get("touch")
+    if touch:
+        pins = touch["pins"]
+        transform = ", ".join(literal(touch[key]) for key in ("swap_xy", "mirror_x", "mirror_y"))
+        result["device_touch.h"] = (
+            '#pragma once\n#include "modules/cst816/cst816.h"\n#include "input/touch_state.h"\n'
+            'inline constexpr flint::modules::Cst816Config FLINT_TOUCH_CONFIG{\n'
+            f'.port = -1, .sda = {pins["sda"]}, .scl = {pins["scl"]}, '
+            f'.reset = {pins["reset"]}, .interrupt = {pins["interrupt"]}, '
+            f'.frequency = {touch["frequency"]}, .address = {touch["address"]}' + '};\n'
+            'inline constexpr flint::input::TouchTransform FLINT_TOUCH_TRANSFORM{'
+            f'{config["width"]}, {config["height"]}, {transform}' + '};\n'
+        )
+    return result
+
+
 def cmd_generate(device_arg: str, *, quiet: bool, build_dir: Path = DEFAULT_BUILD_DIR) -> tuple[str, dict]:
     selected = resolve_device_id(device_arg)
     profile = PROFILES[selected]
-    source = DEVICE_DIR / profile["directory"]
-    settings = CONFIG_DIR / profile["model"] / profile["revision"]
+    settings = CONFIG_DIR / profile["model"]
+    data, config, sources, requires = load_device(settings)
+    inputs = generated_headers(profile, config)
+    cmake = '# Generated from device.toml. Do not edit.\nset(FLINT_DEVICE_IDF_TARGET "esp32s3")\n'
+    for name, values in (("FLINT_MODULE_SOURCES", sources), ("FLINT_MODULE_IDF_REQUIRES", requires)):
+        cmake += f"set({name}\n" + "".join(f'    "{value}"\n' for value in values) + ")\n"
+    inputs["device.cmake"] = cmake
     output = build_dir / "generated" / "board"
     output.mkdir(parents=True, exist_ok=True)
-    inputs = {
-        "device_config.h": settings / "device_config.h",
-        "device.cmake": settings / "device.cmake",
-        "device_display.h": source / "device_display.h",
-    }
-    # Touch implementations remain owned by the selected hardware model.
-    touch = source / "device_touch.h"
-    if touch.is_file():
-        inputs["device_touch.h"] = touch
-    else:
-        (output / "device_touch.h").unlink(missing_ok=True)
-    for name, path in inputs.items():
-        content = path.read_bytes()
+    for name in ("device_display.h", "device_touch.h"):
+        if name not in inputs:
+            (output / name).unlink(missing_ok=True)
+    for name, content in inputs.items():
         target = output / name
-        if not target.exists() or target.read_bytes() != content:
-            target.write_bytes(content)
+        encoded = content.encode("utf-8")
+        if not target.exists() or target.read_bytes() != encoded:
+            target.write_bytes(encoded)
     if not quiet:
-        print(f"{profile['name']} ({selected}, {profile['idf_target']})")
+        print(f"{data['name']} ({selected}, {profile['idf_target']})")
     return selected, dict(profile)
 
 
@@ -359,13 +698,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--device",
         default="",
         metavar="ID",
-        help="supported model/revision (else FLINT_DEVICE, else release default)",
+        help="supported model (else FLINT_DEVICE, else release default)",
     )
     ap.add_argument(
         "-l",
         "--list",
         action="store_true",
-        help="list product revisions available for -DFLINT_DEVICE / --device (no files written)",
+        help="list models available for -DFLINT_DEVICE / --device (no files written)",
     )
     ap.add_argument(
         "--json",
@@ -447,8 +786,8 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except FileNotFoundError as e:
-        print(f"missing {e}", file=sys.stderr)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"device configuration: {e}", file=sys.stderr)
         raise SystemExit(1)
     except BrokenPipeError:
         # e.g. `… --list | head`

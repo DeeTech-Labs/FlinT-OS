@@ -17,3 +17,5 @@ Docs live under [`docs/`](../..) (see the Docs section in [README.md](../../../R
 ## Documentation and contribution terms
 
 Russian is canonical; update Russian documentation and its English translation together. Authors retain copyright. Contributions use the applicable component license; they do not imply assignment or unrestricted commercial relicensing. See [licensing scope](../legal/licensing.md).
+
+Before filing an issue use the [symptom checklist](../getting-started/device-use.md). Host/simulator tests do not establish physical hardware behavior.

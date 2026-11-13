@@ -1,0 +1,7 @@
+{
+    "kind": "bmp280",
+    "sources": [],
+    "idf_requires": [
+        "esp_driver_i2c"
+    ]
+}

@@ -1,13 +1,3 @@
 {
-    "default": "flint_spark_s3_supermini",
-    "devices": {
-        "flint_spark_s3_supermini": {
-            "name": "FlinT Spark / S3 Super Mini development",
-            "model": "flint_spark",
-            "revision": "s3_supermini",
-            "idf_target": "esp32s3",
-            "display": "st7789_spi_240x280",
-            "directory": "models/flint_spark/s3_supermini"
-        }
-    }
+    "default": "flint_spark"
 }

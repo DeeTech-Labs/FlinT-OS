@@ -1,60 +1,54 @@
-[Русский оригинал](../../ru/getting-started/building.md)
+# Building and flashing ESP32-S3
 
-# ESP-IDF build
+[Index](../README.md) · [Canonical Russian](../../ru/getting-started/building.md) · [Use/recovery](device-use.md)
 
-The local `platform/` working tree contains matching touch/UI changes and build-local SDK generation; no external override is needed for a local build. These changes are uncommitted, so the previous pin alone does not reproduce this working tree. [Integration status](../development/sdk-integration.md).
-
-
-Target: ESP32-S3 only. The required SDK is ESP-IDF 6.1.0. Python tooling discovers the existing SDK and its managed environment.
-
-```sh
-python3 tools/select_device.py --list
-python3 tools/select_device.py --build
-```
-
-With an activated SDK, `idf.py set-target esp32s3` followed by `idf.py build` also works. Use a separate build directory/configuration to preserve unrelated local builds.
-
-The main task uses a 32 KiB internal stack. The shared Lua configuration limits
-nested C calls to 40. The stack covers parser, callback, package-validation and filesystem call chains;
-measure its headroom when changing these paths. PSRAM does not
-increase a task's stack. Spark defaults enable `CONFIG_FLINT_LUA_RUNTIME`; the
-source list and limits come directly from the pinned SDK.
-
-The firmware image includes a read-only `factory` LittleFS image compiled from system Ignite sources. `storage` is mounted separately for user packages, settings and grants. Non-erased corrupt storage is not automatically formatted. USB is reserved for binary Companion frames; logs do not interleave its data stream.
-
-The 4 MiB partition map reserves two 1024 KiB application slots, 192 KiB factory storage, 1728 KiB writable storage, NVS and a coredump partition. The connected development unit has verified 4 MiB Flash and 2 MiB Quad PSRAM; PSRAM is separate volatile memory. ESP-IDF prints image size and headroom and rejects firmware that exceeds the 1 MiB application slot.
-
-This map changes the previous `ota_1`, `factory` and `storage` offsets. Back up and migrate existing user storage before flashing; write the new partition table and factory image as well as the firmware. Application-only OTA does not update the partition map.
-
-Host tests never flash or connect to a device. Explicit hardware validation (ESP-IDF Python environment or pyserial required) is:
+Git, ESP-IDF6.1.0 (upstream tag v6.1), Python3.11+, Pillow in IDF managed Python are needed.
+Install IDF using its platform installer/install script, activate export.ps1/export.sh and
+check `idf.py --version`. Commands below start in OS root with matching esp32s3 toolchain.
+Inspect git/submodule status first; normal SDK pin6e7a853 requires contract0x20261114/FLM3.
 
 ```sh
-python tools/test_lua_device.py --port /dev/ttyACM0 --report /tmp/spark-lua.json
+git submodule update --init --recursive
+python -m pip install Pillow
+python tools/select_device.py --list
+python tools/select_device.py --device flint_spark --build-dir build/docs-firmware --sdkconfig config/local/sdkconfig.docs --build
 ```
 
-This command installs/removes only `test.lua-*` fixtures and launches factory clock;
-it does not flash firmware or erase Flash. Detailed reports are temporary diagnostics, not repository documents.
-
-## Application API 1 integration
-
-SDK is pinned to `594eae4631f4fc5242a9c828bb7e3523e9758149` (main after SDK PR #5). The commit is published to origin; `platform/` pins this exact revision with Application API 1, Demand v1 and resumable installation. Rebuild firmware; package/Companion formats and Flash partitions are unchanged. CONFIG_FLINT_LUA_RUNTIME enables CapAppApi (128); new projects use app_api: 1.
-
-The main loop waits for USB/BLE notifications and the nearest Core/transport deadline; periodic 20 ms BLE maintenance is removed. RX/TX work is bounded per pass and package verification continues in Core::tick. Sustained work yields one FreeRTOS tick. See [PERFORMANCE.md](../validation/performance.md) for measurements and limitations.
-
-corePostInput(InputEvent) and coreRuntimeGeneration() in core/bridge.h are application-task-only. Drivers capture generation when obtaining input; ISR/other-task producers must use their own bounded queue drained by the application task. Runtime enforces queue limits and input.focused. The selected Spark profile has no buttons, touch or battery sensor: physical input remains unavailable and power returns not_supported. No hardware signals or measurements are synthesized.
-
-Private state uses shared Core storage /storage/packages/app-<id>.kv; SDK owns quotas, atomic writes, CRC, update/removal semantics and write throttling. Timers and extended diagnostics also stay in SDK. Lua heap/instruction limits were not raised; native peaks, stack, Flash durability and timing require new device checks.
-
-CI uses the official release image `espressif/idf:v6.1`: the upstream release tag is `v6.1`, while CMake reports version 6.1.0. The Docker tag `v6.1.0` is not published. Local and CI builds must use the same release rather than the moving `release-v6.1`/`latest` tags.
-
-## Separate builds and local configuration
+List is read-only. Build selects device.toml, generates board/SDK assets under its build
+tree and runs IDF; the sdkconfig is isolated. Activated-IDF alternative:
 
 ```sh
-python3 tools/select_device.py --build-dir build-layout --build
-# Activated ESP-IDF environment:
-idf.py -B build-layout -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
+idf.py -B build/docs-firmware -DSDKCONFIG=config/local/sdkconfig.docs -DIDF_TARGET=esp32s3 -DFLINT_DEVICE=flint_spark build size
 ```
 
-[Layout, legacy sdkconfig import and migration](../development/repository-layout.md).
+Success: Project build complete, flint_os.bin/factory.bin and app slot size check. Clear an
+old sibling override with explicit FLINT_PLATFORM_DIR=<OS checkout>/platform. set-target is
+for intentional target changes, not every build. If the remote lacks a locally coordinated
+pin, obtain the owning SDK checkout/bundle from maintainers; never substitute latest. With
+provided local SDK use `git -c submodule.platform.url=<SDK path> submodule update --init platform`.
+No claim is made that local commits were published.
 
-For independent settings: `python3 tools/select_device.py --build-dir build-layout --sdkconfig config/local/sdkconfig.layout --build`.
+## Flash explicitly
+
+Check actual board revision/wiring/Flash/PSRAM and protect important existing data first.
+This writes selected firmware/partition/factory, not a host test:
+
+```sh
+python tools/select_device.py --device flint_spark --build-dir build/docs-firmware --sdkconfig config/local/sdkconfig.docs --build --flash --port COM7
+```
+
+Use your actual port (/dev/ttyACM0 on Linux); do not run without your board/update plan.
+Flare has no firmware updater. App-only OTA does not update factory/partitions; firmware
+and factory.bin need the same SDK. Active4MiB layout has two1MiB app slots,192KiB factory,
+1728KiB storage and service partitions. PSRAM is separate. Sensor/service integration changed
+no partitions; intentional layout changes require separate migration/recovery, never blind erase.
+
+Factory is read-only; nonempty corrupted storage is not autoformatted. USB carries binary
+Companion, not logs: close monitors before Flare. BOOT/reset follows actual board wiring.
+Active Spark has no configured touch/buttons/battery; inactive Waveshare GPIO/memory/external
+sensors are unverified. Main internal stack32KiB, Lua C-call nesting40; PSRAM is not stack.
+Builds do not measure heap/watermark/power/latency. Core executes UI/services, hardware worker
+only hardware. [Acceptance](../hardware/sensor-service.md), [host checks](../development/testing.md).
+Explicit physical smoke after creating temp/: `python tools/test_lua_device.py --port COM7
+--report temp/spark-lua.json`. It changes test.lua-* packages/active application, not firmware;
+it is separate from normal CTest. Other OS/IDF versions need their own validation.

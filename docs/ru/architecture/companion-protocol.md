@@ -1,3 +1,5 @@
+[Канонический wire и форматы SDK](https://github.com/DeeTech-Labs/Flint-IgniteSDK/blob/main/docs/ru/ARCHITECTURE.md) · [Generated Method/permission registry](https://github.com/DeeTech-Labs/Flint-IgniteSDK/blob/main/docs/ru/REGISTRY.md).
+
 [English translation](../../en/architecture/companion-protocol.md)
 
 # Протокол Companion v1

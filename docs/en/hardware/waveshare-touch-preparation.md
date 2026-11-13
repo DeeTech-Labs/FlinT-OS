@@ -1,40 +1,67 @@
-[Русская версия](../../ru/hardware/waveshare-touch-preparation.md)
+[Русский оригинал](../../ru/hardware/waveshare-touch-preparation.md)
 
-# Waveshare ESP32-S3-Touch-LCD-1.69 preparation
+# Future FlinT Spark using Waveshare ESP32-S3-Touch-LCD-1.69
 
-This is an inactive preparation, not a supported flashing profile. The device has
-not arrived; electrical operation, touch orientation and power consumption have
-not been verified. The selected `flint_spark_s3_supermini` configuration is unchanged.
+The full hardware draft is in
+[device.future.toml](../../../config/devices/flint_spark/device.future.toml).
+The selector ignores it and the active Spark remains unchanged. The board has not
+arrived: compilation and host tests do not validate electrical operation or power.
 
-According to [Waveshare documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.69),
-the touch controller is CST816T, with I2C address `0x15`, SDA GPIO11, SCL GPIO10,
-reset GPIO13 and interrupt GPIO14; the display resolution is 240×280.
-Do not confuse this board with the separate 1.69inch Touch LCD module using CST816S.
-Documentation contains different board revisions: check the received board markings
-and its schematic before connecting hardware.
+Inventory and the main pin assignment come from the [Waveshare guide](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.69)
+and [official examples](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.69).
 
-`src/board/models/waveshare/esp32_s3_touch_lcd_169/touch.h` contains
-these parameters and a **raw portrait identity transform**. It is not included by
-the active board and does not establish an orientation for the OS landscape canvas.
-A complete profile requires ST7789V2, Flash/PSRAM, power, GPIO, backlight polarity
-and canvas geometry configuration; those settings have not been added.
+| Peripheral | OS implementation | Future configuration |
+|---|---|---|
+| ST7789V2, 240×280 | `flint::modules::St7789` | MOSI7, SCLK6, CS5, DC4, RST8 |
+| CST816T | `flint::modules::Cst816` | I2C 0x15, RST13, INT14 |
+| QMI8658C | `flint::modules::Qmi8658` | I2C 0x6b, INT38 |
+| PCF85063A | `flint::modules::Pcf85063` | I2C 0x51, INT39 |
+| Battery voltage | `flint::modules::BatteryAdc` | ADC1/GPIO1, 200k/100k divider, ×3 |
+| Backlight | `flint::modules::PwmBacklight` | GPIO15, LEDC timer1/channel1 |
+| Buzzer | `flint::modules::PwmBuzzer` | GPIO42, LEDC timer0/channel0 |
+| Power/buttons | `flint::modules::PowerButton` | SYS_EN41, PWR40, BOOT0 |
 
-`input/cst816.cpp` independently implements a five-byte read starting at register
-`0x02` (contact count and 12-bit X/Y), checks event bits and accepts single-contact
-reports. Register `0xFA=0x60` enables periodic contact and state-change interrupts.
-Register information comes from the [manufacturer example](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.69/tree/main/examples/arduino/libraries/Arduino_DriveBus/src/touch_chip)
-and its [bundled SensorLib](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.69/blob/main/examples/arduino/libraries/SensorLib/src/touch/TouchDrvCST816.cpp).
-These libraries are not included in the firmware.
+Touch/IMU/RTC share SDA11/SCL10 and one ESP-IDF bus. Drivers own only their device
+handles; the common bus lasts until firmware restart. External pull-ups are
+required and provided in the board schematic. Duplicate I2C addresses or other
+functions assigned to these GPIO are rejected.
 
-The driver uses the ESP-IDF I2C master API with a 5 ms transaction timeout,
-creates no task and preserves controller auto sleep. The IRQ only wakes the owner;
-the Core task reads and processes reports. A shared I2C bus may be passed to `begin`:
-the driver removes its own device but does not delete the borrowed bus. External
-pull-ups are required for a driver-owned bus. The process-wide GPIO ISR service
-survives `stop`; only this driver's pin handler is removed. If the existing ISR
-service uses IRAM, the callback and its data must also remain accessible while
-the flash cache is disabled.
+## Revisions and autonomous circuits
 
-After delivery, verify the four corners, holding, movement, release, cancellation
-across application switches, I2C error recovery and idle power. This preparation
-must not be treated as hardware-validated before those checks.
+The [V2.1 schematic](https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.69/ESP32-S3-Touch-LCD-1.69_V2.1.pdf)
+differs from the main guide: buzzer=39, RTC_INT=41, SYS_EN=42. The Arduino example
+also contains an older PWR36/SYS_EN35/buzzer33 mapping. Verify markings and the
+received revision's schematic before activation. The draft explicitly uses the
+main guide's mapping and does not auto-detect a revision.
+
+ETA6098 charging and the ME6217 3.3V regulator operate autonomously; the schematic
+provides no I2C control interface. There is no invented charger driver, charge
+percentage or charging-state telemetry. RST connects to CHIP_PU, not a GPIO.
+16 MB Flash and 8 MB octal PSRAM require separate sdkconfig verification; TOML
+does not change the active Spark's 4 MB partition layout or Quad PSRAM setup.
+
+## Module usage
+
+Every `src/modules/<id>/<id>.h` documents purpose, units, lifecycle, constraints
+and an example. Drivers use `flint::modules`; common I2C/PWM and Bosch compensation
+use `flint::hardware`. A section in the single device.toml selects a module;
+unselected driver sources and IDF requirements are excluded.
+
+Integration, units and limitations are documented in the [hardware data service](sensor-service.md). Old global deviceMotion/Environment/Light polling APIs are replaced by the Core Broker and bounded hardware worker.
+
+## External BMP280, BME280 and VEML7700
+
+These sensors are not onboard. Commented sections at the end of the future TOML
+are examples to enable only after checking wiring, power and pull-ups. BMP280/BME280
+use 0x76/0x77; VEML7700 uses 0x10. BMP280 and BME280 need different addresses if both
+are connected.
+
+Shared calibration and compensation follow the [Bosch BMP280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf)
+and [BME280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
+The worker performs forced conversions on Broker demand; intervals, shutdown and diagnostics are documented in the [hardware data service](sensor-service.md). There is no permanent polling, altitude or sea-level correction.
+
+## Physical validation
+
+Verify revision GPIO, Flash/PSRAM, panel colors/orientation, all four touch corners,
+RTC and battery-voltage accuracy, IMU axis signs, PWM, buttons and power release.
+Measure idle power and test I2C/ADC failures separately.

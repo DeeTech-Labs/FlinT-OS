@@ -7,6 +7,20 @@
 - Ensure both `/build/` and `/temp/` are listed in that project's `.gitignore` before creating artifacts.
 - Do not use the repository root, sibling projects, external directories, or system temporary directories for these artifacts. Each checkout, including an SDK submodule built independently, must use its own directories.
 
+## Changelog Policy
+
+- Maintain a root `CHANGELOG.md` following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Create it when the project first needs a notable-change entry; do not invent historical releases.
+- Update the changelog in the same change as every notable user- or developer-facing change: features, fixes, security changes, public APIs, contracts, configuration, dependencies, build requirements, and compatibility changes.
+- Add unreleased entries under `## [Unreleased]` at the top. Group them under `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, or `### Security`; omit empty categories.
+- Write concise, human-readable entries describing the actual effect and affected audience. Preserve the existing changelog language; use English for a new changelog. Do not copy commit logs, record routine internal work without a notable effect, or describe planned functionality as implemented.
+- Explicitly identify breaking changes, affected interfaces or formats, and required migration steps; link to detailed migration documentation when needed.
+- Keep releases in reverse chronological order with headings `## [X.Y.Z] - YYYY-MM-DD`, using the actual release date. Follow the project's versioning policy and [Semantic Versioning](https://semver.org/spec/v2.0.0.html) where applicable; do not bump versions or declare releases without authorization.
+- At an authorized release, move the relevant Unreleased entries into the new version section, keep an Unreleased section for subsequent work, and maintain valid release/tag and comparison links where the repository provides them.
+- Preserve published release history. Correct factual errors transparently; do not silently rewrite it to match later behavior. Mark withdrawn releases as `[YANKED]` rather than deleting them.
+- Record shared SDK changes in the SDK's own changelog. Consumer changelogs describe their integration and observable consequences; do not edit vendored/submodule changelogs or advance submodule revisions merely to duplicate entries.
+- Before completing a task, check whether a changelog entry is required and verify that entries match the implemented diff. For sensitive security fixes, follow `SECURITY.md` where present and coordinated disclosure requirements; do not publish secrets or premature exploit details.
+
+
 ## 1. Role and Mission
 
 Act as a Senior Embedded Software Engineer, C++ Architect, and Security Reviewer working on the FlinT ecosystem.
@@ -45,7 +59,7 @@ Do not introduce ESP32-C3 compatibility or legacy platform support unless explic
 
 - `main/` — ESP-IDF application entry point.
 - `src/` — firmware-specific components, hardware adapters, transport, and recovery.
-- `src/board/models/` — hardware models and board revisions.
+- `src/modules/` — reusable hardware drivers and OS integration; selected by model configuration in `config/devices/`.
 - `src/display/` — ST7789 driver and display/recovery integration.
 - `platform/` — pinned IgniteSDK Git submodule.
 - `config/` — firmware defaults, board parameters/registry, version and partition definitions.
@@ -212,7 +226,7 @@ Do not assume that an application package feature exists without verifying its i
 
 Preserve correct initialization, execution, suspension where supported, termination, and cleanup behavior.
 
-Do not invent background execution capabilities. Background services are not currently supported.
+Background execution uses explicit service components scheduled by the shared Core, subject to model admission and persistent grants. UI runtimes do not remain active in the background. Hardware workers must never execute Lua. See [background services](docs/ru/hardware/sensor-service.md).
 
 ### Permissions
 
@@ -295,7 +309,7 @@ Hardware support must be isolated behind the existing board abstraction.
 
 Current primary board profile:
 
-`flint_spark_s3_supermini`
+`flint_spark`
 
 Do not introduce device-specific logic into shared IgniteSDK APIs unless the contract explicitly requires it.
 
@@ -362,7 +376,7 @@ idf.py -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
 
 Use `idf.py set-target esp32s3` only when intentionally changing the configured target: it resets configuration/build state. Do not run it as routine validation of an existing S3 checkout.
 
-Python 3 and Pillow are needed for resource generation. A clean firmware configure may need network access for managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
+Python 3.11+ and Pillow are needed for resource generation. A clean firmware configure may need network access for managed ESP-IDF dependencies; report unavailable dependencies instead of claiming a firmware build passed.
 
 ### IgniteSDK Host Tests
 
@@ -462,7 +476,7 @@ Russian is the canonical language for repository documentation.
 - Document API changes and breaking changes.
 - Document hardware limitations.
 - Document configuration and migration requirements.
-- Update `CHANGELOG.md` for significant user-visible changes when appropriate.
+- Follow the Changelog Policy above for all notable user- and developer-facing changes.
 - Preserve existing Markdown links.
 - Avoid documenting unimplemented features as available.
 

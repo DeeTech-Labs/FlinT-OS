@@ -1,0 +1,78 @@
+# Будущий Spark на Waveshare ESP32-S3-Touch-LCD-1.69. Физически НЕ проверен.
+# Источники: docs.waveshare.com/ESP32-S3-Touch-LCD-1.69 и официальный пример
+# waveshareteam/ESP32-S3-Touch-LCD-1.69. Это основная распиновка из текущего руководства.
+# ВНИМАНИЕ: схема V2.1 отличается: buzzer=39, RTC_INT=41, SYS_EN=42.
+# До активации сверить маркировку и схему полученной ревизии!
+# Заявлены 16 MB Flash / 8 MB octal PSRAM. Этот файл НЕ меняет sdkconfig
+# и разделы Flash: настройки памяти нужно согласовать отдельно перед прошивкой.
+name = "FlinT Spark / Waveshare ESP32-S3-Touch-LCD-1.69 (future)"
+
+[modules.st7789]
+rotation = 3
+frequency = 24000000
+pins = { mosi = 7, sclk = 6, cs = 5, dc = 4, reset = 8 }
+
+[modules.st7789.panel]
+width = 240
+height = 280
+gram_width = 240
+gram_height = 320
+offset_x = 0
+offset_y = 20
+madctl = 0xb0
+invert = true
+three_wire = false
+# Минимальная последовательность производителя; orientation/window/RGB565
+# выставляются драйвером, DISPON — только после заполнения GRAM.
+init = [
+    { command = 0x01, data = [], delay_ms = 150 },
+    { command = 0x11, data = [], delay_ms = 255 },
+    { command = 0x13, data = [], delay_ms = 10 },
+]
+
+[modules.cst816]
+pins = { sda = 11, scl = 10, reset = 13, interrupt = 14 }
+raw_size = [240, 280]
+# Кандидат для landscape OS, окончательные swap/mirror проверить по четырём углам.
+swap_xy = true
+address = 0x15
+frequency = 400000
+
+[modules.qmi8658]
+pins = { sda = 11, scl = 10, interrupt = 38 }
+address = 0x6b
+
+[modules.pcf85063]
+pins = { sda = 11, scl = 10, interrupt = 39 }
+address = 0x51
+
+[modules.battery_adc]
+pins = { adc = 1 }
+# R3=200k, R7=100k: VBAT = VADC * 3. Это напряжение, не процент заряда.
+divider = [3, 1]
+
+[modules.pwm_backlight]
+pins = { output = 15 }
+
+[modules.pwm_buzzer]
+pins = { output = 42 }
+
+[modules.power_button]
+pins = { hold = 41, button = 40, boot = 0 }
+# RST подключён к CHIP_PU и не является программным GPIO-входом.
+# ETA6098 и ME6217 — автономные цепи питания: I2C-драйвера/телеметрии заряда нет.
+
+# Необязательные ВНЕШНИЕ датчики. На Waveshare их нет; включать только после подключения.
+# Примеры на общей шине GPIO11/10; 3V3/GND и pull-ups проверяются по breakout.
+# [modules.bme280]
+# pins = { sda = 11, scl = 10 }
+# address = 0x76
+#
+# BMP280 не измеряет влажность. Если подключены оба датчика, адреса должны отличаться.
+# [modules.bmp280]
+# pins = { sda = 11, scl = 10 }
+# address = 0x77
+#
+# [modules.veml7700]
+# pins = { sda = 11, scl = 10 }
+# address = 0x10

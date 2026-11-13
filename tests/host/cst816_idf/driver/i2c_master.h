@@ -3,7 +3,7 @@
 #include <cstdint>
 using esp_err_t = int;
 inline constexpr int ESP_OK = 0, ESP_ERR_INVALID_STATE = 1, ESP_ERR_INVALID_ARG = 2,
-                     ESP_ERR_NOT_SUPPORTED = 3, ESP_ERR_INVALID_RESPONSE = 4, ESP_ERR_TIMEOUT = 5;
+                     ESP_ERR_NOT_SUPPORTED = 3, ESP_ERR_INVALID_RESPONSE = 4, ESP_ERR_TIMEOUT = 5, ESP_ERR_NOT_FOUND = 6;
 using i2c_master_bus_handle_t = void *;
 using i2c_master_dev_handle_t = void *;
 using i2c_port_num_t = int;

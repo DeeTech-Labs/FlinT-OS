@@ -1,4 +1,6 @@
 #include "ble/ble_link.h"
+#include "board/device_background.h"
+#include "board/device_config.h"
 #include "core/bridge.h"
 #include "display/display.h"
 #include "esp_app_desc.h"
@@ -9,6 +11,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "hardware/peripherals.h"
 #include "input/touch.h"
 #include "sdkconfig.h"
 #include "usb/usb_link.h"
@@ -121,6 +124,7 @@ flint::Error corePostInput(flint::InputEvent event) {
 void appSetup(bool trustReady) {
     expectBleInitialization = trustReady && BleSupported;
     coreTask = xTaskGetCurrentTaskHandle();
+    deviceHardwareBegin();
     displayBegin();
     bool factory = mount("factory", "/factory", true);
     bool storage = mount("storage", "/storage");
@@ -168,6 +172,29 @@ void appSetup(bool trustReady) {
         return flint::MemoryBudget{std::min<uint32_t>(internal, 48 * 1024),
             budget(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, CONFIG_FLINT_PSRAM_MEMORY_RESERVE), 4096};
     };
+    platform.background = flint::board::Background;
+#if FLINT_HAS_BACKGROUND
+    platform.background_available_memory = [] {
+        const auto caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+        const auto free = heap_caps_get_free_size(caps);
+        const auto largest = heap_caps_get_largest_free_block(caps);
+        const size_t bleStartupReserve = !bootSnapshotReady && expectBleInitialization ? 32768 : 0;
+        const size_t reserve = CONFIG_FLINT_INTERNAL_MEMORY_RESERVE +
+            flint::board::Background.foregroundReserveBytes + bleStartupReserve;
+        const auto available = std::min(free > reserve ? free - reserve : 0, largest);
+        return flint::MemoryBudget{
+            uint32_t(std::min<size_t>(available, flint::board::Background.memoryBytes)), 0,
+            flint::board::Background.instructionsPerWindow};
+    };
+#if FLINT_HAS_BATTERY
+    platform.background_low_energy = [] {
+        flint::AppReply reply;
+        // Cache only: failed/stale/unknown voltage does not invent a low-battery state.
+        return devicePowerStatus("voltage_mv", reply) == flint::Error::ok && reply.numeric &&
+            reply.number > 0 && reply.number < flint::board::BackgroundLowVoltageMv;
+    };
+#endif
+#endif
     platform.diagnostics = [] {
         flint::Values values;
         values["internal_reserve_bytes"] = std::to_string(CONFIG_FLINT_INTERNAL_MEMORY_RESERVE);
@@ -205,14 +232,38 @@ void appSetup(bool trustReady) {
         values["boot_psram_free_bytes"] = std::to_string(counters.psramFree);
         values["boot_psram_largest_bytes"] = std::to_string(counters.psramLargest);
         displayDiagnostics(values);
+        deviceHardwareDiagnostics(values);
         bleLinkDiagnostics(values);
         values["touch_ready"] = touchReady() ? "1" : "0";
         return values;
     };
-    // The selected Spark profile has no battery sensor. Never synthesize telemetry.
-    platform.power = [](std::string_view, flint::AppReply &) {
-        return flint::Error::not_supported;
+    platform.power = devicePowerStatus;
+    platform.sensors = deviceSensorBackend();
+#if FLINT_HAS_RTC
+    platform.rtc_read = deviceRtcReadEpoch;
+    platform.rtc_set = deviceRtcRequest;
+    platform.rtc_result = deviceRtcResult;
+#endif
+#if FLINT_HAS_BUZZER
+    platform.beep = [](unsigned frequency, unsigned duration) {
+        const auto error = deviceTone(frequency, duration);
+        return error == ESP_OK             ? flint::Error::ok
+            : error == ESP_ERR_INVALID_ARG ? flint::Error::invalid_argument
+                                           : flint::Error::source_unavailable;
     };
+    platform.mute_apply = [](bool muted) {
+        const auto error = deviceSetMuted(muted);
+        return error == ESP_OK ? flint::Error::ok : flint::Error::source_unavailable;
+    };
+#endif
+#if FLINT_HAS_BACKLIGHT
+    platform.brightness_apply = [](unsigned percent) {
+        const auto error = deviceBacklight(percent);
+        return error == ESP_OK             ? flint::Error::ok
+            : error == ESP_ERR_INVALID_ARG ? flint::Error::invalid_argument
+                                           : flint::Error::source_unavailable;
+    };
+#endif
     platform.monotonic = [] { return uint64_t(esp_timer_get_time() / 1000); };
     platform.microseconds = [] { return uint64_t(esp_timer_get_time()); };
     platform.free_storage = [] {
@@ -250,8 +301,8 @@ uint64_t coreCompanionNextWake(const flint::Session &session) {
 }
 void appLoop() {
     const auto at = core->platform().monotonic();
-    const auto deadline =
-        std::min({core->nextWake(), bleLinkNextWake(), usbLinkNextWake(), touchNextWake()});
+    const auto deadline = std::min({core->nextWake(), bleLinkNextWake(), usbLinkNextWake(),
+        touchNextWake(), deviceHardwareNextWake()});
     TickType_t waitTicks = portMAX_DELAY;
     if (deadline != UINT64_MAX) {
         const auto delay = deadline <= at ? 0 : deadline - at;
@@ -276,6 +327,9 @@ void appLoop() {
     if (reason & CoreWakeTouch)
         touchInterrupt();
     touchMaintain();
+    if (reason & CoreWakeButtons)
+        deviceButtonsInterrupt();
+    deviceHardwareMaintain();
     captureMemoryBaseline();
     const auto tickStart = esp_timer_get_time();
     const bool dirty = core->tick();

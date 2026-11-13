@@ -2,7 +2,7 @@
 
 # FlinT Spark S3 Super Mini
 
-Поддерживается только профиль `flint_spark_s3_supermini`, цель `esp32s3`. Профиль C3 удалён; выбор его ID завершается ошибкой.
+Поддерживается только профиль `flint_spark`, цель `esp32s3`. Профиль C3 удалён; выбор его ID завершается ошибкой.
 
 ## Подключение дисплея
 
@@ -16,7 +16,7 @@ ST7789 240×280, альбомный UI 280×240: SCLK — GPIO12, MOSI/SDA — G
 
 ```sh
 python3 tools/select_device.py --list
-python3 tools/select_device.py --device flint_spark_s3_supermini --build
+python3 tools/select_device.py --device flint_spark --build
 ```
 
-Реализация платы — `src/board/models/flint_spark/s3_supermini/`; параметры — `config/devices/flint_spark/s3_supermini/`. Селектор создаёт `device_config.h`, `device_display.h`, `device.cmake` в `<build-dir>/generated/board/`; сгенерированные файлы игнорируются Git. [Общая архитектура](../../../platform/README.md), [карта разделов](../development/configuration.md).
+Реализация модуля дисплея — `src/modules/st7789/`; параметры — `config/devices/flint_spark/`. Селектор создаёт `device_config.h`, `device_display.h`, `device.cmake` в `<build-dir>/generated/board/`; сгенерированные файлы игнорируются Git. [Общая архитектура](../../../platform/README.md), [карта разделов](../development/configuration.md).

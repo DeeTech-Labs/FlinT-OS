@@ -18,7 +18,7 @@ Preserve the QML design system while moving application behavior to the new devi
 
 ## Executable applications
 
-Lua is the only application language. Its bounded runtime is enabled for the validated Spark profile; repeat resource, latency and failure-recovery measurements for other boards or new native APIs. Background services remain unsupported.
+Lua is the only application language. Its bounded runtime is enabled for the validated Spark profile; repeat resource, latency and failure-recovery measurements for other boards or new native APIs. Bounded cooperative services are implemented; physical acceptance/final model counts remain open.
 
 ## Hardware validation
 

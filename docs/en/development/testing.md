@@ -2,7 +2,7 @@
 
 # Change validation
 
-Normal builds use pinned platform/845590f with contract0x20261114/FLM3; sibling overrides are explicit. [Integration status](sdk-integration.md).
+Normal builds use pinned platform/6e7a853 with contract0x20261114/FLM3; sibling overrides are explicit. [Integration status](sdk-integration.md).
 
 
 Run from the repository root in a configured C++/Python environment. OS host tests and the pinned SDK use separate build directories.

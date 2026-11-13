@@ -226,7 +226,7 @@ Do not assume that an application package feature exists without verifying its i
 
 Preserve correct initialization, execution, suspension where supported, termination, and cleanup behavior.
 
-Do not invent background execution capabilities. Background services are not currently supported.
+Background execution uses explicit service components scheduled by the shared Core, subject to model admission and persistent grants. UI runtimes do not remain active in the background. Hardware workers must never execute Lua. See [background services](docs/ru/hardware/sensor-service.md).
 
 ### Permissions
 

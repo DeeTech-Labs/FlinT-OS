@@ -49,7 +49,7 @@ raw CST816 transactions выполняет отдельный драйвер.
 
 ## Сборка и перенос
 
-Нужны ESP-IDF6.1, ESP32-S3 и IgniteSDK ContractRevision0x20261114. SDK закреплён commit `845590f` в `platform/`; configure отклоняет несовместимый SDK.
+Нужны ESP-IDF6.1, ESP32-S3 и IgniteSDK ContractRevision0x20261114. SDK закреплён commit `6e7a853` в `platform/`; configure отклоняет несовместимый SDK.
 Пакеты необходимо пересобрать под несовместимую revision. Partition layout не меняется,
 storage не форматируется: `/storage/packages/settings.bin` и `grants.bin` сохраняются.
 Старые grants не дают новые sensor permissions автоматически: запросы проверяет Core.
@@ -68,7 +68,7 @@ power loss при settings/grants/RTC writes и безопасное выклю�
 
 ## SDK revision
 
-SDK датчиков закреплён локальным commit `845590f` в `platform/`. Обычная сборка использует этот submodule; внешний `FLINT_PLATFORM_DIR` нужен только при намеренной разработке нового SDK.
+SDK датчиков закреплён commit `6e7a853` в `platform/`. Обычная сборка использует этот submodule; внешний `FLINT_PLATFORM_DIR` нужен только при намеренной разработке нового SDK.
 
 
 ## Фоновые service VM: модельная политика
@@ -116,7 +116,7 @@ wall/CPU under BLE/UI load и ток при running/paused/no-services. Пров
 ## Статический размер проверенной сборки
 
 13.11.2026 выполнена сборка активного flint_spark (только ST7789, background policy2)
-с ESP-IDF6.1.0, ESP32-S3 и закреплённым IgniteSDK 845590f / ContractRevision0x20261114 через
+с ESP-IDF6.1.0, ESP32-S3 и закреплённым IgniteSDK 6e7a853 / ContractRevision0x20261114 через
 штатный submodule platform. Factory image включает Services. Результат `idf.py build size`:
 
 | Показатель | Байты |

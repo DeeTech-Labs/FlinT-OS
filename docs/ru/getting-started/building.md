@@ -11,7 +11,7 @@ script для своей ОС, затем активируйте `export.ps1` (P
 Это инструкция для текущего исходного дерева; сборка других IDF/ОС требует проверки.
 
 Команды выполняются из корня OS. Сначала проверьте `git status` и `git submodule status`.
-Штатный SDK pin — `845590f`, contract `0x20261114`/FLM3. Инициализация:
+Штатный SDK pin — `6e7a853`, contract `0x20261114`/FLM3. Инициализация:
 
 ```sh
 git submodule update --init --recursive

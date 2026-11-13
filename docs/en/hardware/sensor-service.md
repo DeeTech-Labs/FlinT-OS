@@ -67,7 +67,7 @@ PWM deadline stop runs on the Core event loop: physical overrun under task conte
 
 ## SDK revision
 
-The sensor SDK is pinned to commit `56292d7` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
+The sensor SDK is pinned to commit `8d53e1b` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
 
 
 ## Background service VM model policy

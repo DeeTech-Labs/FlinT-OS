@@ -55,7 +55,7 @@ Core services provide hardware, time, storage, security and recovery. **Apps are
 
 [Audience index](INDEX.md) · [Device use/recovery](getting-started/device-use.md) · [Build prerequisites and safe flashing](getting-started/building.md).
 
-The SDK is pinned to 56292d7 / contract0x20261115 / FLM3; normal builds use platform/. The sibling checkout is not selected automatically. [Integration status](development/sdk-integration.md).
+The SDK is pinned to 8d53e1b / contract0x20261115 / FLM3; normal builds use platform/. The sibling checkout is not selected automatically. [Integration status](development/sdk-integration.md).
 
 
 **Board:** FlinT Spark (ESP32‑S3, USB Serial/JTAG) · **ESP‑IDF** 6.1.0

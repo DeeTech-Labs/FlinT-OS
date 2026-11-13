@@ -5,7 +5,7 @@
 Git, ESP-IDF6.1.0 (upstream tag v6.1), Python3.11+, Pillow in IDF managed Python are needed.
 Install IDF using its platform installer/install script, activate export.ps1/export.sh and
 check `idf.py --version`. Commands below start in OS root with matching esp32s3 toolchain.
-Inspect git/submodule status first; normal SDK pin56292d7 requires contract0x20261115/FLM3.
+Inspect git/submodule status first; normal SDK pin8d53e1b requires contract0x20261115/FLM3.
 
 ```sh
 git submodule update --init --recursive

@@ -9,10 +9,11 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 ## [Unreleased]
 
 ### Changed
+- Pin the SDK fix that refreshes dispatch time after autostart loading, preventing an immediate invalid_state fault on advancing real clocks; stopped instances report zero current memory.
 - Keep local device-run results outside published documentation; retain reusable verification instructions and remove stale report links.
 - Integrate optional SDK text boxes and explicit system/example layouts with development contract `0x20261115`; rebuild matching firmware, desktop tools and packages together. Unbounded text remains available to application authors.
 - Refresh RU/EN onboarding, build/test/contributor routes, user recovery and extension guides against the implemented shared SDK contract.
-- Integrate SDK `56292d7` / breaking contract `0x20261115` and FLM3 component manifests; rebuild firmware and factory packages together. Installed incompatible package data and grants are retained.
+- Integrate SDK `8d53e1b` / breaking contract `0x20261115` and FLM3 component manifests; rebuild firmware and factory packages together. Installed incompatible package data and grants are retained.
 - Move shared I2C/ADC and touch/RTC access to one demand-driven hardware worker with bounded mailboxes, recovery generations and prioritized touch; remove the former Core-task sensor polling and direct measurement helpers.
 - Integrate the SDK sensor/RTC/output contract and reject incompatible SDK configurations early. See [sensor integration and hardware acceptance](docs/en/hardware/sensor-service.md).
 - Keep Spark configuration directly under `config/devices/flint_spark/` with model ID `flint_spark`; retain the future Waveshare-based hardware as an inactive `device.future.toml` alongside the active configuration.

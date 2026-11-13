@@ -2,7 +2,7 @@
 
 # Интеграция SDK и touch/UI
 
-OS использует SDK `ContractRevision=0x20261115`, закреплённый commit `56292d7` в `platform/`. Обычная сборка использует submodule. Для намеренной разработки SDK допускается явный `FLINT_PLATFORM_DIR`. См. [сервис датчиков](../hardware/sensor-service.md).
+OS использует SDK `ContractRevision=0x20261115`, закреплённый commit `8d53e1b` в `platform/`. Обычная сборка использует submodule. Для намеренной разработки SDK допускается явный `FLINT_PLATFORM_DIR`. См. [сервис датчиков](../hardware/sensor-service.md).
 
 ```sh
 idf.py -B build/sdk-integration -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build

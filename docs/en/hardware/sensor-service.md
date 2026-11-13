@@ -67,7 +67,7 @@ PWM deadline stop runs on the Core event loop: physical overrun under task conte
 
 ## SDK revision
 
-The sensor SDK is pinned to local commit `18d22f4` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
+The sensor SDK is pinned to local commit `845590f` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
 
 
 ## Background service VM model policy
@@ -113,7 +113,7 @@ pending; max_services=2 remains provisional.
 ## Static size of the validated build
 
 On2026-11-13 the active flint_spark profile (ST7789 only, background policy2) was built
-with ESP-IDF6.1.0, ESP32-S3 and pinned IgniteSDK 18d22f4 / ContractRevision0x20261114 through
+with ESP-IDF6.1.0, ESP32-S3 and pinned IgniteSDK 845590f / ContractRevision0x20261114 through
 the regular platform submodule. The factory image includes Services. `idf.py build size`:
 
 | Metric | Bytes |

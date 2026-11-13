@@ -2,7 +2,7 @@
 
 # SDK and touch/UI integration
 
-OS uses SDK `ContractRevision=0x20261114`, pinned to local commit `18d22f4` in `platform/`. Normal builds use the submodule; FLINT_PLATFORM_DIR is available for deliberate SDK development. See [sensor service](../hardware/sensor-service.md).
+OS uses SDK `ContractRevision=0x20261114`, pinned to local commit `845590f` in `platform/`. Normal builds use the submodule; FLINT_PLATFORM_DIR is available for deliberate SDK development. See [sensor service](../hardware/sensor-service.md).
 
 ```sh
 idf.py -B build/sdk-integration -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build

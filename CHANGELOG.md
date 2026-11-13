@@ -9,7 +9,7 @@ for firmware (`FLINT_OS_VERSION_*` / git tags).
 ## [Unreleased]
 
 ### Changed
-- Integrate SDK `18d22f4` / breaking contract `0x20261114` and FLM3 component manifests; rebuild firmware and factory packages together. Installed incompatible package data and grants are retained.
+- Integrate SDK `845590f` / breaking contract `0x20261114` and FLM3 component manifests; rebuild firmware and factory packages together. Installed incompatible package data and grants are retained.
 - Move shared I2C/ADC and touch/RTC access to one demand-driven hardware worker with bounded mailboxes, recovery generations and prioritized touch; remove the former Core-task sensor polling and direct measurement helpers.
 - Integrate the SDK sensor/RTC/output contract and reject incompatible SDK configurations early. See [sensor integration and hardware acceptance](docs/en/hardware/sensor-service.md).
 - Keep Spark configuration directly under `config/devices/flint_spark/` with model ID `flint_spark`; retain the future Waveshare-based hardware as an inactive `device.future.toml` alongside the active configuration.

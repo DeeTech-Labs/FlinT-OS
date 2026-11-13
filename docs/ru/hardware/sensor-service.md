@@ -49,7 +49,7 @@ raw CST816 transactions выполняет отдельный драйвер.
 
 ## Сборка и перенос
 
-Нужны ESP-IDF6.1, ESP32-S3 и IgniteSDK ContractRevision0x20261114. SDK закреплён commit `6e7a853` в `platform/`; configure отклоняет несовместимый SDK.
+Нужны ESP-IDF6.1, ESP32-S3 и IgniteSDK ContractRevision0x20261115. SDK закреплён commit `56292d7` в `platform/`; configure отклоняет несовместимый SDK.
 Пакеты необходимо пересобрать под несовместимую revision. Partition layout не меняется,
 storage не форматируется: `/storage/packages/settings.bin` и `grants.bin` сохраняются.
 Старые grants не дают новые sensor permissions автоматически: запросы проверяет Core.
@@ -68,7 +68,7 @@ power loss при settings/grants/RTC writes и безопасное выклю�
 
 ## SDK revision
 
-SDK датчиков закреплён commit `6e7a853` в `platform/`. Обычная сборка использует этот submodule; внешний `FLINT_PLATFORM_DIR` нужен только при намеренной разработке нового SDK.
+SDK датчиков закреплён commit `56292d7` в `platform/`. Обычная сборка использует этот submodule; внешний `FLINT_PLATFORM_DIR` нужен только при намеренной разработке нового SDK.
 
 
 ## Фоновые service VM: модельная политика
@@ -109,29 +109,12 @@ CapBackground, поэтому не появляется на неподдерж�
 Локальные проверки config bounds и sandbox UI с mock service rows не заменяют проверку
 живых VM на ESP32-S3. Измерить2VM admission, peak/fragmentation heap, Core wakeups,
 wall/CPU under BLE/UI load и ток при running/paused/no-services. Проверить энергопорог
-с реальной battery calibration и power-cycle/autostart/grant revocation. Эти аппаратные
-измерения пока не выполнены; значение max_services=2 остаётся предварительным.
+с реальной battery calibration и power-cycle/autostart/grant revocation. До проверки полной матрицы нагрузок значение max_services=2 остаётся предварительным.
 
+## Измерение размеров и ресурсов
 
-## Статический размер проверенной сборки
-
-13.11.2026 выполнена сборка активного flint_spark (только ST7789, background policy2)
-с ESP-IDF6.1.0, ESP32-S3 и закреплённым IgniteSDK 6e7a853 / ContractRevision0x20261114 через
-штатный submodule platform. Factory image включает Services. Результат `idf.py build size`:
-
-| Показатель | Байты |
-| --- | ---: |
-| flint_os.bin с padding | 803760 |
-| image sections total из linker map | 803650 |
-| Flash Code | 523884 |
-| Flash Data | 171636 |
-| Статический DIRAM | 105142 |
-| Остаток app partition1MiB | 244816 |
-
-Статический DIRAM остался105142B относительно проверенной сборки до background integration:
-.text72811B, .data18899B, .bss13432B. Это результат linker map/esp_idf_size, **не измерение
-runtime heap** и не доказательство, что две service VM помещаются в RAM. BackgroundState,
-Broker внутри Core, Lua VM, queues и dynamic caches выделяются при исполнении; для них
-необходимы реальные free/largest-block/peak measurements под нагрузкой. Значения относятся
-к указанной сборке, не являются обещанием для другого toolchain/config/SDK revision.
-Логи локальной проверки: temp/background-idf-final.log и temp/background-idf-size.json.
+Используйте `idf.py -B build/<ваша-конфигурация> size` и linker map своей сборки.
+Статический DIRAM не включает Lua VM, очереди, caches и другие runtime allocations.
+Проверяйте free/largest-block/peak heap и task watermarks под нагрузкой; не уменьшайте
+стеки и резервы по одному idle-снимку. Локальные логи и результаты храните в `temp/`
+и отчёте задачи, вне документации validation.

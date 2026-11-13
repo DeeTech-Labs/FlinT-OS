@@ -47,7 +47,7 @@ CST816 raw transfers use a separate driver.
 
 ## Build and migration
 
-ESP-IDF6.1, ESP32-S3 and IgniteSDK ContractRevision0x20261114 are required. Until the SDK
+ESP-IDF6.1, ESP32-S3 and IgniteSDK ContractRevision0x20261115 are required. Until the SDK
 is committed/pinned, configure -DFLINT_PLATFORM_DIR=../Flint-IgniteSDK; configure rejects
 older SDKs. Rebuild packages for the incompatible revision. Partition layout and storage
 formatting are unchanged; /storage/packages/settings.bin and grants.bin remain in place.
@@ -67,7 +67,7 @@ PWM deadline stop runs on the Core event loop: physical overrun under task conte
 
 ## SDK revision
 
-The sensor SDK is pinned to commit `6e7a853` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
+The sensor SDK is pinned to commit `56292d7` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
 
 
 ## Background service VM model policy
@@ -106,29 +106,12 @@ from a package ID. The app requires CapBackground and is excluded on unsupported
 Configuration tests and sandbox UI tests with mocked rows do not establish physical VM
 behavior. Measure two-VM admission, peak/fragmented heap, Core wakeups, wall/CPU under BLE/UI
 load and current for running/paused/no-services. Validate voltage thresholds with calibrated
-battery input and power-cycle/autostart/grant revocation. These hardware measurements are
-pending; max_services=2 remains provisional.
+battery input and power-cycle/autostart/grant revocation. Until the complete workload matrix is validated, max_services=2 remains provisional.
 
+## Measuring footprint and resources
 
-## Static size of the validated build
-
-On2026-11-13 the active flint_spark profile (ST7789 only, background policy2) was built
-with ESP-IDF6.1.0, ESP32-S3 and pinned IgniteSDK 6e7a853 / ContractRevision0x20261114 through
-the regular platform submodule. The factory image includes Services. `idf.py build size`:
-
-| Metric | Bytes |
-| --- | ---: |
-| Padded flint_os.bin | 803760 |
-| Total image sections from linker map | 803650 |
-| Flash Code | 523884 |
-| Flash Data | 171636 |
-| Static DIRAM | 105142 |
-| Remaining1MiB app partition | 244816 |
-
-Static DIRAM remains105142B compared with the validated pre-background build:
-.text72811B, .data18899B, .bss13432B. This is linker-map/esp_idf_size evidence, **not runtime
-heap measurement** or proof that two service VMs fit in RAM. BackgroundState, the Core-owned
-Broker, Lua VMs, queues and dynamic caches allocate at runtime and require real free-heap,
-largest-block and peak measurements under load. These numbers describe this build, not
-another toolchain/configuration/SDK revision. Local logs: temp/background-idf-final.log
-and temp/background-idf-size.json.
+Use `idf.py -B build/<your-configuration> size` and the linker map from your own build.
+Static DIRAM excludes Lua VMs, queues, caches and other runtime allocations. Measure
+free/largest-block/peak heap and task watermarks under load; never reduce stacks or
+reserves from one idle snapshot. Keep local logs/results in `temp/` and the task report,
+outside validation documentation.

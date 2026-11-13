@@ -25,7 +25,7 @@ class CMakeLayoutTests(unittest.TestCase):
     def test_default_sdk_is_the_pinned_submodule(self):
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
-            script = self.sdk_fixture(work, "0x20261114")
+            script = self.sdk_fixture(work, "0x20261115")
             subprocess.run(["cmake", "-P", str(script)], cwd=work, check=True,
                            capture_output=True, text=True)
             self.assertEqual(Path((work / "sdk-path.txt").read_text()).resolve(),
@@ -38,7 +38,7 @@ class CMakeLayoutTests(unittest.TestCase):
             result = subprocess.run(["cmake", "-P", str(script)], cwd=work,
                                     capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("ContractRevision 0x20261114", result.stderr)
+            self.assertIn("ContractRevision 0x20261115", result.stderr)
             self.assertIn("-DFLINT_PLATFORM_DIR=../Flint-IgniteSDK", result.stderr)
             self.assertFalse((work / "sdk-path.txt").exists())
 

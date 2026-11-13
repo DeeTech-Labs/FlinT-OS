@@ -37,4 +37,4 @@ build/        ignored local output, generated headers, dependency lock, factory 
 
 Реестры и factory-пакеты OS создаются общей функцией SDK `flint_generate_sdk` в `<build>/generated/sdk/include/` и `<build>/generated/sdk/factory/`. Примеры при сборке прошивки не компилируются. `factory.bin` остаётся в корне каталога сборки. Генерация и тесты не обновляют исходные `platform/include/`, `platform/factory/` и `platform/examples/`; неизменившиеся результаты не переписываются.
 
-Штатный SDK закреплён на 6e7a853 / 0x20261114. Используйте закреплённый revision из remote; не заменяйте его на latest. [Интеграция](sdk-integration.md).
+Штатный SDK закреплён на 56292d7 / 0x20261115. Используйте закреплённый revision из remote; не заменяйте его на latest. [Интеграция](sdk-integration.md).

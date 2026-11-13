@@ -47,7 +47,7 @@ CST816 raw transfers use a separate driver.
 
 ## Build and migration
 
-ESP-IDF6.1, ESP32-S3 and IgniteSDK ContractRevision0x20261113 are required. Until the SDK
+ESP-IDF6.1, ESP32-S3 and IgniteSDK ContractRevision0x20261114 are required. Until the SDK
 is committed/pinned, configure -DFLINT_PLATFORM_DIR=../Flint-IgniteSDK; configure rejects
 older SDKs. Rebuild packages for the incompatible revision. Partition layout and storage
 formatting are unchanged; /storage/packages/settings.bin and grants.bin remain in place.
@@ -67,4 +67,68 @@ PWM deadline stop runs on the Core event loop: physical overrun under task conte
 
 ## SDK revision
 
-The sensor SDK is pinned to local commit `3c8ad11` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
+The sensor SDK is pinned to local commit `18d22f4` in `platform/`. Normal builds use this submodule; an external FLINT_PLATFORM_DIR is only needed for deliberate SDK development.
+
+
+## Background service VM model policy
+
+The optional [background] device.toml section is independent of hardware selection. Spark
+uses provisional max_services=2, total declared memory131072B and foreground reserve49152B.
+This is an admission ceiling, not a physical two-VM guarantee. A missing section or
+max_services=0 disables the API and Core allocates no service slots. There is no FreeRTOS
+task per service: Core dispatches cooperative VMs sharing one Sensor Broker cache/cooldown
+with explicit InstanceKey ownership.
+
+The100ms window allows16384 instructions/64 native calls, quantum4096/16,4000us wall,
+2000us callback and1000us native-call budgets. Minimum timer/sensor/flush periods are
+100/100/60000ms. Configuration rejects unknown fields, invalid types/ranges and inconsistent
+nested budgets. Wall counters use esp_timer; instruction counts are not wall-clock limits.
+
+Admission checks current internal free heap and largest contiguous block after subtracting
+CONFIG_FLINT_INTERNAL_MEMORY_RESERVE, foreground reserve and32768B of additional BLE startup
+headroom. Existing VMs already consume free heap; the separate total policy bounds all
+services' declared memory. PSRAM is not advertised as additional internal service memory.
+Two live VMs still require validation under BLE/UI/Flash load.
+
+When battery ADC is configured, low-energy policy reads fresh cached voltage_mv only.
+The default3400mV threshold is configurable as background.low_voltage_mv. It is a conservative
+voltage policy, not SOC percentage or remaining-runtime estimation. Failed/stale/unknown
+voltage does not imply low energy. No battery module means no callback. Core owns energy
+pause/resume and reasons.
+
+The factory Services app shows actual service rows, three per page, state/reason and
+state-dependent Start/Stop, Pause/Resume, Auto and Revoke controls. Actions execute only on
+input release; target/action changes during a gesture cancel the command. Users can stop
+a service and revoke execution locally without Flare. Core requires a verified installed
+factory package and system.diagnostics; ordinary UI/service VMs cannot gain this privilege
+from a package ID. The app requires CapBackground and is excluded on unsupported models.
+
+Configuration tests and sandbox UI tests with mocked rows do not establish physical VM
+behavior. Measure two-VM admission, peak/fragmented heap, Core wakeups, wall/CPU under BLE/UI
+load and current for running/paused/no-services. Validate voltage thresholds with calibrated
+battery input and power-cycle/autostart/grant revocation. These hardware measurements are
+pending; max_services=2 remains provisional.
+
+
+## Static size of the validated build
+
+On2026-11-13 the active flint_spark profile (ST7789 only, background policy2) was built
+with ESP-IDF6.1.0, ESP32-S3 and pinned IgniteSDK 18d22f4 / ContractRevision0x20261114 through
+the regular platform submodule. The factory image includes Services. `idf.py build size`:
+
+| Metric | Bytes |
+| --- | ---: |
+| Padded flint_os.bin | 803760 |
+| Total image sections from linker map | 803650 |
+| Flash Code | 523884 |
+| Flash Data | 171636 |
+| Static DIRAM | 105142 |
+| Remaining1MiB app partition | 244816 |
+
+Static DIRAM remains105142B compared with the validated pre-background build:
+.text72811B, .data18899B, .bss13432B. This is linker-map/esp_idf_size evidence, **not runtime
+heap measurement** or proof that two service VMs fit in RAM. BackgroundState, the Core-owned
+Broker, Lua VMs, queues and dynamic caches allocate at runtime and require real free-heap,
+largest-block and peak measurements under load. These numbers describe this build, not
+another toolchain/configuration/SDK revision. Local logs: temp/background-idf-final.log
+and temp/background-idf-size.json.

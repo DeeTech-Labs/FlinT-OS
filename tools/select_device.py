@@ -103,13 +103,51 @@ def check_bool(value, where):
     return value
 
 
+# Model policy, not hardware capabilities. Runtime admission still checks the live heap.
+BACKGROUND_FIELDS = {
+    "max_services": (0, 4, 0, "maxServices"),
+    "total_memory_bytes": (0, 1048576, 0, "memoryBytes"),
+    "foreground_reserve_bytes": (49152, 1048576, 49152, "foregroundReserveBytes"),
+    "window_ms": (10, 1000, 100, "windowMs"),
+    "instructions_per_window": (1, 1000000, 16384, "instructionsPerWindow"),
+    "native_calls_per_window": (1, 4096, 64, "nativeCallsPerWindow"),
+    "quantum_instructions": (1, 100000, 4096, "quantumInstructions"),
+    "quantum_native_calls": (1, 4096, 16, "quantumNativeCalls"),
+    "wall_us_per_window": (1, 1000000, 4000, "wallUsPerWindow"),
+    "callback_wall_us": (1, 1000000, 2000, "callbackWallUs"),
+    "native_wall_us": (1, 1000000, 1000, "nativeWallUs"),
+    "min_timer_ms": (100, 3600000, 100, "minTimerMs"),
+    "min_sensor_interval_ms": (100, 60000, 100, "minSensorIntervalMs"),
+    "min_flush_ms": (60000, 86400000, 60000, "minFlushMs"),
+    "low_voltage_mv": (2500, 5000, 3400, None),
+}
+
+
+def load_background(value, where):
+    value = check_table(value, BACKGROUND_FIELDS, {}, where)
+    policy = {name: check_int(value.get(name, default), low, high, f"{where}.{name}")
+              for name, (low, high, default, _) in BACKGROUND_FIELDS.items()}
+    if policy["max_services"] and policy["total_memory_bytes"] < policy["max_services"] * 49152:
+        raise ValueError(f"{where}.total_memory_bytes: insufficient declared service memory")
+    for part, whole in (("quantum_instructions", "instructions_per_window"),
+                        ("quantum_native_calls", "native_calls_per_window"),
+                        ("callback_wall_us", "wall_us_per_window"),
+                        ("native_wall_us", "callback_wall_us")):
+        if policy[part] > policy[whole]:
+            raise ValueError(f"{where}.{part}: must not exceed {whole}")
+    if policy["wall_us_per_window"] > policy["window_ms"] * 1000:
+        raise ValueError(f"{where}.wall_us_per_window: exceeds scheduling window")
+    return policy
+
+
 def load_device(settings: Path) -> tuple[dict, dict, list[str], list[str]]:
     path = settings / "device.toml"
-    data = check_table(read_toml(path), {"name", "modules"}, {"name"}, str(path))
+    data = check_table(read_toml(path), {"name", "modules", "background"}, {"name"}, str(path))
     if not isinstance(data["name"], str) or not data["name"].strip():
         raise ValueError(f"{path}: name: expected a nonempty string")
     available = {p.name for p in MODULE_DIR.iterdir() if (p / "module.json").is_file()}
     modules = check_table(data.get("modules", {}), available, {}, f"{path}: modules")
+    background = load_background(data.get("background", {}), f"{path}: background")
     width, height = 280, 240
     roles, normalized, sources, requires, pins_used = {}, {}, [], [], {}
     bus_signals = {}
@@ -276,7 +314,7 @@ def load_device(settings: Path) -> tuple[dict, dict, list[str], list[str]]:
     for kind, source in (("display", "display/disabled.cpp"), ("touch", "input/disabled.cpp")):
         if kind not in normalized:
             sources.append(source)
-    return data, dict(width=width, height=height, **normalized), sources, requires
+    return data, dict(width=width, height=height, background=background, **normalized), sources, requires
 
 
 def generated_headers(profile, config):
@@ -305,7 +343,14 @@ def generated_headers(profile, config):
     if "i2c" in config:
         constants.update(I2C_SDA=config["i2c"]["sda"], I2C_SCL=config["i2c"]["scl"])
     display = config.get("display")
-    result = {}
+    policy = config.get("background", load_background({}, "background"))
+    header += f'#define FLINT_HAS_BACKGROUND {int(policy["max_services"] > 0)}\n'
+    fields = "".join(f'    .{field} = {policy[name]},\n'
+                     for name, (_, _, _, field) in BACKGROUND_FIELDS.items() if field)
+    result = {"device_background.h": (
+        '// Generated from device.toml. Do not edit.\n#pragma once\n#include <flint/background.h>\n'
+        'namespace flint::board {\ninline constexpr BackgroundPolicy Background{\n' + fields + '};\nstatic_assert(Background.maxServices <= MaxBackgroundServices);\n'
+        f'inline constexpr unsigned BackgroundLowVoltageMv = {policy["low_voltage_mv"]};\n' + '}\n')}
     if display:
         p = display["panel"]
         signals = (("MOSI", "mosi"), ("SCLK", "sclk"), ("CS", "cs"), ("DC", "dc"), ("RST", "reset"))

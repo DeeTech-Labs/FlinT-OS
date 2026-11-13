@@ -31,3 +31,21 @@ init = [
     { command = 0x11, data = [], delay_ms = 130 },
     { command = 0x38, data = [], delay_ms = 0 },
 ]
+
+# Provisional cooperative service limits; admission checks live heap and foreground headroom.
+[background]
+max_services = 2
+total_memory_bytes = 131072
+foreground_reserve_bytes = 49152
+window_ms = 100
+instructions_per_window = 16384
+native_calls_per_window = 64
+quantum_instructions = 4096
+quantum_native_calls = 16
+wall_us_per_window = 4000
+callback_wall_us = 2000
+native_wall_us = 1000
+min_timer_ms = 100
+min_sensor_interval_ms = 100
+min_flush_ms = 60000
+low_voltage_mv = 3400

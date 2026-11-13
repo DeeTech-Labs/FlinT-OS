@@ -1,4 +1,5 @@
 #include "ble/ble_link.h"
+#include "board/device_background.h"
 #include "board/device_config.h"
 #include "core/bridge.h"
 #include "display/display.h"
@@ -171,6 +172,29 @@ void appSetup(bool trustReady) {
         return flint::MemoryBudget{std::min<uint32_t>(internal, 48 * 1024),
             budget(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, CONFIG_FLINT_PSRAM_MEMORY_RESERVE), 4096};
     };
+    platform.background = flint::board::Background;
+#if FLINT_HAS_BACKGROUND
+    platform.background_available_memory = [] {
+        const auto caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+        const auto free = heap_caps_get_free_size(caps);
+        const auto largest = heap_caps_get_largest_free_block(caps);
+        const size_t bleStartupReserve = !bootSnapshotReady && expectBleInitialization ? 32768 : 0;
+        const size_t reserve = CONFIG_FLINT_INTERNAL_MEMORY_RESERVE +
+            flint::board::Background.foregroundReserveBytes + bleStartupReserve;
+        const auto available = std::min(free > reserve ? free - reserve : 0, largest);
+        return flint::MemoryBudget{
+            uint32_t(std::min<size_t>(available, flint::board::Background.memoryBytes)), 0,
+            flint::board::Background.instructionsPerWindow};
+    };
+#if FLINT_HAS_BATTERY
+    platform.background_low_energy = [] {
+        flint::AppReply reply;
+        // Cache only: failed/stale/unknown voltage does not invent a low-battery state.
+        return devicePowerStatus("voltage_mv", reply) == flint::Error::ok && reply.numeric &&
+            reply.number > 0 && reply.number < flint::board::BackgroundLowVoltageMv;
+    };
+#endif
+#endif
     platform.diagnostics = [] {
         flint::Values values;
         values["internal_reserve_bytes"] = std::to_string(CONFIG_FLINT_INTERNAL_MEMORY_RESERVE);

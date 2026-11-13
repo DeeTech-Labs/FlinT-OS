@@ -195,6 +195,69 @@ pins = { sda = 1, scl = 2, reset = 6, interrupt = 7 }
             with self.assertRaisesRegex(ValueError, "unsupported sensor address"):
                 selector.load_device(settings)
 
+    def test_background_model_policy_is_typed_and_does_not_enable_hardware(self):
+        _, config, sources, requires = selector.load_device(selector.CONFIG_DIR / "flint_spark")
+        policy = config["background"]
+        self.assertEqual((policy["max_services"], policy["total_memory_bytes"],
+                          policy["foreground_reserve_bytes"]), (2, 131072, 49152))
+        self.assertEqual((policy["window_ms"], policy["instructions_per_window"],
+                          policy["native_calls_per_window"]), (100, 16384, 64))
+        self.assertEqual((policy["quantum_instructions"], policy["quantum_native_calls"],
+                          policy["wall_us_per_window"], policy["callback_wall_us"]),
+                         (4096, 16, 4000, 2000))
+        self.assertEqual(policy["low_voltage_mv"], 3400)
+        self.assertEqual(set(config) - {"width", "height", "background"}, {"display"})
+        headers = selector.generated_headers(selector.PROFILES["flint_spark"], config)
+        self.assertIn("#define FLINT_HAS_BACKGROUND 1", headers["device_config.h"])
+        self.assertIn(".maxServices = 2", headers["device_background.h"])
+        self.assertIn(".minFlushMs = 60000", headers["device_background.h"])
+        self.assertFalse(any("service" in source for source in sources))
+        self.assertNotIn("esp_driver_i2c", requires)
+
+    def test_background_defaults_disable_runtime_without_module_tasks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings = Path(directory)
+            (settings / "device.toml").write_text('name = "Disabled"\n', encoding="utf-8")
+            _, config, sources, requires = selector.load_device(settings)
+            self.assertEqual(config["background"]["max_services"], 0)
+            self.assertEqual(config["background"]["total_memory_bytes"], 0)
+            headers = selector.generated_headers(selector.PROFILES["flint_spark"], config)
+            self.assertIn("#define FLINT_HAS_BACKGROUND 0", headers["device_config.h"])
+            self.assertIn(".maxServices = 0", headers["device_background.h"])
+            self.assertEqual(sources, ["display/disabled.cpp", "input/disabled.cpp"])
+            self.assertFalse(requires)
+            policy = selector.load_background({"max_services": 0}, "background")
+            self.assertEqual(policy["max_services"], 0)
+
+    def test_background_policy_rejects_bounds_unknown_keys_and_inconsistent_budgets(self):
+        invalid = ({"max_services": True}, {"max_services": 5}, {"max_services": -1},
+                   {"max_services": 2, "total_memory_bytes": 16384},
+                   {"total_memory_bytes": 1048577}, {"foreground_reserve_bytes": 0},
+                   {"window_ms": 0}, {"window_ms": 1}, {"window_ms": 9}, {"wall_us_per_window": 100001},
+                   {"callback_wall_us": 4001}, {"native_wall_us": 2001},
+                   {"quantum_instructions": 16385}, {"quantum_native_calls": 65},
+                   {"min_timer_ms": 99}, {"min_sensor_interval_ms": 99},
+                   {"min_flush_ms": 59999}, {"low_voltage_mv": 0}, {"typo": 1})
+        for policy in invalid:
+            with self.subTest(policy=policy), self.assertRaises(ValueError):
+                selector.load_background(policy, "background")
+
+    def test_invalid_background_policy_preserves_previous_generated_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = root / "config" / "flint_spark"
+            settings.mkdir(parents=True)
+            target = settings / "device.toml"
+            target.write_text('name = "Test"\n[background]\nmax_services = 0\n', encoding="utf-8")
+            with patch.object(selector, "CONFIG_DIR", root / "config"):
+                selector.cmd_generate("", quiet=True, build_dir=root / "build")
+                output = root / "build/generated/board"
+                previous = {path.name: path.read_bytes() for path in output.iterdir()}
+                target.write_text('name = "Test"\n[background]\nmax_services = 5\n', encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    selector.cmd_generate("", quiet=True, build_dir=root / "build")
+                self.assertEqual(previous, {path.name: path.read_bytes() for path in output.iterdir()})
+
     def test_target_reads_selected_configuration(self):
         with tempfile.TemporaryDirectory() as directory:
             build = Path(directory)

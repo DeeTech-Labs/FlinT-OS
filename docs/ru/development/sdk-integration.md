@@ -2,7 +2,7 @@
 
 # Интеграция SDK и touch/UI
 
-OS использует SDK `ContractRevision=0x20261113`, закреплённый локальным commit `3c8ad11` в `platform/`. Обычная сборка использует submodule. Для намеренной разработки SDK допускается явный `FLINT_PLATFORM_DIR`. См. [сервис датчиков](../hardware/sensor-service.md).
+OS использует SDK `ContractRevision=0x20261114`, закреплённый локальным commit `18d22f4` в `platform/`. Обычная сборка использует submodule. Для намеренной разработки SDK допускается явный `FLINT_PLATFORM_DIR`. См. [сервис датчиков](../hardware/sensor-service.md).
 
 ```sh
 idf.py -B build/sdk-integration -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s3 build
@@ -12,4 +12,4 @@ idf.py -B build/sdk-integration -DSDKCONFIG=config/sdkconfig -DIDF_TARGET=esp32s
 
 Для воспроизведения на другом ПК инициализируйте закреплённый SDK: `git submodule update --init --recursive`. Flare закрепляет тот же SDK commit. Подробности проверки платы: [отчёт 2026-11-12](../validation/2026-11-12-icon-ui-resources.md).
 
-Контракт использует FLM2 и FLIM v2; прежние пакеты нужно пересобрать. Бинарный framing протокола и таблица разделов сохранены. Application-only OTA не обновляет заводские пакеты: прошивка и `factory.bin` должны происходить из одного дерева SDK.
+Контракт использует FLM3 и FLIM v2; прежние пакеты нужно пересобрать. Бинарный framing протокола и таблица разделов сохранены. Application-only OTA не обновляет заводские пакеты: прошивка и `factory.bin` должны происходить из одного дерева SDK.

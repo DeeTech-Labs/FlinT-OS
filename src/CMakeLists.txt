@@ -13,7 +13,7 @@ endif()
 idf_component_register(
     SRCS ${FLINT_LUA_CORE} ${FLINT_MODULE_SOURCES} core/application.cpp hardware/peripherals.cpp ble/ble_link.cpp usb/usb_link.cpp
         "${PLATFORM}/src/lua_app.cpp" "${PLATFORM}/src/manifest.cpp" "${PLATFORM}/src/storage.cpp" "${PLATFORM}/src/runtime.cpp"
-        "${PLATFORM}/src/flim.cpp" "${PLATFORM}/src/icons.cpp" "${PLATFORM}/src/resources.cpp" "${PLATFORM}/src/sensors.cpp" "${PLATFORM}/src/core_sensors.cpp" "${PLATFORM}/src/core_hardware.cpp" "${PLATFORM}/src/core.cpp" "${PLATFORM}/src/core_ui.cpp" "${PLATFORM}/src/core_touch.cpp" "${PLATFORM}/src/fonts.cpp"
+        "${PLATFORM}/src/flim.cpp" "${PLATFORM}/src/icons.cpp" "${PLATFORM}/src/resources.cpp" "${PLATFORM}/src/sensors.cpp" "${PLATFORM}/src/core_sensors.cpp" "${PLATFORM}/src/core_hardware.cpp" "${PLATFORM}/src/core_background.cpp" "${PLATFORM}/src/service_runtime.cpp" "${PLATFORM}/src/core.cpp" "${PLATFORM}/src/core_ui.cpp" "${PLATFORM}/src/core_touch.cpp" "${PLATFORM}/src/fonts.cpp"
     INCLUDE_DIRS "${CMAKE_BINARY_DIR}/generated/sdk/include" "${CMAKE_BINARY_DIR}/generated" "." "${PLATFORM}/include"
     LDFRAGMENTS usb/usb.lf
     REQUIRES esp_app_format bt esp_partition nvs_flash esp_timer freertos heap log esp_driver_usb_serial_jtag joltwallet__littlefs ${FLINT_MODULE_IDF_REQUIRES}
